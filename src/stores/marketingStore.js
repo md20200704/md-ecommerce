@@ -39,7 +39,7 @@ export const useMarketingStore = defineStore('marketing', () => {
     }
   ])
 
-  // 2. VIP 階級與紅利點數回饋趴數制度（後台可即時調整）
+  // 2. VIP 階級與紅利點數回饋趴數制度（支援後台新增、修改、刪除）
   const vipTiers = ref([
     {
       id: 'GENERAL',
@@ -79,7 +79,41 @@ export const useMarketingStore = defineStore('marketing', () => {
     }
   ])
 
-  // 3. 全館優惠券與優惠碼庫
+  // 新增 VIP 階級
+  const addVipTier = (newTier) => {
+    const cleanId = (newTier.id || 'TIER_' + Date.now()).trim().toUpperCase()
+    if (vipTiers.value.some(t => t.id === cleanId)) {
+      return { success: false, message: `階級代碼 ${cleanId} 已存在，請更換其他代碼！` }
+    }
+    vipTiers.value.push({
+      id: cleanId,
+      name: newTier.name.trim(),
+      minSpend: Number(newTier.minSpend) || 0,
+      discountRate: Number(newTier.discountRate) || 1.0,
+      pointsEarnRate: Number(newTier.pointsEarnRate) || 1,
+      badgeColor: newTier.badgeColor || 'bg-primary-subtle text-primary',
+      description: newTier.description || '專屬 VIP 尊榮禮遇'
+    })
+    // 依門檻金額由低到高自動排序
+    vipTiers.value.sort((a, b) => a.minSpend - b.minSpend)
+    return { success: true, message: `已新增 VIP 階級【${newTier.name}】` }
+  }
+
+  // 刪除 VIP 階級（保留至少一個基礎階級）
+  const removeVipTier = (tierId) => {
+    if (vipTiers.value.length <= 1) {
+      return { success: false, message: '系統至少須保留一個會員階級，無法全部刪除！' }
+    }
+    const idx = vipTiers.value.findIndex(t => t.id === tierId)
+    if (idx > -1) {
+      const removedName = vipTiers.value[idx].name
+      vipTiers.value.splice(idx, 1)
+      return { success: true, message: `已刪除 VIP 階級【${removedName}】` }
+    }
+    return { success: false, message: '找不到該階級' }
+  }
+
+  // 3. 全館優惠券與優惠碼庫（百分比折扣支援 maxDiscount 最高折抵金額上限）
   const couponTemplates = ref([
     {
       id: 'CPN-001',
@@ -87,6 +121,7 @@ export const useMarketingStore = defineStore('marketing', () => {
       title: '首爾新客見面禮',
       type: 'FIXED',
       value: 100,
+      maxDiscount: 0, // 定額折抵不需上限
       minSpend: 500,
       expiryDate: '2026-12-31',
       isActive: true,
@@ -98,6 +133,7 @@ export const useMarketingStore = defineStore('marketing', () => {
       title: 'VIP 尊榮月度禮金',
       type: 'FIXED',
       value: 200,
+      maxDiscount: 0,
       minSpend: 1200,
       expiryDate: '2026-12-31',
       isActive: true,
@@ -109,6 +145,7 @@ export const useMarketingStore = defineStore('marketing', () => {
       title: '壽星專屬生日禮券',
       type: 'FIXED',
       value: 300,
+      maxDiscount: 0,
       minSpend: 1000,
       expiryDate: '2026-12-31',
       isActive: true,
@@ -120,20 +157,51 @@ export const useMarketingStore = defineStore('marketing', () => {
       title: '冬季新品 88 折券',
       type: 'PERCENT',
       value: 0.88,
+      maxDiscount: 500, // ★ 百分比打折最高折抵上限 NT$ 500 ★
       minSpend: 1500,
       expiryDate: '2026-12-31',
       isActive: true,
-      description: '冬裝全系列滿 NT$ 1,500 享 88 折優惠'
+      description: '冬裝全系列滿 NT$ 1,500 享 88 折（最高折抵 NT$ 500）'
     }
   ])
 
-  // 4. 自動化發送規則
-  const autoDispatchRules = ref({
-    birthdayEnabled: true,
-    birthdayCouponCode: 'HBD300',
-    monthlyVipEnabled: true,
-    monthlyVipCouponCode: 'VIP200'
-  })
+  // 4. ★ 多組自動化優惠券派發規則（可自訂發送對象、每月1號或指定發送日期） ★
+  const autoDispatchRules = ref([
+    {
+      id: 'RULE-01',
+      name: '當月壽星生日禮自動發送',
+      targetGroup: 'BIRTHDAY_MONTH', // BIRTHDAY_MONTH | ALL_ACTIVE | ALL_VIP | TIER:<ID>
+      scheduleType: 'MONTHLY_1ST', // MONTHLY_1ST (每月1號) | SPECIFIC_DATE (指定日期)
+      specificDate: '',
+      couponCode: 'HBD300',
+      isActive: true
+    },
+    {
+      id: 'RULE-02',
+      name: '全體 VIP 會員每月購物金',
+      targetGroup: 'ALL_VIP',
+      scheduleType: 'MONTHLY_1ST',
+      specificDate: '',
+      couponCode: 'VIP200',
+      isActive: true
+    }
+  ])
+
+  const addAutoDispatchRule = (rule) => {
+    autoDispatchRules.value.unshift({
+      id: 'RULE-' + Date.now(),
+      name: rule.name.trim(),
+      targetGroup: rule.targetGroup,
+      scheduleType: rule.scheduleType,
+      specificDate: rule.scheduleType === 'SPECIFIC_DATE' ? rule.specificDate : '',
+      couponCode: rule.couponCode,
+      isActive: true
+    })
+  }
+
+  const removeAutoDispatchRule = (ruleId) => {
+    autoDispatchRules.value = autoDispatchRules.value.filter(r => r.id !== ruleId)
+  }
 
   const getTierById = (tierId) => {
     return vipTiers.value.find(t => t.id === tierId) || vipTiers.value[0]
@@ -149,8 +217,12 @@ export const useMarketingStore = defineStore('marketing', () => {
     banners,
     categoryTree,
     vipTiers,
+    addVipTier,
+    removeVipTier,
     couponTemplates,
     autoDispatchRules,
+    addAutoDispatchRule,
+    removeAutoDispatchRule,
     getTierById,
     findCouponByCode
   }

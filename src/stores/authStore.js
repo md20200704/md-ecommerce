@@ -26,10 +26,23 @@ export const useAuthStore = defineStore('auth', () => {
         title: '首爾新客見面禮',
         type: 'FIXED',
         value: 100,
+        maxDiscount: 0,
         minSpend: 500,
         expiryDate: '2026-12-31',
         isUsed: false,
         source: '輸入優惠碼領取'
+      },
+      {
+        instanceId: 'UCPN-102',
+        code: 'WINTER88',
+        title: '冬季新品 88 折券',
+        type: 'PERCENT',
+        value: 0.88,
+        maxDiscount: 500,
+        minSpend: 1500,
+        expiryDate: '2026-12-31',
+        isUsed: false,
+        source: '冬季活動禮遇'
       }
     ],
     savedAddresses: [
@@ -133,7 +146,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   ])
 
-  // 3. 登入與註冊
   const login = (loginData = {}) => {
     const matched = memberList.value.find(
       m => m.email === loginData.email || m.phone === loginData.account || m.phone === loginData.phone
@@ -152,7 +164,7 @@ export const useAuthStore = defineStore('auth', () => {
         phone: loginData.phone || '',
         email: loginData.email || '',
         birthday: loginData.birthday || '',
-        vipTierId: 'GENERAL',
+        vipTierId: marketingStore.vipTiers[0]?.id || 'GENERAL',
         totalSpent: 0,
         orderCount: 0,
         abandonCount: 0,
@@ -169,7 +181,7 @@ export const useAuthStore = defineStore('auth', () => {
       email: loginData.email || (matched ? matched.email : 'user@md-korea.com'),
       birthday: loginData.birthday || (matched ? matched.birthday : ''),
       totalSpent: matched?.totalSpent ?? 0,
-      vipTierId: matched?.vipTierId || 'GENERAL',
+      vipTierId: matched?.vipTierId || marketingStore.vipTiers[0]?.id || 'GENERAL',
       points: user.value?.points ?? 100,
       wishlist: user.value?.wishlist ?? [],
       restockRequests: user.value?.restockRequests ?? [],
@@ -217,7 +229,7 @@ export const useAuthStore = defineStore('auth', () => {
     return { success: true, message: `已更新會員【${target.name}】的基本資料與生日設定` }
   }
 
-  // 輸入優惠碼領取優惠券
+  // 輸入優惠碼領取優惠券（完整攜帶 maxDiscount 上限）
   const claimCouponByCode = (code, sourceLabel = '輸入優惠碼領取') => {
     if (!user.value?.isLoggedIn) {
       return { success: false, message: '請先登入會員帳號再領取優惠券！' }
@@ -242,6 +254,7 @@ export const useAuthStore = defineStore('auth', () => {
       title: template.title,
       type: template.type,
       value: template.value,
+      maxDiscount: Number(template.maxDiscount) || 0,
       minSpend: template.minSpend,
       expiryDate: template.expiryDate,
       isUsed: false,
@@ -261,27 +274,31 @@ export const useAuthStore = defineStore('auth', () => {
     if (cpn) cpn.isUsed = true
   }
 
-  const dispatchCouponToMembers = ({ couponCode, targetGroup, singleMemberId = null }) => {
+  // ★ 支援多對象分類派發優惠券（本月壽星 / 全體會員 / 全體 VIP / 指定特定 VIP 階級 TIER:XXX） ★
+  const dispatchCouponToMembers = ({ couponCode, targetGroup, sourceName = '系統活動派發' }) => {
     const template = marketingStore.findCouponByCode(couponCode)
     if (!template) return { success: false, message: '找不到對應的有效優惠券模板！' }
 
     const currentMonth = new Date().getMonth() + 1
     let targetMembers = []
 
-    if (targetGroup === 'SINGLE' && singleMemberId) {
-      targetMembers = memberList.value.filter(m => m.id === singleMemberId)
-    } else if (targetGroup === 'BIRTHDAY_MONTH') {
+    if (targetGroup === 'BIRTHDAY_MONTH') {
       targetMembers = memberList.value.filter(m => {
         if (!m.birthday) return false
         const bMonth = Number(m.birthday.split('-')[1])
         return bMonth === currentMonth && m.riskStatus !== 'BANNED'
       })
     } else if (targetGroup === 'ALL_VIP') {
-      targetMembers = memberList.value.filter(m =>
-        ['SILVER', 'GOLD', 'DIAMOND'].includes(m.vipTierId) && m.riskStatus !== 'BANNED'
+      targetMembers = memberList.value.filter(
+        m => (m.vipTierId && m.vipTierId !== 'GENERAL') && m.riskStatus !== 'BANNED'
       )
     } else if (targetGroup === 'ALL_ACTIVE') {
       targetMembers = memberList.value.filter(m => m.riskStatus !== 'BANNED')
+    } else if (targetGroup && targetGroup.startsWith('TIER:')) {
+      const targetTierId = targetGroup.replace('TIER:', '')
+      targetMembers = memberList.value.filter(
+        m => (m.vipTierId || 'GENERAL') === targetTierId && m.riskStatus !== 'BANNED'
+      )
     }
 
     const isCurrentUserIncluded = targetMembers.some(
@@ -294,17 +311,18 @@ export const useAuthStore = defineStore('auth', () => {
         title: template.title,
         type: template.type,
         value: template.value,
+        maxDiscount: Number(template.maxDiscount) || 0,
         minSpend: template.minSpend,
         expiryDate: template.expiryDate,
         isUsed: false,
-        source: targetGroup === 'BIRTHDAY_MONTH' ? '系統生日禮自動派發' : 'VIP 專屬活動派發'
+        source: sourceName
       })
     }
 
     return {
       success: true,
       count: targetMembers.length,
-      message: `已成功派發優惠券【${template.title} (${template.code})】給符合條件的 ${targetMembers.length} 位會員！`
+      message: `已成功執行規則，派發【${template.title} (${template.code})】給符合條件的 ${targetMembers.length} 位會員！`
     }
   }
 
