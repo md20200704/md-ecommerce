@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMarketingStore = defineStore('marketing', () => {
-  // 1. 首頁輪播與分類樹
+  // 1. 首頁輪播與多層級分類樹（主分類 -> 分組 -> 細項分類）
   const banners = ref([
     {
       id: 1,
@@ -21,25 +21,50 @@ export const useMarketingStore = defineStore('marketing', () => {
     {
       name: 'Top 上衣',
       subcategories: [
-        { name: '季節精選', items: ['針織毛衣', '氣質襯衫', '修身內搭'] },
+        { name: '季節精選', items: ['針織毛衣', '氣質襯衫', '修身內搭', '大學T / 衛衣'] },
         { name: '風格分類', items: ['韓系極簡', '法式慵懶'] }
       ]
     },
     {
       name: 'Outer 外套',
       subcategories: [
-        { name: '大衣系列', items: ['羊毛長大衣', '西裝外套', '短版夾克'] }
+        { name: '大衣與外套', items: ['羊毛長大衣', '西裝外套', '短版夾克', '針織開襟外套'] }
       ]
     },
     {
       name: 'Bottom 下身',
       subcategories: [
-        { name: '褲裝與裙裝', items: ['直筒西裝褲', '牛仔寬褲', '長裙'] }
+        { name: '褲裝與裙裝', items: ['直筒西裝褲', '牛仔寬褲', 'A字長裙', '百褶短裙'] }
+      ]
+    },
+    {
+      name: 'Dress 洋裝 / 套裝',
+      subcategories: [
+        { name: '連身系列', items: ['針織長洋裝', '氣質襯衫洋裝', '兩件式套裝'] }
+      ]
+    },
+    {
+      name: 'Accessories 配件',
+      subcategories: [
+        { name: '包款與飾品', items: ['真皮肩背包', '羊毛圍巾', '極簡飾品'] }
       ]
     }
   ])
 
-  // 2. VIP 階級與紅利點數回饋趴數制度（支援後台新增、修改、刪除）
+  // 依據主分類名稱取得底下所有細項清單
+  const getSubItemsByCategory = (categoryName) => {
+    const cat = categoryTree.value.find(c => c.name === categoryName)
+    if (!cat || !cat.subcategories) return []
+    const items = []
+    cat.subcategories.forEach(group => {
+      if (Array.isArray(group.items)) {
+        items.push(...group.items)
+      }
+    })
+    return items
+  }
+
+  // 2. VIP 階級與紅利點數回饋趴數制度
   const vipTiers = ref([
     {
       id: 'GENERAL',
@@ -79,7 +104,6 @@ export const useMarketingStore = defineStore('marketing', () => {
     }
   ])
 
-  // 新增 VIP 階級
   const addVipTier = (newTier) => {
     const cleanId = (newTier.id || 'TIER_' + Date.now()).trim().toUpperCase()
     if (vipTiers.value.some(t => t.id === cleanId)) {
@@ -94,12 +118,10 @@ export const useMarketingStore = defineStore('marketing', () => {
       badgeColor: newTier.badgeColor || 'bg-primary-subtle text-primary',
       description: newTier.description || '專屬 VIP 尊榮禮遇'
     })
-    // 依門檻金額由低到高自動排序
     vipTiers.value.sort((a, b) => a.minSpend - b.minSpend)
     return { success: true, message: `已新增 VIP 階級【${newTier.name}】` }
   }
 
-  // 刪除 VIP 階級（保留至少一個基礎階級）
   const removeVipTier = (tierId) => {
     if (vipTiers.value.length <= 1) {
       return { success: false, message: '系統至少須保留一個會員階級，無法全部刪除！' }
@@ -113,7 +135,7 @@ export const useMarketingStore = defineStore('marketing', () => {
     return { success: false, message: '找不到該階級' }
   }
 
-  // 3. 全館優惠券與優惠碼庫（百分比折扣支援 maxDiscount 最高折抵金額上限）
+  // 3. 全館優惠券與優惠碼庫
   const couponTemplates = ref([
     {
       id: 'CPN-001',
@@ -121,7 +143,7 @@ export const useMarketingStore = defineStore('marketing', () => {
       title: '首爾新客見面禮',
       type: 'FIXED',
       value: 100,
-      maxDiscount: 0, // 定額折抵不需上限
+      maxDiscount: 0,
       minSpend: 500,
       expiryDate: '2026-12-31',
       isActive: true,
@@ -157,21 +179,33 @@ export const useMarketingStore = defineStore('marketing', () => {
       title: '冬季新品 88 折券',
       type: 'PERCENT',
       value: 0.88,
-      maxDiscount: 500, // ★ 百分比打折最高折抵上限 NT$ 500 ★
+      maxDiscount: 500,
       minSpend: 1500,
       expiryDate: '2026-12-31',
       isActive: true,
       description: '冬裝全系列滿 NT$ 1,500 享 88 折（最高折抵 NT$ 500）'
+    },
+    {
+      id: 'CPN-005',
+      code: 'UPGRADE500',
+      title: 'VIP 晉升專屬賀禮券',
+      type: 'FIXED',
+      value: 500,
+      maxDiscount: 0,
+      minSpend: 2000,
+      expiryDate: '2026-12-31',
+      isActive: true,
+      description: '恭喜晉升 VIP 等級！單筆滿 NT$ 2,000 現折 NT$ 500'
     }
   ])
 
-  // 4. ★ 多組自動化優惠券派發規則（可自訂發送對象、每月1號或指定發送日期） ★
+  // 4. 自動化優惠券派發規則排程
   const autoDispatchRules = ref([
     {
       id: 'RULE-01',
       name: '當月壽星生日禮自動發送',
-      targetGroup: 'BIRTHDAY_MONTH', // BIRTHDAY_MONTH | ALL_ACTIVE | ALL_VIP | TIER:<ID>
-      scheduleType: 'MONTHLY_1ST', // MONTHLY_1ST (每月1號) | SPECIFIC_DATE (指定日期)
+      targetGroup: 'BIRTHDAY_MONTH',
+      scheduleType: 'MONTHLY_1ST',
       specificDate: '',
       couponCode: 'HBD300',
       isActive: true
@@ -183,6 +217,15 @@ export const useMarketingStore = defineStore('marketing', () => {
       scheduleType: 'MONTHLY_1ST',
       specificDate: '',
       couponCode: 'VIP200',
+      isActive: true
+    },
+    {
+      id: 'RULE-03',
+      name: '會員 VIP 階級升級專屬賀禮',
+      targetGroup: 'ANY_UPGRADE',
+      scheduleType: 'VIP_UPGRADE',
+      specificDate: '',
+      couponCode: 'UPGRADE500',
       isActive: true
     }
   ])
@@ -216,6 +259,7 @@ export const useMarketingStore = defineStore('marketing', () => {
   return {
     banners,
     categoryTree,
+    getSubItemsByCategory,
     vipTiers,
     addVipTier,
     removeVipTier,

@@ -146,6 +146,127 @@ export const useAuthStore = defineStore('auth', () => {
     }
   ])
 
+  // 當會員 VIP 升級時，自動觸發發送符合條件的升級優惠券
+  const triggerVipUpgradeCoupons = (memberRecord, newTierId) => {
+    if (!memberRecord || memberRecord.riskStatus === 'BANNED') return []
+
+    const upgradeRules = (marketingStore.autoDispatchRules || []).filter(
+      r => r.isActive && r.scheduleType === 'VIP_UPGRADE'
+    )
+
+    const dispatchedCoupons = []
+
+    upgradeRules.forEach(rule => {
+      const isMatch =
+        rule.targetGroup === 'ANY_UPGRADE' ||
+        rule.targetGroup === `TIER:${newTierId}`
+
+      if (isMatch) {
+        const template = marketingStore.findCouponByCode(rule.couponCode)
+        if (template) {
+          dispatchedCoupons.push(template)
+          if (
+            user.value?.isLoggedIn &&
+            (user.value.email === memberRecord.email || user.value.phone === memberRecord.phone)
+          ) {
+            user.value.myCoupons.unshift({
+              instanceId: 'UCPN-' + Date.now() + Math.floor(Math.random() * 1000),
+              code: template.code,
+              title: template.title,
+              type: template.type,
+              value: template.value,
+              maxDiscount: Number(template.maxDiscount) || 0,
+              minSpend: template.minSpend,
+              expiryDate: template.expiryDate,
+              isUsed: false,
+              source: `VIP 晉升自動發送 (${rule.name})`
+            })
+          }
+        }
+      }
+    })
+
+    return dispatchedCoupons
+  }
+
+  // 僅當訂單正式「已完成」時，才結算累積消費金額、發放紅利點數並檢查 VIP 升級
+  const settleCompletedOrderRewards = (order) => {
+    if (!order || order.rewardsSettled) {
+      return { settled: false, upgraded: false }
+    }
+
+    const orderAmount = Number(order.totalAmount || order.total || 0)
+    const earnedPoints = Number(order.earnedPoints || 0)
+
+    const memberRecord = memberList.value.find(
+      m =>
+        (order.email && m.email === order.email) ||
+        (order.phone && m.phone === order.phone) ||
+        (order.recipientName && m.name === order.recipientName)
+    )
+
+    let newTotalSpent = 0
+    let oldTierId = 'GENERAL'
+
+    if (memberRecord) {
+      oldTierId = memberRecord.vipTierId || 'GENERAL'
+      memberRecord.totalSpent = (Number(memberRecord.totalSpent) || 0) + orderAmount
+      memberRecord.orderCount = (Number(memberRecord.orderCount) || 0) + 1
+      memberRecord.updatedAt = new Date().toISOString().slice(0, 10)
+      newTotalSpent = memberRecord.totalSpent
+    }
+
+    const isCurrentUser =
+      user.value?.isLoggedIn &&
+      ((order.email && user.value.email === order.email) ||
+        (order.phone && user.value.phone === order.phone) ||
+        (order.recipientName && user.value.name === order.recipientName))
+
+    if (isCurrentUser) {
+      oldTierId = user.value.vipTierId || oldTierId
+      user.value.totalSpent = memberRecord
+        ? memberRecord.totalSpent
+        : (Number(user.value.totalSpent) || 0) + orderAmount
+      user.value.points = (Number(user.value.points) || 0) + earnedPoints
+      newTotalSpent = user.value.totalSpent
+    }
+
+    // 標記此訂單已完成獎勵與累積消費結算，防止重複入帳
+    order.rewardsSettled = true
+
+    const sortedTiers = [...(marketingStore.vipTiers || [])].sort((a, b) => a.minSpend - b.minSpend)
+    const oldTierIndex = sortedTiers.findIndex(t => t.id === oldTierId)
+
+    let qualifiedTier = sortedTiers[0]
+    for (const tier of sortedTiers) {
+      if (newTotalSpent >= tier.minSpend) {
+        qualifiedTier = tier
+      }
+    }
+
+    const newTierIndex = sortedTiers.findIndex(t => t.id === qualifiedTier.id)
+
+    if (newTierIndex > oldTierIndex) {
+      if (memberRecord) memberRecord.vipTierId = qualifiedTier.id
+      if (isCurrentUser) user.value.vipTierId = qualifiedTier.id
+
+      const issuedCoupons = triggerVipUpgradeCoupons(memberRecord || user.value, qualifiedTier.id)
+      return {
+        settled: true,
+        earnedPoints,
+        upgraded: true,
+        newTier: qualifiedTier,
+        issuedCoupons
+      }
+    }
+
+    return {
+      settled: true,
+      earnedPoints,
+      upgraded: false
+    }
+  }
+
   const login = (loginData = {}) => {
     const matched = memberList.value.find(
       m => m.email === loginData.email || m.phone === loginData.account || m.phone === loginData.phone
@@ -213,6 +334,7 @@ export const useAuthStore = defineStore('auth', () => {
     const target = memberList.value.find(m => m.id === memberId)
     if (!target) return { success: false, message: '找不到該會員' }
 
+    const oldTierId = target.vipTierId
     if (payload.name !== undefined) target.name = payload.name
     if (payload.phone !== undefined) target.phone = payload.phone
     if (payload.birthday !== undefined) target.birthday = payload.birthday
@@ -226,10 +348,22 @@ export const useAuthStore = defineStore('auth', () => {
       user.value.vipTierId = target.vipTierId
     }
 
-    return { success: true, message: `已更新會員【${target.name}】的基本資料與生日設定` }
+    let upgradeNote = ''
+    if (payload.vipTierId && payload.vipTierId !== oldTierId) {
+      const tiers = marketingStore.vipTiers || []
+      const oldIdx = tiers.findIndex(t => t.id === oldTierId)
+      const newIdx = tiers.findIndex(t => t.id === payload.vipTierId)
+      if (newIdx > oldIdx) {
+        const issued = triggerVipUpgradeCoupons(target, payload.vipTierId)
+        if (issued.length > 0) {
+          upgradeNote = `，並已自動發送升級禮券【${issued.map(c => c.title).join('、')}】！`
+        }
+      }
+    }
+
+    return { success: true, message: `已更新會員【${target.name}】資料${upgradeNote}` }
   }
 
-  // 輸入優惠碼領取優惠券（完整攜帶 maxDiscount 上限）
   const claimCouponByCode = (code, sourceLabel = '輸入優惠碼領取') => {
     if (!user.value?.isLoggedIn) {
       return { success: false, message: '請先登入會員帳號再領取優惠券！' }
@@ -274,7 +408,6 @@ export const useAuthStore = defineStore('auth', () => {
     if (cpn) cpn.isUsed = true
   }
 
-  // ★ 支援多對象分類派發優惠券（本月壽星 / 全體會員 / 全體 VIP / 指定特定 VIP 階級 TIER:XXX） ★
   const dispatchCouponToMembers = ({ couponCode, targetGroup, sourceName = '系統活動派發' }) => {
     const template = marketingStore.findCouponByCode(couponCode)
     if (!template) return { success: false, message: '找不到對應的有效優惠券模板！' }
@@ -292,7 +425,7 @@ export const useAuthStore = defineStore('auth', () => {
       targetMembers = memberList.value.filter(
         m => (m.vipTierId && m.vipTierId !== 'GENERAL') && m.riskStatus !== 'BANNED'
       )
-    } else if (targetGroup === 'ALL_ACTIVE') {
+    } else if (targetGroup === 'ALL_ACTIVE' || targetGroup === 'ANY_UPGRADE') {
       targetMembers = memberList.value.filter(m => m.riskStatus !== 'BANNED')
     } else if (targetGroup && targetGroup.startsWith('TIER:')) {
       const targetTierId = targetGroup.replace('TIER:', '')
@@ -328,15 +461,24 @@ export const useAuthStore = defineStore('auth', () => {
 
   const updateMemberTier = (memberId, newTierId) => {
     const target = memberList.value.find(m => m.id === memberId)
-    if (target) {
-      target.vipTierId = newTierId
-      target.updatedAt = new Date().toISOString().slice(0, 10)
-      if (user.value && user.value.email === target.email) {
-        user.value.vipTierId = newTierId
-      }
-      return { success: true }
+    if (!target) return { success: false }
+
+    const tiers = marketingStore.vipTiers || []
+    const oldIdx = tiers.findIndex(t => t.id === target.vipTierId)
+    const newIdx = tiers.findIndex(t => t.id === newTierId)
+
+    target.vipTierId = newTierId
+    target.updatedAt = new Date().toISOString().slice(0, 10)
+    if (user.value && user.value.email === target.email) {
+      user.value.vipTierId = newTierId
     }
-    return { success: false }
+
+    let issuedCoupons = []
+    if (newIdx > oldIdx) {
+      issuedCoupons = triggerVipUpgradeCoupons(target, newTierId)
+    }
+
+    return { success: true, issuedCoupons }
   }
 
   const isInWishlist = (productId) => Boolean(user.value?.wishlist?.includes(Number(productId)))
@@ -398,6 +540,8 @@ export const useAuthStore = defineStore('auth', () => {
     currentVipTier,
     availableUserCoupons,
     memberList,
+    triggerVipUpgradeCoupons,
+    settleCompletedOrderRewards,
     claimCouponByCode,
     markCouponAsUsed,
     dispatchCouponToMembers,
