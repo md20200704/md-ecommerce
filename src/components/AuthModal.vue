@@ -1,99 +1,93 @@
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px); z-index: 1060;">
-      <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
-        <div class="modal-content rounded-4 border-0 p-4 shadow-lg">
-          <div class="modal-header border-0 pb-0">
-            <h4 class="modal-title fs-6 fw-bold text-dark">會員登入 / 註冊</h4>
+    <div v-if="isOpen" class="modal fade show d-block modal-backdrop-custom" tabindex="-1" style="z-index: 1060;">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 440px; margin: 0.75rem auto;">
+        <div class="modal-content rounded-4 border-0 p-4 shadow-xl">
+          
+          <div class="modal-header border-0 pb-1">
+            <div>
+              <span class="font-monospace text-muted small" style="font-size: 10px; letter-spacing: 0.1em;">MD.SELECT MEMBER</span>
+              <h3 class="modal-title fs-5 fw-bold text-dark font-serif">
+                {{ mode === 'login' ? '會員登入' : '註冊新會員' }}
+              </h3>
+            </div>
             <button type="button" class="btn-close" @click="$emit('close')"></button>
           </div>
 
-          <div class="modal-body small">
-            <ul class="nav nav-pills nav-fill mb-3 bg-light rounded-pill p-1">
-              <li class="nav-item">
-                <button
-                  type="button"
-                  class="nav-link rounded-pill py-1 small"
-                  :class="{ 'active bg-white text-dark shadow-xs': mode === 'otp', 'text-muted': mode !== 'otp' }"
-                  @click="mode = 'otp'"
-                >
-                  手機 OTP
-                </button>
-              </li>
-              <li class="nav-item">
-                <button
-                  type="button"
-                  class="nav-link rounded-pill py-1 small"
-                  :class="{ 'active bg-white text-dark shadow-xs': mode === 'password', 'text-muted': mode !== 'password' }"
-                  @click="mode = 'password'"
-                >
-                  帳號密碼
-                </button>
-              </li>
-            </ul>
-
-            <!-- 模式 1：OTP -->
-            <form v-if="mode === 'otp'" @submit.prevent="handleOtpLogin" class="d-flex flex-column gap-3">
-              <div>
-                <label class="form-label text-secondary mb-1">台灣手機號碼 *</label>
-                <div class="input-group">
-                  <input v-model="phone" required type="tel" class="form-control form-control-sm font-monospace" placeholder="0912345678" />
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary btn-sm"
-                    :disabled="authStore.otpCountdown > 0"
-                    @click="handleSendOtp"
-                  >
-                    {{ authStore.otpCountdown > 0 ? `${authStore.otpCountdown}s` : '發送驗證碼' }}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label class="form-label text-secondary mb-1">6 位數驗證碼 *</label>
-                <input v-model="otpCode" required maxlength="6" type="text" class="form-control form-control-sm text-center font-monospace" placeholder="123456" />
-              </div>
-
-              <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 mt-1">
-                驗證並登入
-              </button>
-            </form>
-
-            <!-- 模式 2：帳密 -->
-            <form v-else @submit.prevent="handlePasswordLogin" class="d-flex flex-column gap-3">
-              <div>
-                <label class="form-label text-secondary mb-1">帳號 / 信箱 *</label>
-                <input v-model="account" required type="text" class="form-control form-control-sm" />
-              </div>
-
-              <div>
-                <label class="form-label text-secondary mb-1">密碼 (最少 8 碼，含大小寫英數字) *</label>
-                <input v-model="password" required type="password" class="form-control form-control-sm" />
-              </div>
-
-              <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 mt-1">
-                登入帳號
-              </button>
-            </form>
-
-            <div class="text-center text-muted my-3 position-relative">
-              <hr />
-              <span class="position-absolute top-50 start-50 translate-middle bg-white px-2" style="font-size: 10px;">或使用社群快速登入</span>
-            </div>
-
-            <div class="row g-2">
-              <div class="col-6">
-                <button type="button" @click="handleOAuth('google')" class="btn btn-outline-secondary btn-sm w-100 rounded-pill">
-                  Google 登入
-                </button>
-              </div>
-              <div class="col-6">
-                <button type="button" @click="handleOAuth('line')" class="btn btn-outline-success btn-sm w-100 rounded-pill">
-                  LINE 登入
-                </button>
-              </div>
-            </div>
+          <!-- 切換 登入 / 註冊 -->
+          <div class="d-flex gap-2 p-1 bg-light rounded-pill my-3 border">
+            <button
+              type="button"
+              class="btn btn-sm rounded-pill flex-grow-1 fw-bold"
+              :class="mode === 'login' ? 'btn-dark' : 'text-secondary border-0'"
+              @click="mode = 'login'"
+            >
+              會員登入
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm rounded-pill flex-grow-1 fw-bold"
+              :class="mode === 'register' ? 'btn-dark' : 'text-secondary border-0'"
+              @click="mode = 'register'"
+            >
+              免費註冊
+            </button>
           </div>
+
+          <!-- 登入表單 -->
+          <form v-if="mode === 'login'" @submit.prevent="handleLogin" class="d-flex flex-column gap-3 small">
+            <div>
+              <label class="form-label text-secondary mb-1">電子信箱或手機號碼 *</label>
+              <input
+                v-model="loginForm.account"
+                required
+                type="text"
+                class="form-control form-control-sm font-monospace"
+                placeholder="user@md-korea.com 或 0912345678"
+              />
+            </div>
+            <div>
+              <label class="form-label text-secondary mb-1">登入密碼 *</label>
+              <input
+                v-model="loginForm.password"
+                required
+                type="password"
+                class="form-control form-control-sm font-monospace"
+                placeholder="請輸入密碼"
+              />
+            </div>
+            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2.5 fw-bold mt-1">
+              立即登入
+            </button>
+          </form>
+
+          <!-- ★ 註冊表單（包含生日欄位） ★ -->
+          <form v-else @submit.prevent="handleRegister" class="d-flex flex-column gap-2.5 small">
+            <div>
+              <label class="form-label text-secondary mb-1">真實姓名 *</label>
+              <input v-model="registerForm.name" required type="text" class="form-control form-control-sm" placeholder="請輸入您的姓名" />
+            </div>
+            <div>
+              <label class="form-label text-secondary mb-1">聯絡手機號碼 *</label>
+              <input v-model="registerForm.phone" required type="tel" class="form-control form-control-sm font-monospace" placeholder="0912345678" />
+            </div>
+            <div>
+              <label class="form-label text-secondary mb-1">電子郵件信箱 *</label>
+              <input v-model="registerForm.email" required type="email" class="form-control form-control-sm font-monospace" placeholder="example@gmail.com" />
+            </div>
+            <div>
+              <label class="form-label text-dark fw-bold mb-1">🎂 會員生日 * <span class="text-muted fw-normal" style="font-size: 11px;">(享生日當月專屬禮券)</span></label>
+              <input v-model="registerForm.birthday" required type="date" class="form-control form-control-sm font-monospace" />
+            </div>
+            <div>
+              <label class="form-label text-secondary mb-1">設定密碼 *</label>
+              <input v-model="registerForm.password" required type="password" class="form-control form-control-sm font-monospace" placeholder="至少 6 位英數字" />
+            </div>
+            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2.5 fw-bold mt-2">
+              完成註冊並領取新客禮
+            </button>
+          </form>
+
         </div>
       </div>
     </div>
@@ -101,36 +95,58 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 
-defineProps({ isOpen: Boolean })
+defineProps({
+  isOpen: Boolean
+})
+
 const emit = defineEmits(['close'])
 const authStore = useAuthStore()
 
-const mode = ref('otp')
-const phone = ref('0912345678')
-const otpCode = ref('')
-const account = ref('')
-const password = ref('')
+const mode = ref('login')
 
-const handleSendOtp = () => {
-  const res = authStore.sendOtp(phone.value)
-  alert(res.message)
+const loginForm = reactive({
+  account: 'user@md-korea.com',
+  password: 'password123'
+})
+
+const registerForm = reactive({
+  name: '',
+  phone: '',
+  email: '',
+  birthday: '',
+  password: ''
+})
+
+const handleLogin = () => {
+  const success = authStore.login({
+    email: loginForm.account.includes('@') ? loginForm.account : '',
+    account: loginForm.account
+  })
+  if (success) {
+    emit('close')
+  }
 }
-const handleOtpLogin = () => {
-  const res = authStore.verifyLogin(phone.value, otpCode.value)
-  alert(res.message)
-  if (res.success) emit('close')
-}
-const handlePasswordLogin = () => {
-  const res = authStore.loginWithPassword(account.value, password.value)
-  alert(res.message)
-  if (res.success) emit('close')
-}
-const handleOAuth = (provider) => {
-  const res = authStore.loginWithOAuth(provider)
-  alert(res.message)
-  if (res.success) emit('close')
+
+const handleRegister = () => {
+  if (!registerForm.birthday) {
+    alert('請選擇您的生日日期以享有生日禮遇！')
+    return
+  }
+
+  const success = authStore.login({
+    isRegister: true,
+    name: registerForm.name,
+    phone: registerForm.phone,
+    email: registerForm.email,
+    birthday: registerForm.birthday
+  })
+
+  if (success) {
+    alert(`歡迎加入 MD.SELECT，${registerForm.name}！\n已記錄您的生日（${registerForm.birthday}），祝您購物愉快！`)
+    emit('close')
+  }
 }
 </script>
