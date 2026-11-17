@@ -1,241 +1,284 @@
 <template>
-  <div class="d-flex min-vh-100 w-100 admin-layout-root" style="background-color: var(--md-bg, #faf9f6); overflow-x: hidden;">
+  <div class="admin-layout-wrapper d-flex flex-column flex-lg-row min-vh-100 bg-light">
     
-    <!-- 手機版側邊欄背景遮罩 -->
-    <div
-      v-if="isMobileMenuOpen"
-      class="position-fixed top-0 start-0 w-100 h-100 modal-backdrop-custom d-lg-none"
-      style="z-index: 1040;"
-      @click="isMobileMenuOpen = false"
-    ></div>
-
-    <!-- ==================== 左側側邊欄 (桌機固定，手機抽屜式滑出) ==================== -->
-    <aside
-      class="admin-sidebar d-flex flex-column flex-shrink-0 shadow-sm border-end"
-      :class="{ 'mobile-open': isMobileMenuOpen }"
-    >
-      <!-- Logo 標題與手機關閉按鈕 -->
-      <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom" style="border-color: var(--md-border) !important;">
-        <div class="d-flex align-items-center gap-2">
-          <span class="fs-5 fw-bold font-serif text-dark tracking-wider" style="letter-spacing: 0.1em;">MD.ADMIN</span>
-          <span class="badge rounded-pill font-monospace" style="background-color: #f5f0eb; color: #7f6450; font-size: 10px;">PRO</span>
+    <!-- 左側後台功能選單側邊欄 (功能列表文字一律靠左對齊) -->
+    <aside class="admin-sidebar bg-white border-end p-3 p-lg-4 flex-shrink-0">
+      <div class="d-flex justify-content-between align-items-center mb-3 mb-lg-4 pb-2.5 border-bottom">
+        <div class="text-start">
+          <div class="fw-bold font-serif text-dark fs-6" style="letter-spacing: 0.08em;">MD.SELECT</div>
+          <span class="badge bg-dark font-monospace" style="font-size: 9px;">ADMIN CONSOLE</span>
         </div>
-        <button
-          type="button"
-          class="btn-close d-lg-none"
-          aria-label="關閉選單"
-          @click="isMobileMenuOpen = false"
-        ></button>
-      </div>
-
-      <!-- 選單導航列表 -->
-      <div class="flex-grow-1 overflow-y-auto no-scrollbar d-flex flex-column gap-3.5 small pb-4">
-        <div>
-          <div class="text-uppercase text-muted fw-bold px-2 mb-2 font-monospace" style="font-size: 10px; letter-spacing: 0.08em; color: var(--md-primary) !important;">
-            OPERATIONS
-          </div>
-          <ul class="nav nav-pills flex-column gap-1.5">
-            <li class="nav-item">
-              <button
-                class="btn w-100 text-start d-flex align-items-center gap-2.5 py-2 px-3 rounded-3 border-0 admin-sidebar-btn"
-                :class="{ 'active-menu': currentView === 'dashboard' }"
-                @click="switchView('dashboard')"
-              >
-                <LayoutDashboard style="width: 16px; height: 16px;" />
-                <span>營運數據儀表板</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button
-                class="btn w-100 text-start d-flex align-items-center gap-2.5 py-2 px-3 rounded-3 border-0 admin-sidebar-btn"
-                :class="{ 'active-menu': currentView === 'orders' }"
-                @click="switchView('orders')"
-              >
-                <ShoppingBag style="width: 16px; height: 16px;" />
-                <span>訂單履約與退換貨</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button
-                class="btn w-100 text-start d-flex align-items-center gap-2.5 py-2 px-3 rounded-3 border-0 admin-sidebar-btn"
-                :class="{ 'active-menu': currentView === 'products' }"
-                @click="switchView('products')"
-              >
-                <PackageCheck style="width: 16px; height: 16px;" />
-                <span>商品與即時庫存</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <div class="text-uppercase text-muted fw-bold px-2 mb-2 font-monospace" style="font-size: 10px; letter-spacing: 0.08em; color: var(--md-primary) !important;">
-            MARKETING & CRM
-          </div>
-          <ul class="nav nav-pills flex-column gap-1.5">
-            <li class="nav-item">
-              <button
-                class="btn w-100 text-start d-flex align-items-center gap-2.5 py-2 px-3 rounded-3 border-0 admin-sidebar-btn"
-                :class="{ 'active-menu': currentView === 'crm' }"
-                @click="switchView('crm')"
-              >
-                <Users style="width: 16px; height: 16px;" />
-                <span>優惠券與會員 CRM</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <div class="text-uppercase text-muted fw-bold px-2 mb-2 font-monospace" style="font-size: 10px; letter-spacing: 0.08em; color: var(--md-primary) !important;">
-            SYSTEM & CMS
-          </div>
-          <ul class="nav nav-pills flex-column gap-1.5">
-            <li class="nav-item">
-              <button
-                class="btn w-100 text-start d-flex align-items-center gap-2.5 py-2 px-3 rounded-3 border-0 admin-sidebar-btn"
-                :class="{ 'active-menu': currentView === 'cms' }"
-                @click="switchView('cms')"
-              >
-                <Sliders style="width: 16px; height: 16px;" />
-                <span>首頁排版與導覽 CMS</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button
-                class="btn w-100 text-start d-flex align-items-center gap-2.5 py-2 px-3 rounded-3 border-0 admin-sidebar-btn"
-                :class="{ 'active-menu': currentView === 'audit' }"
-                @click="switchView('audit')"
-              >
-                <ShieldCheck style="width: 16px; height: 16px;" />
-                <span>操作稽核日誌</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- 返回前台按鈕 -->
-      <div class="pt-3 border-top mt-auto" style="border-color: var(--md-border) !important;">
-        <router-link to="/" class="btn btn-outline-secondary btn-sm w-100 rounded-pill d-flex align-items-center justify-content-center gap-1.5 py-2 small">
-          <ExternalLink style="width: 13px; height: 13px;" />
-          <span>返回前台商店</span>
+        <router-link
+          to="/"
+          class="btn btn-outline-secondary btn-sm rounded-pill px-2.5 py-0.5 font-monospace text-nowrap"
+          style="font-size: 11px;"
+        >
+          返回前台 →
         </router-link>
+      </div>
+
+      <!-- 側邊欄分組標題 (靠左) -->
+      <div class="d-none d-lg-block text-start text-muted font-monospace mb-2 px-2" style="font-size: 10px; letter-spacing: 0.08em;">
+        MANAGEMENT MODULES
+      </div>
+
+      <!-- 側邊欄按鈕選單群 (text-start justify-content-start 文字靠左) -->
+      <nav class="d-flex flex-row flex-lg-column gap-1.5 overflow-x-auto no-scrollbar pb-1">
+        <button
+          v-for="tab in navTabs"
+          :key="tab.id"
+          type="button"
+          class="btn btn-sm rounded-3 px-3 py-2.5 d-flex align-items-center justify-content-start text-start gap-2.5 admin-nav-btn text-nowrap"
+          :class="activeMenu === tab.id ? 'btn-dark fw-bold shadow-2xs' : 'btn-light text-secondary bg-transparent border-0'"
+          @click="selectMenu(tab)"
+        >
+          <component :is="tab.icon" style="width: 16px; height: 16px; flex-shrink: 0;" />
+          <span class="text-start flex-grow-1">{{ tab.label }}</span>
+
+          <!-- 狀態警示徽章 (低庫存 / 風控警示) -->
+          <span
+            v-if="tab.badgeCount > 0"
+            class="badge rounded-pill font-monospace ms-auto"
+            :class="activeMenu === tab.id ? 'bg-white text-dark' : tab.badgeClass"
+            style="font-size: 9.5px;"
+          >
+            {{ tab.badgeCount }}
+          </span>
+        </button>
+      </nav>
+
+      <!-- 桌面版側邊欄底部：當前操作管理員資訊 -->
+      <div class="d-none d-lg-block mt-auto pt-4 border-top text-start">
+        <div class="small text-muted font-monospace mb-1" style="font-size: 10.5px;">目前登入管理員</div>
+        <div class="fw-bold text-dark small">{{ authStore.user?.name || '系統管理員' }}</div>
+        <div class="text-muted font-monospace" style="font-size: 10.5px;">{{ authStore.user?.email || 'admin@md-korea.com' }}</div>
       </div>
     </aside>
 
-    <!-- ==================== 右側主內容區 ==================== -->
-    <div class="flex-grow-1 d-flex flex-column min-vh-100 main-content-wrapper" style="min-width: 0; overflow-x: hidden;">
-      
-      <!-- 頂部資訊狀態列 -->
-      <header class="bg-white border-bottom px-3 px-sm-4 px-xl-5 py-2.5 py-sm-3 d-flex justify-content-between align-items-center shadow-2xs position-sticky top-0" style="border-color: var(--md-border) !important; z-index: 1020;">
-        <div class="d-flex align-items-center gap-2 gap-sm-3">
-          <!-- 手機版漢堡按鈕 -->
-          <button
-            type="button"
-            class="btn btn-light btn-sm border d-lg-none p-1.5 rounded-3 d-flex align-items-center justify-content-center"
-            @click="isMobileMenuOpen = true"
-            aria-label="打開選單"
-          >
-            <Menu style="width: 18px; height: 18px;" />
-          </button>
+    <!-- 右側動態主內容工作區 -->
+    <main class="flex-grow-1 p-3 p-md-4 p-lg-5 overflow-x-hidden" style="min-width: 0;">
+      <div style="max-width: 1200px; margin: 0 auto;">
+        
+        <!-- 模組 1：商品與即時庫存控管 -->
+        <ProductManageView v-if="activeMenu === 'products'" />
 
-          <span class="badge rounded-pill font-monospace" style="background-color: #f5f0eb; color: #7f6450;">
-            ADMINISTRATOR
-          </span>
-          <span class="small text-muted font-monospace d-none d-md-inline" style="font-size: 11px;">
-            節點: TW-PRO (IP: 220.133.45.92)
-          </span>
-        </div>
+        <!-- 模組 2：會員 VIP、優惠券與黑名單控管 -->
+        <MarketingCrmView
+          v-else-if="activeMenu === 'crm'"
+          :initial-tab="crmInitialTab"
+        />
 
-        <div class="d-flex align-items-center gap-2">
-          <div
-            class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
-            style="width: 32px; height: 32px; font-size: 11.5px; background-color: var(--md-primary);"
-          >
-            管
+        <!-- 模組 3：全站營運概況與稽核日誌 -->
+        <div v-else-if="activeMenu === 'dashboard'" class="d-flex flex-column gap-4">
+          <div class="text-start">
+            <h1 class="h4 fw-bold text-dark font-serif mb-1">全站營運概況與系統稽核日誌</h1>
+            <p class="small text-muted mb-0">即時檢視商品庫存總覽、會員規模、VIP 分布與後台異動操作紀錄</p>
           </div>
-          <div class="small fw-semibold text-dark d-none d-sm-inline">系統管理者</div>
-        </div>
-      </header>
 
-      <!-- ★ 動態載入後台視圖：加入 admin-content-main，確保手機版底部留白充足 ★ -->
-      <main class="p-3 p-sm-4 p-xl-5 flex-grow-1 admin-content-main" style="min-width: 0; max-width: 1380px; margin: 0 auto; width: 100%;">
-        <DashboardView v-if="currentView === 'dashboard'" />
-        <OrderManageView v-else-if="currentView === 'orders'" />
-        <ProductManageView v-else-if="currentView === 'products'" />
-        <MarketingCrmView v-else-if="currentView === 'crm'" />
-        <CmsLayoutView v-else-if="currentView === 'cms'" />
-        <AuditLogView v-else-if="currentView === 'audit'" />
-      </main>
-    </div>
+          <!-- 營運指標卡片 -->
+          <div class="row g-3">
+            <div class="col-6 col-md-3">
+              <div class="card-korean bg-white p-3.5 border shadow-xs text-start">
+                <div class="text-muted small font-monospace">架上商品總數</div>
+                <div class="h4 fw-bold font-monospace text-dark mb-0 mt-1">
+                  {{ productStore.products?.length || 0 }} 款
+                </div>
+                <div v-if="lowStockProductCount > 0" class="text-danger font-monospace mt-1" style="font-size: 10.5px;">
+                  ⚠ {{ lowStockProductCount }} 款低庫存預警
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="card-korean bg-white p-3.5 border shadow-xs text-start">
+                <div class="text-muted small font-monospace">全館會員總人數</div>
+                <div class="h4 fw-bold font-monospace text-dark mb-0 mt-1">
+                  {{ authStore.memberList?.length || 0 }} 位
+                </div>
+                <div class="text-muted font-monospace mt-1" style="font-size: 10.5px;">
+                  含生日建檔 {{ birthdayRegisteredCount }} 位
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="card-korean bg-white p-3.5 border shadow-xs text-start">
+                <div class="text-muted small font-monospace">VIP 尊榮會員數</div>
+                <div class="h4 fw-bold font-monospace text-primary mb-0 mt-1">
+                  {{ vipMemberCount }} 位
+                </div>
+                <div class="text-muted font-monospace mt-1" style="font-size: 10.5px;">
+                  銀卡 / 金卡 / 黑鑽 VIP
+                </div>
+              </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+              <div class="card-korean bg-white p-3.5 border shadow-xs text-start">
+                <div class="text-muted small font-monospace">風險管制中帳號</div>
+                <div class="h4 fw-bold font-monospace text-danger mb-0 mt-1">
+                  {{ restrictedMemberCount }} 位
+                </div>
+                <div class="text-muted font-monospace mt-1" style="font-size: 10.5px;">
+                  限制取付 / 凍結 / 黑名單
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 系統稽核操作日誌列表 -->
+          <div class="card-korean bg-white p-3.5 p-md-4 border shadow-xs text-start">
+            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <h2 class="fs-6 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                <FileText style="width: 16px; height: 16px;" class="text-primary" />
+                <span>即時系統操作與交易稽核日誌 (Audit Logs)</span>
+              </h2>
+              <span class="badge bg-light text-secondary border font-monospace" style="font-size: 10.5px;">
+                共 {{ auditLogList.length }} 筆紀錄
+              </span>
+            </div>
+
+            <div v-if="auditLogList.length > 0" class="table-responsive">
+              <table class="table table-hover align-middle small mb-0 font-sans">
+                <thead class="table-light">
+                  <tr class="text-secondary text-nowrap" style="font-size: 11px;">
+                    <th style="min-width: 150px;">時間戳記</th>
+                    <th style="min-width: 150px;">操作項目</th>
+                    <th style="min-width: 300px;">詳細異動內容</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(log, idx) in auditLogList" :key="log.id || idx">
+                    <td class="font-monospace text-muted text-nowrap" style="font-size: 11px;">
+                      {{ log.timestamp || log.time || '剛剛' }}
+                    </td>
+                    <td>
+                      <span class="badge bg-dark-subtle text-dark font-monospace" style="font-size: 10.5px;">
+                        {{ log.action || log.title || '系統紀錄' }}
+                      </span>
+                    </td>
+                    <td class="text-dark">
+                      {{ log.detail || log.description || log.message }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-else class="text-center py-5 text-muted small">
+              目前尚無操作異動紀錄，當您調整商品、VIP 等級、黑名單或完成訂單時將自動記錄於此。
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import {
-  LayoutDashboard,
-  ShoppingBag,
-  PackageCheck,
-  Users,
-  Sliders,
-  ShieldCheck,
-  ExternalLink,
-  Menu
-} from 'lucide-vue-next'
-import DashboardView from './DashboardView.vue'
-import OrderManageView from './OrderManageView.vue'
+import { ref, computed } from 'vue'
+import { Package, Crown, LayoutDashboard, FileText } from 'lucide-vue-next'
 import ProductManageView from './ProductManageView.vue'
 import MarketingCrmView from './MarketingCrmView.vue'
-import CmsLayoutView from './CmsLayoutView.vue'
-import AuditLogView from './AuditLogView.vue'
+import { useProductStore } from '../../stores/productStore'
+import { useAuthStore } from '../../stores/authStore'
+import { useAdminStore } from '../../stores/adminStore'
 
-const currentView = ref('dashboard')
-const isMobileMenuOpen = ref(false)
+const productStore = useProductStore()
+const authStore = useAuthStore()
+const adminStore = useAdminStore()
 
-const switchView = (viewKey) => {
-  currentView.value = viewKey
-  isMobileMenuOpen.value = false
+const activeMenu = ref('products')
+const crmInitialTab = ref('vip_tiers')
+
+// 計算低庫存（任一 SKU ≤ 5 件）商品數量
+const lowStockProductCount = computed(() => {
+  return (productStore.products || []).filter(p =>
+    (p.skus || []).some(sku => sku.stock <= 5)
+  ).length
+})
+
+// 計算 VIP 會員人數
+const vipMemberCount = computed(() => {
+  return (authStore.memberList || []).filter(m =>
+    ['SILVER', 'GOLD', 'DIAMOND'].includes(m.vipTierId)
+  ).length
+})
+
+// 計算已填寫生日之會員人數
+const birthdayRegisteredCount = computed(() => {
+  return (authStore.memberList || []).filter(m => Boolean(m.birthday)).length
+})
+
+// 計算受風控管制（非 NORMAL）之會員人數
+const restrictedMemberCount = computed(() => {
+  return (authStore.memberList || []).filter(m =>
+    m.riskStatus && m.riskStatus !== 'NORMAL'
+  ).length
+})
+
+// 後台側邊欄導航選單（文字全部靠左對齊，並動態顯示狀態提示徽章）
+const navTabs = computed(() => [
+  {
+    id: 'products',
+    label: '商品與即時庫存控管',
+    icon: Package,
+    badgeCount: lowStockProductCount.value,
+    badgeClass: 'bg-warning-subtle text-warning-emphasis'
+  },
+  {
+    id: 'crm',
+    label: '會員 VIP、優惠券與黑名單控管',
+    icon: Crown,
+    badgeCount: restrictedMemberCount.value,
+    badgeClass: 'bg-danger-subtle text-danger'
+  },
+  {
+    id: 'dashboard',
+    label: '全站營運概況與稽核日誌',
+    icon: LayoutDashboard,
+    badgeCount: 0,
+    badgeClass: ''
+  }
+])
+
+const selectMenu = (tab) => {
+  activeMenu.value = tab.id
 }
+
+// 取得稽核日誌清單
+const auditLogList = computed(() => {
+  return adminStore.auditLogs || []
+})
 </script>
 
 <style scoped>
 .admin-sidebar {
-  width: 250px;
-  height: 100vh;
-  background-color: #ffffff;
-  border-color: var(--md-border) !important;
-  z-index: 1050;
-  padding: 1.5rem 1.25rem;
-  position: sticky;
-  top: 0;
-  transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-width: 991.98px) {
+@media (min-width: 992px) {
   .admin-sidebar {
-    position: fixed;
+    width: 280px;
+    min-height: 100vh;
+    position: sticky;
     top: 0;
-    left: 0;
-    transform: translateX(-100%);
-  }
-  .admin-sidebar.mobile-open {
-    transform: translateX(0);
-  }
-
-  /* 手機版主要內容區底部留白（預留 80px + 安全區域） */
-  .admin-content-main {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    height: 100vh;
   }
 }
 
-.active-menu {
-  background-color: var(--md-primary) !important;
-  color: #ffffff !important;
-  font-weight: 600;
+.admin-nav-btn {
+  font-size: 13px;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  transition: all 0.2s ease;
 }
-.active-menu svg {
-  color: #ffffff !important;
+
+.admin-nav-btn:hover:not(.btn-dark) {
+  background-color: var(--md-surface-subtle, #f5f2ed) !important;
+  color: var(--md-text-primary, #2d2621) !important;
 }
 </style>

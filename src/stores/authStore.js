@@ -1,20 +1,38 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useMarketingStore } from './marketingStore'
 
 export const useAuthStore = defineStore('auth', () => {
-  // 1. 會員個人資料核心狀態
+  const marketingStore = useMarketingStore()
+
+  // 1. 會員個人資料核心狀態 (加入 birthday 生日、totalSpent 累積消費、vipTierId 等級與 myCoupons)
   const user = ref({
     isLoggedIn: true,
     name: '陳哲偉',
     phone: '0912345678',
     email: 'user@md-korea.com',
-    tier: 'VIP MEMBER',
+    birthday: '1997-03-18', // ★ 新增生日欄位
+    totalSpent: 14850, // 累積消費金額（符合黃金 VIP 資格）
+    vipTierId: 'GOLD', // GENERAL | SILVER | GOLD | DIAMOND
     points: 1250,
-    wishlist: [1, 2], // 收藏商品 ID 列表
+    wishlist: [1, 2],
     restockRequests: [],
-    // 風控管制狀態：NORMAL | WARNING | RESTRICT_COD | RESTRICT_PROMO | BLOCK_ORDER | BANNED
-    riskStatus: 'NORMAL',
+    riskStatus: 'NORMAL', // NORMAL | WARNING | RESTRICT_COD | RESTRICT_PROMO | BLOCK_ORDER | BANNED
     blockReason: '',
+    // ★ 會員個人錢包中已領取的優惠券清單 ★
+    myCoupons: [
+      {
+        instanceId: 'UCPN-101',
+        code: 'SEOUL100',
+        title: '首爾新客見面禮',
+        type: 'FIXED',
+        value: 100,
+        minSpend: 500,
+        expiryDate: '2026-12-31',
+        isUsed: false,
+        source: '輸入優惠碼領取'
+      }
+    ],
     savedAddresses: [
       {
         id: 1,
@@ -29,10 +47,8 @@ export const useAuthStore = defineStore('auth', () => {
     ]
   })
 
-  // 管理者權限標記 (預設 true，方便進入後台)
   const isAdmin = ref(true)
 
-  // 頂層相容屬性 (防止舊元件使用 authStore.isLoggedIn 報錯)
   const isLoggedIn = computed({
     get: () => Boolean(user.value && user.value.isLoggedIn),
     set: (val) => {
@@ -42,14 +58,26 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => isLoggedIn.value)
 
-  // 2. 後台專用：全體會員名冊列表
+  // 取得目前會員所屬的完整 VIP 階級權益設定（即時連動後台調整的折扣與點數趴數）
+  const currentVipTier = computed(() => {
+    const tierId = user.value?.vipTierId || 'GENERAL'
+    return marketingStore.getTierById(tierId)
+  })
+
+  // 取得會員尚未使用的有效優惠券列表
+  const availableUserCoupons = computed(() => {
+    return (user.value?.myCoupons || []).filter(c => !c.isUsed)
+  })
+
+  // 2. 後台專用：全體會員名冊列表 (含生日與 VIP 階級)
   const memberList = ref([
     {
       id: 'MB-1001',
       name: '陳哲偉',
       phone: '0912345678',
       email: 'user@md-korea.com',
-      tier: 'VIP',
+      birthday: '1997-03-18',
+      vipTierId: 'GOLD',
       totalSpent: 14850,
       orderCount: 8,
       abandonCount: 0,
@@ -62,8 +90,9 @@ export const useAuthStore = defineStore('auth', () => {
       name: '黃小芬',
       phone: '0922111333',
       email: 'fen@gmail.com',
-      tier: 'GENERAL',
-      totalSpent: 3500,
+      birthday: '1995-11-24', // 本月壽星
+      vipTierId: 'SILVER',
+      totalSpent: 6200,
       orderCount: 5,
       abandonCount: 3,
       riskStatus: 'RESTRICT_COD',
@@ -75,7 +104,8 @@ export const useAuthStore = defineStore('auth', () => {
       name: '張惡霸',
       phone: '0988777666',
       email: 'badguy@fake.com',
-      tier: 'GENERAL',
+      birthday: '1990-05-12',
+      vipTierId: 'GENERAL',
       totalSpent: 0,
       orderCount: 2,
       abandonCount: 2,
@@ -88,9 +118,10 @@ export const useAuthStore = defineStore('auth', () => {
       name: '李刷卡',
       phone: '0933444555',
       email: 'cardtest@yahoo.com.tw',
-      tier: 'GENERAL',
-      totalSpent: 890,
-      orderCount: 1,
+      birthday: '1998-11-18', // 本月壽星
+      vipTierId: 'DIAMOND',
+      totalSpent: 35800,
+      orderCount: 15,
       abandonCount: 0,
       riskStatus: 'BLOCK_ORDER',
       notes: '疑似盜刷爭議款未清，待金融機構照會前暫停下單',
@@ -98,7 +129,102 @@ export const useAuthStore = defineStore('auth', () => {
     }
   ])
 
-  // 3. 會員登入
+  // 3. ★ 會員輸入優惠碼領取優惠券 (會員中心 & 結帳頁皆可呼叫) ★
+  const claimCouponByCode = (code, sourceLabel = '輸入優惠碼領取') => {
+    if (!user.value?.isLoggedIn) {
+      return { success: false, message: '請先登入會員帳號再領取優惠券！' }
+    }
+    if (user.value.riskStatus === 'RESTRICT_PROMO') {
+      return { success: false, message: '您的帳號目前優惠功能受限，無法領取優惠券。' }
+    }
+
+    const template = marketingStore.findCouponByCode(code)
+    if (!template) {
+      return { success: false, message: '無效或已過期的優惠碼，請確認輸入是否正確！' }
+    }
+
+    // 檢查是否已經領取過且尚未使用
+    const alreadyHas = user.value.myCoupons.some(c => c.code === template.code && !c.isUsed)
+    if (alreadyHas) {
+      return { success: false, message: `您的優惠券錢包內已有【${template.title}】，結帳時可直接選用！` }
+    }
+
+    const newCouponInstance = {
+      instanceId: 'UCPN-' + Date.now() + Math.floor(Math.random() * 100),
+      code: template.code,
+      title: template.title,
+      type: template.type,
+      value: template.value,
+      minSpend: template.minSpend,
+      expiryDate: template.expiryDate,
+      isUsed: false,
+      source: sourceLabel
+    }
+
+    user.value.myCoupons.unshift(newCouponInstance)
+    return {
+      success: true,
+      message: `領取成功！【${template.title}】已存入您的優惠券帳戶`,
+      coupon: newCouponInstance
+    }
+  }
+
+  // 將指定優惠券標記為已使用
+  const markCouponAsUsed = (instanceId) => {
+    const cpn = user.value?.myCoupons?.find(c => c.instanceId === instanceId)
+    if (cpn) cpn.isUsed = true
+  }
+
+  // 4. ★ 後台派發優惠券給特定目標群組 (例如：當月壽星 / 全部 VIP 會員 / 單一會員) ★
+  const dispatchCouponToMembers = ({ couponCode, targetGroup, singleMemberId = null }) => {
+    const template = marketingStore.findCouponByCode(couponCode)
+    if (!template) return { success: false, message: '找不到對應的有效優惠券模板！' }
+
+    const currentMonth = new Date().getMonth() + 1 // 1 ~ 12
+    let targetMembers = []
+
+    if (targetGroup === 'SINGLE' && singleMemberId) {
+      targetMembers = memberList.value.filter(m => m.id === singleMemberId)
+    } else if (targetGroup === 'BIRTHDAY_MONTH') {
+      targetMembers = memberList.value.filter(m => {
+        if (!m.birthday) return false
+        const bMonth = Number(m.birthday.split('-')[1])
+        return bMonth === currentMonth && m.riskStatus !== 'BANNED'
+      })
+    } else if (targetGroup === 'ALL_VIP') {
+      targetMembers = memberList.value.filter(m =>
+        ['SILVER', 'GOLD', 'DIAMOND'].includes(m.vipTierId) && m.riskStatus !== 'BANNED'
+      )
+    } else if (targetGroup === 'ALL_ACTIVE') {
+      targetMembers = memberList.value.filter(m => m.riskStatus !== 'BANNED')
+    }
+
+    // 若目前登入會員也在派發對象內，同步寫入他的前台個人錢包
+    const isCurrentUserIncluded = targetMembers.some(
+      m => m.email === user.value?.email || m.phone === user.value?.phone
+    )
+    if (isCurrentUserIncluded && user.value?.isLoggedIn) {
+      user.value.myCoupons.unshift({
+        instanceId: 'UCPN-' + Date.now(),
+        code: template.code,
+        title: template.title,
+        type: template.type,
+        value: template.value,
+        minSpend: template.minSpend,
+        expiryDate: template.expiryDate,
+        isUsed: false,
+        source: targetGroup === 'BIRTHDAY_MONTH' ? '系統生日禮自動派發' : 'VIP 專屬活動派發'
+      })
+    }
+
+    return {
+      success: true,
+      count: targetMembers.length,
+      message: `已成功派發優惠券【${template.title} (${template.code})】給符合條件的 ${targetMembers.length} 位會員！`
+    }
+  }
+
+  // 5. 會員登入與資料更新
   const login = (loginData = {}) => {
     const matched = memberList.value.find(
       m => m.email === loginData.email || m.phone === loginData.account
@@ -114,63 +240,64 @@ export const useAuthStore = defineStore('auth', () => {
       name: loginData.name || (matched ? matched.name : '測試會員'),
       phone: loginData.phone || (matched ? matched.phone : '0912345678'),
       email: loginData.email || (matched ? matched.email : 'user@md-korea.com'),
-      tier: matched?.tier || 'VIP MEMBER',
+      birthday: matched?.birthday || '1997-03-18',
+      totalSpent: matched?.totalSpent ?? 14850,
+      vipTierId: matched?.vipTierId || 'GOLD',
       points: user.value?.points ?? 1250,
       wishlist: user.value?.wishlist ?? [1, 2],
       restockRequests: user.value?.restockRequests ?? [],
       riskStatus: matched ? matched.riskStatus : 'NORMAL',
       blockReason: matched ? matched.notes : '',
+      myCoupons: user.value?.myCoupons ?? [],
       savedAddresses: user.value?.savedAddresses ?? []
     }
     return true
   }
 
-  // 4. 會員登出
   const logout = () => {
-    user.value = {
-      isLoggedIn: false,
-      name: '',
-      phone: '',
-      email: '',
-      tier: '',
-      points: 0,
-      wishlist: [],
-      restockRequests: [],
-      riskStatus: 'NORMAL',
-      blockReason: '',
-      savedAddresses: []
+    user.value.isLoggedIn = false
+  }
+
+  const updateProfile = (profileData = {}) => {
+    if (!user.value) return
+    Object.assign(user.value, profileData)
+    // 同步更新後台名冊中的資料（包含生日）
+    const target = memberList.value.find(m => m.email === user.value.email)
+    if (target) {
+      if (profileData.name) target.name = profileData.name
+      if (profileData.phone) target.phone = profileData.phone
+      if (profileData.birthday) target.birthday = profileData.birthday
     }
   }
 
-  // 5. 願望清單 / 收藏愛心 (相容 ProductCard 與 ProductDetailView)
-  const isInWishlist = (productId) => {
-    return Boolean(user.value?.wishlist?.includes(Number(productId)))
+  // 後台修改單一會員 VIP 等級或資料
+  const updateMemberTier = (memberId, newTierId) => {
+    const target = memberList.value.find(m => m.id === memberId)
+    if (target) {
+      target.vipTierId = newTierId
+      target.updatedAt = new Date().toISOString().slice(0, 10)
+      if (user.value && user.value.email === target.email) {
+        user.value.vipTierId = newTierId
+      }
+      return { success: true }
+    }
+    return { success: false }
   }
+
+  // 願望清單與地址簿
+  const isInWishlist = (productId) => Boolean(user.value?.wishlist?.includes(Number(productId)))
 
   const toggleWishlist = (productId) => {
     if (!user.value.wishlist) user.value.wishlist = []
     const id = Number(productId)
     const index = user.value.wishlist.indexOf(id)
-    if (index > -1) {
-      user.value.wishlist.splice(index, 1)
-    } else {
-      user.value.wishlist.push(id)
-    }
+    if (index > -1) user.value.wishlist.splice(index, 1)
+    else user.value.wishlist.push(id)
   }
 
-  // 6. 個人資料更新
-  const updateProfile = (profileData = {}) => {
-    if (!user.value) return
-    Object.assign(user.value, profileData)
-  }
-
-  // 7. 地址簿管理
   const addAddress = (address) => {
     if (!user.value.savedAddresses) user.value.savedAddresses = []
-    user.value.savedAddresses.push({
-      id: Date.now(),
-      ...address
-    })
+    user.value.savedAddresses.push({ id: Date.now(), ...address })
   }
 
   const removeAddress = (addressId) => {
@@ -178,7 +305,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value.savedAddresses = user.value.savedAddresses.filter(a => a.id !== addressId)
   }
 
-  // 8. 後台風控：更新會員管制等級
+  // 後台風控管制
   const updateMemberRisk = (memberId, { riskStatus, notes }) => {
     const target = memberList.value.find(m => m.id === memberId)
     if (target) {
@@ -186,7 +313,6 @@ export const useAuthStore = defineStore('auth', () => {
       if (notes !== undefined) target.notes = notes
       target.updatedAt = new Date().toISOString().slice(0, 10)
 
-      // 若為目前登入者，即時連動
       if (user.value && (user.value.email === target.email || user.value.phone === target.phone)) {
         user.value.riskStatus = riskStatus
         user.value.blockReason = notes || ''
@@ -196,10 +322,8 @@ export const useAuthStore = defineStore('auth', () => {
     return { success: false, message: '找不到該會員' }
   }
 
-  // 9. 結帳風控檢查 (前台 CheckoutView 使用)
   const checkCheckoutEligibility = (paymentMethod) => {
     const status = user.value?.riskStatus || 'NORMAL'
-
     if (status === 'BANNED') {
       return { allowed: false, reason: '您的帳號已被系統安全凍結，無法使用結帳功能，請聯繫官方客服。' }
     }
@@ -207,7 +331,7 @@ export const useAuthStore = defineStore('auth', () => {
       return { allowed: false, reason: '很抱歉，此帳號目前暫停下單權限，請先聯繫客服完成身分照會。' }
     }
     if (status === 'RESTRICT_COD' && (paymentMethod === 'COD' || paymentMethod === 'CVS_COD')) {
-      return { allowed: false, reason: '因您先前有多次包裹未取紀錄，本帳號暫停「貨到付款 / 超取付款」，請改用「信用卡 / 轉帳」預先付款。' }
+      return { allowed: false, reason: '因您先前有多次包裹未取紀錄，本帳號暫停「貨到付款 / 超取付款」，請改用線上預先支付。' }
     }
     return { allowed: true }
   }
@@ -217,12 +341,18 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isLoggedIn,
     isAuthenticated,
+    currentVipTier,
+    availableUserCoupons,
     memberList,
+    claimCouponByCode,
+    markCouponAsUsed,
+    dispatchCouponToMembers,
     login,
     logout,
+    updateProfile,
+    updateMemberTier,
     isInWishlist,
     toggleWishlist,
-    updateProfile,
     addAddress,
     removeAddress,
     updateMemberRisk,
@@ -230,5 +360,4 @@ export const useAuthStore = defineStore('auth', () => {
   }
 })
 
-// 具名匯出與預設匯出雙支援
 export default useAuthStore

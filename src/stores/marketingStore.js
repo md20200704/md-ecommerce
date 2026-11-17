@@ -2,169 +2,170 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMarketingStore = defineStore('marketing', () => {
-  // 原有 Banners 資料...
+  // 1. 首頁輪播與分類樹（保留原有結構防呆）
   const banners = ref([
     {
       id: 1,
-      tag: 'SEASON OFF · 2026 WINTER',
-      title: '首爾冬季極簡特輯，\n探索晨霧微光中的鬆弛線條。',
+      tag: 'NEW ARRIVAL · 2026',
+      title: '首爾晨霧微光特輯，\n探索冬日極簡鬆弛感。',
       subtitle: '全館冬季新品結帳享免運，滿額 NT$ 2,500 再贈精緻羊毛圍巾。',
-      buttonText: '探索全系列',
-      linkType: 'category',
-      linkUrl: 'Outer 外套',
-      isExternal: false,
-      image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80',
-      isActive: true,
-      sortOrder: 1
-    },
-    {
-      id: 2,
-      tag: 'NEW ARRIVAL',
-      title: '溫潤羊毛與親膚針織，\n重塑日常優雅廓形。',
-      subtitle: '正韓直送，法式優雅與現代極簡的完美融合。',
-      buttonText: '瀏覽上衣專區',
+      buttonText: '探索新品',
       linkType: 'category',
       linkUrl: 'Top 上衣',
-      isExternal: false,
-      image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1600&q=80',
-      isActive: true,
-      sortOrder: 2
-    },
-    {
-      id: 3,
-      tag: 'MD PICK',
-      title: '慵懶垂墜感，\n微闊腿西裝長褲系列。',
-      subtitle: '穿出率性俐落，版型修身挺拔。',
-      buttonText: '立即選購',
-      linkType: 'category',
-      linkUrl: 'Bottom 下身',
-      isExternal: false,
-      image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1600&q=80',
-      isActive: true,
-      sortOrder: 3
+      image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80',
+      isActive: true
     }
   ])
 
-  // 主分類導覽選單樹 (Navbar Category Tree)
   const categoryTree = ref([
     {
       name: 'Top 上衣',
       subcategories: [
-        { name: '質感襯衫', items: ['雪紡襯衫', '長袖純棉襯衫', '立領法式襯衫'] },
-        { name: '針織與毛衣', items: ['喀什米爾針織', '開襟小外套', '寬鬆落肩毛衣'] }
+        { name: '季節精選', items: ['針織毛衣', '氣質襯衫', '修身內搭'] },
+        { name: '風格分類', items: ['韓系極簡', '法式慵懶'] }
       ]
     },
     {
       name: 'Outer 外套',
       subcategories: [
-        { name: '羊毛大衣', items: ['經典雙排扣長大衣', '廓形短大衣'] },
-        { name: '西裝外套', items: ['法式休閒西裝', '微墊肩俐落外套'] }
+        { name: '大衣系列', items: ['羊毛長大衣', '西裝外套', '短版夾克'] }
       ]
     },
     {
       name: 'Bottom 下身',
       subcategories: [
-        { name: '長褲系列', items: ['高腰西裝長褲', '直筒微闊腿褲'] },
-        { name: '裙裝系列', items: ['開衩針織裙', '垂墜感百褶長裙'] }
+        { name: '褲裝與裙裝', items: ['直筒西裝褲', '牛仔寬褲', '長裙'] }
       ]
     }
   ])
 
-  // Banner 管理方法...
-  const addBanner = (bannerData) => {
-    const nextId = banners.value.length > 0 ? Math.max(...banners.value.map(b => b.id)) + 1 : 1
-    const newBanner = {
-      id: nextId,
-      tag: bannerData.tag || 'NEW PROMOTION',
-      title: bannerData.title || '',
-      subtitle: bannerData.subtitle || '',
-      buttonText: bannerData.buttonText || '立即選購',
-      linkType: bannerData.linkType || 'category',
-      linkUrl: bannerData.linkUrl || 'Top 上衣',
-      isExternal: Boolean(bannerData.isExternal),
-      image: bannerData.image || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80',
-      isActive: bannerData.isActive !== false,
-      sortOrder: Number(bannerData.sortOrder || banners.value.length + 1)
+  // 2. ★ VIP 階級與紅利點數回饋趴數制度 (後台可即時調整) ★
+  const vipTiers = ref([
+    {
+      id: 'GENERAL',
+      name: '一般會員 (GENERAL)',
+      minSpend: 0,
+      discountRate: 1.0, // 1.0 = 無折扣 (原價), 0.95 = 95折
+      pointsEarnRate: 1, // 消費回饋 1% 紅利點數
+      badgeColor: 'bg-secondary-subtle text-secondary',
+      description: '註冊即享基礎會員資格，消費回饋 1% 紅利點數'
+    },
+    {
+      id: 'SILVER',
+      name: '白銀 VIP (SILVER)',
+      minSpend: 5000,
+      discountRate: 0.95, // 95 折
+      pointsEarnRate: 3, // 消費回饋 3% 紅利點數
+      badgeColor: 'bg-info-subtle text-info-emphasis',
+      description: '累積消費滿 NT$ 5,000，全館享 95 折與 3% 點數回饋'
+    },
+    {
+      id: 'GOLD',
+      name: '黃金 VIP (GOLD)',
+      minSpend: 12000,
+      discountRate: 0.9, // 9 折
+      pointsEarnRate: 5, // 消費回饋 5% 紅利點數
+      badgeColor: 'bg-warning-subtle text-warning-emphasis',
+      description: '累積消費滿 NT$ 12,000，全館享 9 折、5% 點數回饋與每月專屬禮券'
+    },
+    {
+      id: 'DIAMOND',
+      name: '黑鑽 VIP (DIAMOND)',
+      minSpend: 30000,
+      discountRate: 0.85, // 85 折
+      pointsEarnRate: 8, // 消費回饋 8% 紅利點數
+      badgeColor: 'bg-dark text-white',
+      description: '累積消費滿 NT$ 30,000，全館享 85 折、8% 點數回饋與生日豪華禮金'
     }
-    banners.value.push(newBanner)
-    return { success: true, banner: newBanner }
-  }
+  ])
 
-  const updateBanner = (id, updatedData) => {
-    const idx = banners.value.findIndex(b => b.id === Number(id))
-    if (idx === -1) return { success: false, message: '找不到該輪播圖' }
-    banners.value[idx] = { ...banners.value[idx], ...updatedData, id: Number(id) }
-    return { success: true, banner: banners.value[idx] }
-  }
-
-  const deleteBanner = (id) => {
-    const idx = banners.value.findIndex(b => b.id === Number(id))
-    if (idx !== -1) {
-      banners.value.splice(idx, 1)
-      return { success: true }
+  // 3. ★ 全館優惠券庫 (整合優惠碼輸入領取與自動派發) ★
+  const couponTemplates = ref([
+    {
+      id: 'CPN-001',
+      code: 'SEOUL100',
+      title: '首爾新客見面禮',
+      type: 'FIXED', // FIXED (定額折抵) | PERCENT (折數折扣)
+      value: 100, // 折抵 100 元
+      minSpend: 500,
+      expiryDate: '2026-12-31',
+      isActive: true,
+      autoTrigger: 'NONE', // NONE | BIRTHDAY | MONTHLY_VIP
+      description: '全館單筆消費滿 NT$ 500 現折 NT$ 100'
+    },
+    {
+      id: 'CPN-002',
+      code: 'VIP200',
+      title: 'VIP 尊榮月度禮金',
+      type: 'FIXED',
+      value: 200,
+      minSpend: 1200,
+      expiryDate: '2026-12-31',
+      isActive: true,
+      autoTrigger: 'MONTHLY_VIP',
+      description: 'VIP 專屬每月福利，滿 NT$ 1,200 折抵 NT$ 200'
+    },
+    {
+      id: 'CPN-003',
+      code: 'HBD300',
+      title: '壽星專屬生日禮券',
+      type: 'FIXED',
+      value: 300,
+      minSpend: 1000,
+      expiryDate: '2026-12-31',
+      isActive: true,
+      autoTrigger: 'BIRTHDAY',
+      description: '祝您生日快樂！當月壽星滿 NT$ 1,000 現折 NT$ 300'
+    },
+    {
+      id: 'CPN-004',
+      code: 'WINTER88',
+      title: '冬季新品 88 折券',
+      type: 'PERCENT',
+      value: 0.88, // 88 折
+      minSpend: 1500,
+      expiryDate: '2026-12-31',
+      isActive: true,
+      autoTrigger: 'NONE',
+      description: '冬裝全系列滿 NT$ 1,500 享 88 折優惠'
     }
-    return { success: false, message: '找不到該輪播圖' }
+  ])
+
+  // 4. 自動化發送優惠券規則開關 (後台可設定開關與對應優惠券)
+  const autoDispatchRules = ref({
+    birthdayEnabled: true,
+    birthdayCouponCode: 'HBD300',
+    monthlyVipEnabled: true,
+    monthlyVipCouponCode: 'VIP200',
+    monthlyVipMinTier: 'SILVER' // SILVER 以上自動派發
+  })
+
+  // 依照累積消費金額取得對應 VIP 階級物件
+  const getTierBySpend = (totalSpent = 0) => {
+    const sorted = [...vipTiers.value].sort((a, b) => b.minSpend - a.minSpend)
+    return sorted.find(t => totalSpent >= t.minSpend) || vipTiers.value[0]
   }
 
-  const toggleBannerStatus = (id) => {
-    const banner = banners.value.find(b => b.id === Number(id))
-    if (banner) {
-      banner.isActive = !banner.isActive
-      return { success: true, isActive: banner.isActive }
-    }
-    return { success: false }
+  // 依照階級 ID 取得 VIP 階級物件
+  const getTierById = (tierId) => {
+    return vipTiers.value.find(t => t.id === tierId) || vipTiers.value[0]
   }
 
-  // ==================== 後台專用：主分類導覽選單 (Navbar Mega Menu) 管理 ====================
-  // 1. 新增主分類 (一級分類)
-  const addPrimaryCategory = (categoryData) => {
-    categoryTree.value.push({
-      name: categoryData.name,
-      subcategories: categoryData.subcategories || []
-    })
-    return { success: true }
-  }
-
-  // 2. 修改指定主分類
-  const updatePrimaryCategory = (index, categoryData) => {
-    if (index >= 0 && index < categoryTree.value.length) {
-      categoryTree.value[index] = {
-        name: categoryData.name,
-        subcategories: categoryData.subcategories || []
-      }
-      return { success: true }
-    }
-    return { success: false, message: '分類不存在' }
-  }
-
-  // 3. 刪除指定主分類
-  const deletePrimaryCategory = (index) => {
-    if (index >= 0 && index < categoryTree.value.length) {
-      categoryTree.value.splice(index, 1)
-      return { success: true }
-    }
-    return { success: false }
-  }
-
-  // 4. 移動主分類順序
-  const movePrimaryCategory = (index, direction) => {
-    const targetIdx = index + direction
-    if (targetIdx < 0 || targetIdx >= categoryTree.value.length) return
-    const temp = categoryTree.value[index]
-    categoryTree.value[index] = categoryTree.value[targetIdx]
-    categoryTree.value[targetIdx] = temp
+  // 透過優惠碼查詢有效優惠券模板
+  const findCouponByCode = (code) => {
+    if (!code) return null
+    const cleanCode = code.trim().toUpperCase()
+    return couponTemplates.value.find(c => c.code === cleanCode && c.isActive) || null
   }
 
   return {
     banners,
     categoryTree,
-    addBanner,
-    updateBanner,
-    deleteBanner,
-    toggleBannerStatus,
-    addPrimaryCategory,
-    updatePrimaryCategory,
-    deletePrimaryCategory,
-    movePrimaryCategory
+    vipTiers,
+    couponTemplates,
+    autoDispatchRules,
+    getTierBySpend,
+    getTierById,
+    findCouponByCode
   }
 })
