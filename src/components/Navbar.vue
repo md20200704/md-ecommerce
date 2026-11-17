@@ -34,18 +34,18 @@
             />
           </button>
 
-          <!-- 滑鼠懸停展開細項子分類選單 -->
+          <!-- 滑鼠懸停展開細項子分類選單（已修正貼齊邊框問題，加入舒適留白與定位位移） -->
           <div
             v-if="hasSubcategories(cat)"
-            class="dropdown-menu rounded-4 border shadow-sm p-3.5 mt-0 nav-mega-menu"
-            style="min-width: 240px;"
+            class="dropdown-menu rounded-4 border shadow-sm p-4 nav-mega-menu"
+            style="min-width: 250px;"
           >
-            <div class="d-flex flex-column gap-3">
+            <div class="d-flex flex-column gap-3.5">
               <div v-for="group in (cat.subcategories || [])" :key="group.name">
                 <div
                   v-if="group.name"
-                  class="text-muted font-monospace px-2.5 mb-1.5"
-                  style="font-size: 10.5px; letter-spacing: 0.04em;"
+                  class="text-muted font-monospace px-2.5 mb-2"
+                  style="font-size: 11px; letter-spacing: 0.05em;"
                 >
                   {{ group.name }}
                 </div>
@@ -54,7 +54,7 @@
                     v-for="item in (group.items || [])"
                     :key="item"
                     type="button"
-                    class="dropdown-item rounded-3 small py-1.5 px-2.5 text-dark d-flex align-items-center justify-content-between"
+                    class="dropdown-item rounded-3 small py-2 px-2.5 text-dark d-flex align-items-center justify-content-between"
                     :class="{ 'fw-bold bg-light': isCurrentSubCategory(cat.name, item) }"
                     @click="goToCategory(cat.name, item)"
                   >
@@ -64,10 +64,10 @@
                 </div>
               </div>
 
-              <div class="border-top pt-2.5 mt-0.5">
+              <div class="border-top pt-3 mt-1">
                 <button
                   type="button"
-                  class="dropdown-item rounded-3 small py-1.5 px-2.5 fw-bold text-primary"
+                  class="dropdown-item rounded-3 small py-2 px-2.5 fw-bold text-primary"
                   @click="goToCategory(cat.name, '')"
                 >
                   瀏覽全部 {{ cat.name }} →
@@ -220,13 +220,15 @@ const goToCategory = (mainCategory, subCategory) => {
   transition: transform 0.2s ease;
 }
 
+/* ★ 解決選單貼著邊框的問題：加入 margin-top 與獨立定位留白 ★ */
 .nav-category-dropdown:hover .nav-mega-menu {
   display: block;
 }
 
 .nav-mega-menu {
+  margin-top: 10px !important;
   border-color: #ebe5dd !important;
-  box-shadow: 0 10px 28px rgba(45, 38, 33, 0.08) !important;
+  box-shadow: 0 12px 32px rgba(45, 38, 33, 0.08) !important;
 }
 
 .dropdown-item {
