@@ -42,7 +42,7 @@
         </div>
       </div>
 
-      <!-- ★ 細項子分類快速切換膠囊列 (Pills) ★ -->
+      <!-- 細項子分類快速切換膠囊列 -->
       <div v-if="currentSubcategoryPills.length > 0" class="d-flex flex-wrap gap-2 mt-3 pt-2">
         <button
           type="button"
@@ -73,14 +73,14 @@
       </div>
     </div>
 
-    <div v-else class="card-korean text-center py-5 my-4 bg-white border text-muted small">
+    <div v-else class="card-korean text-center py-5 my-4 bg-white rounded-4 border text-muted small">
       目前「{{ activeSubcategory !== 'ALL' ? activeSubcategory : activeMainCategory }}」分類下尚無上架商品，歡迎瀏覽其他系列！
     </div>
   </main>
 </template>
 
 <script setup>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ProductCard from '../components/ProductCard.vue'
 import { useProductStore } from '../stores/productStore'
@@ -95,38 +95,51 @@ const sortBy = ref('NEWEST')
 const activeMainCategory = ref('')
 const activeSubcategory = ref('ALL')
 
-// 監聽網址參數（支援 /category?cat=Top%20上衣&sub=針織毛衣 或 /category/針織毛衣）
-watchEffect(() => {
-  const paramCat = decodeURIComponent(route.params.category || route.query.cat || '')
-  const querySub = decodeURIComponent(route.query.sub || '')
+// 同步解析網址參數（相容 /category?cat=...&sub=... 與 /category/分類名稱）
+const syncCategoryFromRoute = () => {
+  const rawParam = route.params.category ? decodeURIComponent(String(route.params.category)) : ''
+  const rawCat = route.query.cat ? decodeURIComponent(String(route.query.cat)) : ''
+  const rawSub = route.query.sub ? decodeURIComponent(String(route.query.sub)) : ''
 
-  if (!paramCat) {
+  const target = rawCat || rawParam
+
+  if (!target) {
     activeMainCategory.value = ''
-    activeSubcategory.value = querySub || 'ALL'
+    activeSubcategory.value = rawSub || 'ALL'
     return
   }
 
-  // 檢查傳入參數是否為「主分類」
-  const mainCatObj = (marketingStore.categoryTree || []).find(c => c.name === paramCat)
+  // 1. 比對主分類（支援完整名稱如「Top 上衣」或部分關鍵字如「Top」、「上衣」）
+  const mainCatObj = (marketingStore.categoryTree || []).find(
+    c => c.name === target || c.name.includes(target) || target.includes(c.name)
+  )
+
   if (mainCatObj) {
     activeMainCategory.value = mainCatObj.name
-    activeSubcategory.value = querySub || 'ALL'
+    activeSubcategory.value = rawSub || 'ALL'
   } else {
-    // 若點擊的是某個「細項分類」，自動反查其所屬主分類並高亮該細項
+    // 2. 若傳入的是細項分類名稱（如「針織毛衣」），自動反查所屬主分類
     let foundParent = ''
     for (const cat of (marketingStore.categoryTree || [])) {
       const subs = marketingStore.getSubItemsByCategory(cat.name)
-      if (subs.includes(paramCat)) {
+      if (subs.includes(target)) {
         foundParent = cat.name
         break
       }
     }
     activeMainCategory.value = foundParent
-    activeSubcategory.value = paramCat
+    activeSubcategory.value = target
   }
-})
+}
 
-// 當前主分類底下的所有細項選項
+watch(
+  () => [route.params.category, route.query.cat, route.query.sub],
+  () => {
+    syncCategoryFromRoute()
+  },
+  { immediate: true }
+)
+
 const currentSubcategoryPills = computed(() => {
   if (activeMainCategory.value) {
     return marketingStore.getSubItemsByCategory(activeMainCategory.value)
@@ -140,12 +153,13 @@ const currentSubcategoryPills = computed(() => {
 
 const selectSubcategory = (sub) => {
   activeSubcategory.value = sub
-  router.replace({
-    path: route.path,
-    query: {
-      ...(activeMainCategory.value ? { cat: activeMainCategory.value } : {}),
-      ...(sub !== 'ALL' ? { sub } : {})
-    }
+  const query = {}
+  if (activeMainCategory.value) query.cat = activeMainCategory.value
+  if (sub !== 'ALL') query.sub = sub
+
+  router.push({
+    path: '/category',
+    query
   })
 }
 
@@ -153,7 +167,9 @@ const displayedProducts = computed(() => {
   let list = [...(productStore.products || [])]
 
   if (activeMainCategory.value) {
-    list = list.filter(p => p.category === activeMainCategory.value)
+    list = list.filter(
+      p => p.category === activeMainCategory.value || (p.category && p.category.includes(activeMainCategory.value))
+    )
   }
 
   if (activeSubcategory.value && activeSubcategory.value !== 'ALL') {

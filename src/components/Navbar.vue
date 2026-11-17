@@ -1,580 +1,244 @@
 <template>
-  <header class="navbar-wrapper sticky-top bg-white border-bottom">
-    <div class="navbar-inner-container">
+  <header class="sticky-top bg-white border-bottom shadow-2xs" style="z-index: 1030;">
+    <nav class="navbar-grid-container px-3 px-md-4 px-xl-5 py-3">
       
-      <!-- 1. 最左側：LOGO -->
-      <div class="nav-brand-section">
-        <router-link to="/" class="navbar-brand d-flex align-items-center gap-2 text-decoration-none">
-          <span class="fw-bold font-serif text-dark logo-text">
-            MD.SELECT
-          </span>
-          <span class="text-muted d-none d-sm-inline-block small border-start ps-2 font-monospace sub-logo-text">
-            SEOUL
-          </span>
+      <!-- 1. 最左側：品牌 Logo（點擊返回首頁） -->
+      <div class="d-flex align-items-center justify-content-start">
+        <router-link
+          to="/"
+          class="text-decoration-none text-dark fw-bold fs-4 font-serif tracking-wide flex-shrink-0"
+          style="letter-spacing: 0.08em;"
+        >
+          MD.SELECT
         </router-link>
       </div>
 
-      <!-- 2. 中間：桌機版主分類導覽選單 (點擊進入該分類專屬頁面) -->
-      <nav class="nav-menu-section d-none d-lg-flex align-items-center">
-        <div
-          v-for="(cat, idx) in marketingStore.categoryTree"
-          :key="idx"
-          class="nav-item position-relative"
-          :class="{ 'is-active': activeMenuIndex === idx }"
-          @mouseenter="handleMenuEnter(idx)"
-          @mouseleave="handleMenuLeave"
+      <!-- 2. 正中央：完全依照後台 categoryTree 動態渲染主分類與細項 -->
+      <ul class="nav d-none d-lg-flex align-items-center justify-content-center gap-3 mb-0">
+        <li
+          v-for="cat in marketingStore.categoryTree"
+          :key="cat.name"
+          class="nav-item dropdown nav-category-dropdown position-relative"
         >
           <button
             type="button"
-            class="nav-menu-btn"
-            @click="navigateToCategory(cat.name)"
+            class="btn btn-link nav-link nav-cat-btn text-dark small fw-semibold px-3 py-1.5 text-decoration-none d-inline-flex align-items-center gap-1.5 text-nowrap"
+            :class="{ 'is-active-cat': isCurrentMainCategory(cat.name) }"
+            @click="goToCategory(cat.name, '')"
           >
             <span>{{ cat.name }}</span>
             <ChevronDown
-              class="chevron-icon"
-              :class="{ 'is-rotated': activeMenuIndex === idx }"
+              v-if="hasSubcategories(cat)"
+              style="width: 13px; height: 13px;"
+              class="opacity-50 transition-chevron"
             />
           </button>
 
-          <!-- 下拉多欄面板 -->
-          <transition name="dropdown-fade">
-            <div
-              v-show="activeMenuIndex === idx"
-              class="dropdown-panel shadow-lg rounded-4"
-            >
-              <div class="dropdown-inner-content">
-                <div class="row g-4">
-                  <div
-                    v-for="(sub, sIdx) in cat.subcategories"
-                    :key="sIdx"
-                    class="col-6 sub-col"
+          <!-- 滑鼠懸停展開細項子分類選單 -->
+          <div
+            v-if="hasSubcategories(cat)"
+            class="dropdown-menu rounded-4 border shadow-sm p-3.5 mt-0 nav-mega-menu"
+            style="min-width: 240px;"
+          >
+            <div class="d-flex flex-column gap-3">
+              <div v-for="group in (cat.subcategories || [])" :key="group.name">
+                <div
+                  v-if="group.name"
+                  class="text-muted font-monospace px-2.5 mb-1.5"
+                  style="font-size: 10.5px; letter-spacing: 0.04em;"
+                >
+                  {{ group.name }}
+                </div>
+                <div class="d-flex flex-column gap-1">
+                  <button
+                    v-for="item in (group.items || [])"
+                    :key="item"
+                    type="button"
+                    class="dropdown-item rounded-3 small py-1.5 px-2.5 text-dark d-flex align-items-center justify-content-between"
+                    :class="{ 'fw-bold bg-light': isCurrentSubCategory(cat.name, item) }"
+                    @click="goToCategory(cat.name, item)"
                   >
-                    <div class="sub-cat-header pb-2 mb-2.5 fw-bold">
-                      {{ sub.name }}
-                    </div>
-                    <ul class="list-unstyled mb-0 d-flex flex-column gap-1.5">
-                      <li v-for="(item, iIdx) in sub.items" :key="iIdx">
-                        <a
-                          href="javascript:void(0)"
-                          @click="navigateToCategory(cat.name, item)"
-                          class="sub-cat-link"
-                        >
-                          {{ item }}
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
+                    <span>{{ item }}</span>
+                    <span class="text-muted opacity-50 font-monospace" style="font-size: 11px;">›</span>
+                  </button>
                 </div>
               </div>
-            </div>
-          </transition>
-        </div>
-      </nav>
 
-      <!-- 3. 最右側：搜尋列 + 桌機操作按鈕群 -->
-      <div class="nav-actions-section d-flex align-items-center gap-2 gap-sm-2.5">
-        
-        <!-- 桌機版搜尋框 -->
-        <div class="search-box-container d-none d-md-inline-flex">
-          <Search class="search-icon" />
-          <input
-            :value="searchInput"
-            @input="onSearchInput"
-            @keyup.enter="performSearch"
-            type="text"
-            placeholder="搜尋正韓單品..."
-            class="search-input"
-          />
-          <button
-            v-if="searchInput"
-            @click="clearSearch"
-            type="button"
-            class="clear-search-btn"
-            aria-label="清除搜尋"
-          >
-            ×
-          </button>
-        </div>
-
-        <!-- 手機版獨立搜尋切換圖示 -->
-        <button
-          class="btn btn-link text-dark p-1.5 d-md-none"
-          type="button"
-          @click="isMobileSearchExpanded = !isMobileSearchExpanded"
-          aria-label="切換搜尋列"
-        >
-          <Search style="width: 20px; height: 20px;" />
-        </button>
-
-        <!-- 桌機版後台入口 -->
-        <router-link
-          v-if="authStore.isAdmin"
-          to="/admin"
-          class="btn btn-dark btn-sm rounded-pill px-3 py-1 d-none d-lg-flex align-items-center gap-1 font-monospace action-btn"
-        >
-          <Settings style="width: 13px; height: 13px;" />
-          <span>管理後台</span>
-        </router-link>
-
-        <!-- 桌機版會員入口 -->
-        <router-link
-          v-if="authStore.user?.isLoggedIn"
-          to="/profile"
-          class="btn btn-light btn-sm rounded-pill px-3 py-1 text-secondary d-none d-lg-flex align-items-center gap-1.5 action-btn"
-        >
-          <User style="width: 14px; height: 14px;" />
-          <span>{{ authStore.user.name }}</span>
-        </router-link>
-        <button
-          v-else
-          @click="showAuthModal = true"
-          type="button"
-          class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 d-none d-lg-flex align-items-center gap-1 action-btn"
-        >
-          <User style="width: 14px; height: 14px;" />
-          <span>登入</span>
-        </button>
-
-        <!-- 桌機版購物袋按鈕 -->
-        <button
-          @click="cartStore.toggleDrawer(true)"
-          type="button"
-          class="btn btn-link text-dark position-relative p-2 cart-trigger-btn d-none d-lg-flex"
-          aria-label="購物車"
-        >
-          <ShoppingBag style="width: 20px; height: 20px;" />
-          <span
-            v-if="cartStore.totalCount > 0"
-            class="position-absolute top-1 start-100 translate-middle badge rounded-pill bg-dark font-monospace cart-badge"
-          >
-            {{ cartStore.totalCount }}
-          </span>
-        </button>
-      </div>
-
-    </div>
-
-    <!-- 手機版下拉全寬搜尋條 -->
-    <div v-if="isMobileSearchExpanded" class="d-md-none border-top px-3 py-2 bg-light">
-      <div class="position-relative d-flex align-items-center">
-        <Search class="position-absolute start-0 ms-3 text-muted" style="width: 15px; height: 15px;" />
-        <input
-          :value="searchInput"
-          @input="onSearchInput"
-          @keyup.enter="performSearch"
-          type="text"
-          placeholder="搜尋正韓單品、商品標籤..."
-          class="form-control form-control-sm rounded-pill ps-5 font-sans"
-          autofocus
-        />
-        <button
-          v-if="searchInput"
-          @click="clearSearch"
-          type="button"
-          class="btn btn-link btn-sm text-secondary position-absolute end-0 me-2 p-0 text-decoration-none"
-        >
-          ×
-        </button>
-      </div>
-    </div>
-
-    <!-- 手機版全品類抽屜 (點擊分類跳轉到獨立分類頁) -->
-    <Teleport to="body">
-      <div
-        v-if="showMobileMenu"
-        class="position-fixed top-0 start-0 w-100 h-100 modal-backdrop-custom"
-        style="z-index: 1045;"
-        @click="showMobileMenu = false"
-      ></div>
-
-      <div
-        class="position-fixed top-0 start-0 bg-white h-100 p-4 shadow-lg d-flex flex-column mobile-drawer"
-        :style="{ transform: showMobileMenu ? 'translateX(0)' : 'translateX(-100%)' }"
-      >
-        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
-          <span class="fw-bold font-serif text-dark fs-6" style="letter-spacing: 0.1em;">ALL CATEGORIES</span>
-          <button type="button" class="btn-close" @click="showMobileMenu = false"></button>
-        </div>
-
-        <div class="flex-grow-1 overflow-y-auto no-scrollbar">
-          <div class="accordion accordion-flush" id="mobileCatAccordion">
-            <div
-              v-for="(cat, idx) in marketingStore.categoryTree"
-              :key="'m-' + idx"
-              class="accordion-item border-0 border-bottom"
-            >
-              <h2 class="accordion-header">
+              <div class="border-top pt-2.5 mt-0.5">
                 <button
-                  class="accordion-button collapsed px-1 py-3 small fw-bold text-dark bg-transparent"
                   type="button"
-                  data-bs-toggle="collapse"
-                  :data-bs-target="'#collapse-' + idx"
+                  class="dropdown-item rounded-3 small py-1.5 px-2.5 fw-bold text-primary"
+                  @click="goToCategory(cat.name, '')"
                 >
-                  {{ cat.name }}
+                  瀏覽全部 {{ cat.name }} →
                 </button>
-              </h2>
-              <div :id="'collapse-' + idx" class="accordion-collapse collapse" data-bs-parent="#mobileCatAccordion">
-                <div class="accordion-body px-2 py-2 bg-light rounded-3 mb-2">
-                  <div class="mb-2">
-                    <button
-                      type="button"
-                      class="btn btn-dark btn-sm rounded-pill w-100 py-1 font-monospace"
-                      style="font-size: 11px;"
-                      @click="navigateToCategory(cat.name)"
-                    >
-                      瀏覽全部 {{ cat.name }} →
-                    </button>
-                  </div>
-                  <div v-for="(sub, sIdx) in cat.subcategories" :key="'ms-' + sIdx" class="mb-3">
-                    <div class="fw-bold small text-muted mb-1" style="font-size: 11px;">{{ sub.name }}</div>
-                    <div class="d-flex flex-wrap gap-1.5">
-                      <button
-                        v-for="(item, iIdx) in sub.items"
-                        :key="'mi-' + iIdx"
-                        @click="navigateToCategory(cat.name, item)"
-                        type="button"
-                        class="btn btn-sm btn-outline-secondary rounded-pill py-0.5 px-2.5"
-                        style="font-size: 11px;"
-                      >
-                        {{ item }}
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
-        </div>
+        </li>
+      </ul>
 
-        <div class="border-top pt-3 small text-center text-muted font-monospace" style="font-size: 11px;">
-          MD.SELECT © 2026 SEOUL
-        </div>
+      <!-- 3. 最右側：功能按鈕群（會員中心 / 後台 / 購物袋） -->
+      <div class="d-flex align-items-center justify-content-end gap-2 flex-shrink-0">
+        <router-link to="/profile" class="btn btn-outline-dark btn-sm rounded-pill px-3.5 py-1.5 font-sans text-nowrap">
+          會員中心
+        </router-link>
+        <router-link
+          v-if="authStore.isAdmin"
+          to="/admin"
+          class="btn btn-dark btn-sm rounded-pill px-3.5 py-1.5 font-monospace text-nowrap"
+          style="font-size: 11.5px;"
+        >
+          後台管理
+        </router-link>
+        <button
+          type="button"
+          class="btn btn-light border btn-sm rounded-pill px-3.5 py-1.5 font-monospace position-relative text-nowrap"
+          @click="openCartDrawer"
+        >
+          購物袋 ({{ cartStore.totalCount || 0 }})
+        </button>
       </div>
-    </Teleport>
+    </nav>
 
-    <!-- 登入視窗 -->
-    <AuthModal :is-open="showAuthModal" @close="showAuthModal = false" />
-
-    <!-- 手機端底部導覽列 -->
-    <BottomNav
-      @open-category="showMobileMenu = true"
-      @open-auth="showAuthModal = true"
-    />
+    <!-- 手機版：橫向滑動分類快捷列（僅顯示後台設定之主分類） -->
+    <div
+      v-if="(marketingStore.categoryTree || []).length > 0"
+      class="d-flex d-lg-none gap-2 px-3 py-2 border-top bg-light overflow-x-auto no-scrollbar"
+    >
+      <button
+        v-for="cat in marketingStore.categoryTree"
+        :key="cat.name"
+        type="button"
+        class="btn btn-sm rounded-pill px-3.5 py-1 text-nowrap small transition-pill"
+        :class="isCurrentMainCategory(cat.name) ? 'btn-dark fw-bold' : 'btn-white bg-white border text-dark'"
+        @click="goToCategory(cat.name, '')"
+      >
+        {{ cat.name }}
+      </button>
+    </div>
   </header>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ShoppingBag, Search, User, Settings, ChevronDown } from 'lucide-vue-next'
-import { useProductStore } from '../stores/productStore'
-import { useCartStore } from '../stores/cartStore'
-import { useAuthStore } from '../stores/authStore'
+import { useRoute, useRouter } from 'vue-router'
+import { ChevronDown } from 'lucide-vue-next'
 import { useMarketingStore } from '../stores/marketingStore'
-import AuthModal from './AuthModal.vue'
-import BottomNav from './BottomNav.vue'
+import { useAuthStore } from '../stores/authStore'
+import { useCartStore } from '../stores/cartStore'
 
-const productStore = useProductStore()
-const cartStore = useCartStore()
-const authStore = useAuthStore()
-const marketingStore = useMarketingStore()
+const route = useRoute()
 const router = useRouter()
+const marketingStore = useMarketingStore()
+const authStore = useAuthStore()
+const cartStore = useCartStore()
 
-const showAuthModal = ref(false)
-const showMobileMenu = ref(false)
-const isMobileSearchExpanded = ref(false)
-const searchInput = ref('')
-
-const activeMenuIndex = ref(null)
-let leaveTimer = null
-
-const handleMenuEnter = (index) => {
-  if (leaveTimer) {
-    clearTimeout(leaveTimer)
-    leaveTimer = null
-  }
-  activeMenuIndex.value = index
+const hasSubcategories = (cat) => {
+  return Array.isArray(cat?.subcategories) && cat.subcategories.some(g => Array.isArray(g.items) && g.items.length > 0)
 }
 
-const handleMenuLeave = () => {
-  if (leaveTimer) clearTimeout(leaveTimer)
-  leaveTimer = setTimeout(() => {
-    activeMenuIndex.value = null
-  }, 280)
+const isCurrentMainCategory = (catName) => {
+  if (route.path !== '/category' && !route.path.startsWith('/category/')) return false
+  const currentCat = decodeURIComponent(String(route.query.cat || route.params.category || ''))
+  return currentCat === catName
 }
 
-const onSearchInput = (e) => {
-  searchInput.value = e.target.value
+const isCurrentSubCategory = (catName, subName) => {
+  if (!isCurrentMainCategory(catName)) return false
+  const currentSub = decodeURIComponent(String(route.query.sub || ''))
+  return currentSub === subName
 }
 
-const clearSearch = () => {
-  searchInput.value = ''
-}
-
-// 執行關鍵字搜尋：直接帶去專門分類頁
-const performSearch = () => {
-  if (searchInput.value.trim()) {
-    productStore.setSearchQuery(searchInput.value.trim())
-    router.push(`/category/${encodeURIComponent('ALL')}`)
-    isMobileSearchExpanded.value = false
+const openCartDrawer = () => {
+  if (typeof cartStore.openDrawer === 'function') {
+    cartStore.openDrawer()
+  } else if ('isOpen' in cartStore) {
+    cartStore.isOpen = true
+  } else if ('isDrawerOpen' in cartStore) {
+    cartStore.isDrawerOpen = true
   }
 }
 
-// ★ 核心：點擊分類時跳轉至獨立頁面
-const navigateToCategory = (catName, keyword = '') => {
-  activeMenuIndex.value = null
-  showMobileMenu.value = false
-  isMobileSearchExpanded.value = false
+const goToCategory = (mainCategory, subCategory) => {
+  const query = {}
+  if (mainCategory) query.cat = mainCategory
+  if (subCategory) query.sub = subCategory
 
-  if (keyword) {
-    productStore.setSearchQuery(keyword)
-  } else {
-    productStore.setSearchQuery('')
-  }
-
-  router.push(`/category/${encodeURIComponent(catName)}`)
+  router.push({
+    path: '/category',
+    query
+  })
 }
 </script>
 
 <style scoped>
-.navbar-wrapper {
-  z-index: 1030;
-  background-color: #ffffff;
-}
-
-.navbar-inner-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* 桌面版三欄式全寬佈局：Logo 貼最左、分類正置中、功能鈕貼最右 */
+.navbar-grid-container {
   width: 100%;
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 0.75rem clamp(1rem, 2.5vw, 2.5rem);
-  gap: 1rem;
-}
-
-.nav-brand-section {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 
-.logo-text {
-  letter-spacing: 0.12em;
-  font-size: 1.25rem;
-  white-space: nowrap;
+@media (min-width: 992px) {
+  .navbar-grid-container {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 1rem;
+  }
 }
 
-.sub-logo-text {
-  font-size: 9px;
-  letter-spacing: 0.1em;
+.nav-cat-btn {
+  position: relative;
+  letter-spacing: 0.02em;
+  transition: color 0.2s ease;
 }
 
-.nav-menu-section {
-  flex: 1;
-  justify-content: center;
-  display: flex;
-  gap: 0.5rem;
+.nav-cat-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: #2d2621;
+  transition: width 0.22s ease, left 0.22s ease;
 }
 
-.nav-menu-btn {
-  background: transparent;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--md-text-primary, #2d2621);
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+.nav-category-dropdown:hover .nav-cat-btn::after,
+.nav-cat-btn.is-active-cat::after {
+  width: 65%;
+  left: 17.5%;
 }
 
-.nav-menu-btn:hover,
-.nav-item.is-active .nav-menu-btn {
-  background-color: var(--md-surface-subtle, #f5f2ed);
-  color: var(--md-primary, #9b7e68);
-}
-
-.chevron-icon {
-  width: 12px;
-  height: 12px;
-  transition: transform 0.2s ease;
-}
-
-.chevron-icon.is-rotated {
+.nav-category-dropdown:hover .transition-chevron {
   transform: rotate(180deg);
 }
 
-.dropdown-panel {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #ffffff;
-  border: 1px solid var(--md-border, #ede8e1);
-  z-index: 1060;
-  padding: 1.75rem 2rem;
-  box-shadow: 0 12px 30px rgba(45, 38, 33, 0.09);
-  margin-top: 10px;
+.transition-chevron {
+  transition: transform 0.2s ease;
 }
 
-.dropdown-panel::before {
-  content: '';
-  position: absolute;
-  top: -12px;
-  left: 0;
-  width: 100%;
-  height: 12px;
-  background: transparent;
-}
-
-.dropdown-inner-content {
-  min-width: 440px;
-  max-width: 520px;
-}
-
-.sub-col {
-  padding: 0 1rem;
-}
-
-.sub-cat-header {
-  color: var(--md-primary, #9b7e68);
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  border-color: var(--md-border-light, #f3efe9) !important;
-}
-
-.sub-cat-link {
-  text-decoration: none;
-  font-size: 12px;
-  color: var(--md-text-secondary, #70665f);
+.nav-category-dropdown:hover .nav-mega-menu {
   display: block;
-  padding: 0.35rem 0.65rem;
-  border-radius: 6px;
-  transition: all 0.15s ease;
 }
 
-.sub-cat-link:hover {
-  background-color: var(--md-primary-light, #f7f3ee);
-  color: var(--md-primary, #9b7e68) !important;
-  transform: translateX(2px);
+.nav-mega-menu {
+  border-color: #ebe5dd !important;
+  box-shadow: 0 10px 28px rgba(45, 38, 33, 0.08) !important;
 }
 
-.nav-actions-section {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
+.dropdown-item {
+  transition: background-color 0.15s ease, padding-left 0.15s ease;
 }
 
-.search-box-container {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 185px;
-  height: 36px;
-  flex-shrink: 0;
+.dropdown-item:hover {
+  background-color: #faf8f5;
+  padding-left: 0.85rem !important;
 }
 
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
-  color: #8c827a;
-  pointer-events: none;
-  z-index: 3;
-}
-
-.search-input {
-  width: 100%;
-  height: 36px;
-  line-height: 36px;
-  font-size: 12px;
-  padding-left: 34px !important;
-  padding-right: 28px !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  margin: 0 !important;
-  background-color: #f5f2ed !important;
-  border: 1px solid transparent !important;
-  border-radius: 9999px !important;
-  color: var(--md-text-primary, #2d2621);
-  outline: none;
-  box-sizing: border-box;
+.transition-pill {
   transition: all 0.2s ease;
-}
-
-.search-input:focus {
-  background-color: #ffffff !important;
-  border-color: var(--md-primary, #9b7e68) !important;
-  box-shadow: 0 0 0 3px rgba(155, 126, 104, 0.15) !important;
-}
-
-.clear-search-btn {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  line-height: 18px;
-  text-align: center;
-  font-size: 14px;
-  color: #9c9289;
-  border: none;
-  background: transparent;
-  padding: 0;
-  z-index: 3;
-}
-
-.clear-search-btn:hover {
-  color: var(--md-text-primary, #2d2621);
-}
-
-.action-btn {
-  font-size: 12px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.cart-trigger-btn {
-  text-decoration: none;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cart-badge {
-  font-size: 9px;
-  top: 2px !important;
-}
-
-.dropdown-fade-enter-active,
-.dropdown-fade-leave-active {
-  transition: opacity 0.16s ease, transform 0.16s ease;
-}
-
-.dropdown-fade-enter-from,
-.dropdown-fade-leave-to {
-  opacity: 0;
-  transform: translate(-50%, -6px);
-}
-
-.mobile-drawer {
-  width: 320px;
-  max-width: 85vw;
-  z-index: 1050;
-  transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
 }
 </style>

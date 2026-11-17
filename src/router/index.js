@@ -17,9 +17,9 @@ export const router = createRouter({
       component: HomeView
     },
     {
-      path: '/category/:categoryName',
-      name: 'category',
-      component: CategoryView
+      path: '/category/:category?',
+  name: 'Category',
+  component: () => import('../views/CategoryView.vue')
     },
     {
       path: '/product/:id',
