@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMarketingStore = defineStore('marketing', () => {
-  // 1. 首頁輪播與分類樹（保留原有結構防呆）
+  // 1. 首頁輪播與分類樹
   const banners = ref([
     {
       id: 1,
@@ -39,14 +39,14 @@ export const useMarketingStore = defineStore('marketing', () => {
     }
   ])
 
-  // 2. ★ VIP 階級與紅利點數回饋趴數制度 (後台可即時調整) ★
+  // 2. VIP 階級與紅利點數回饋趴數制度（後台可即時調整）
   const vipTiers = ref([
     {
       id: 'GENERAL',
       name: '一般會員 (GENERAL)',
       minSpend: 0,
-      discountRate: 1.0, // 1.0 = 無折扣 (原價), 0.95 = 95折
-      pointsEarnRate: 1, // 消費回饋 1% 紅利點數
+      discountRate: 1.0,
+      pointsEarnRate: 1,
       badgeColor: 'bg-secondary-subtle text-secondary',
       description: '註冊即享基礎會員資格，消費回饋 1% 紅利點數'
     },
@@ -54,8 +54,8 @@ export const useMarketingStore = defineStore('marketing', () => {
       id: 'SILVER',
       name: '白銀 VIP (SILVER)',
       minSpend: 5000,
-      discountRate: 0.95, // 95 折
-      pointsEarnRate: 3, // 消費回饋 3% 紅利點數
+      discountRate: 0.95,
+      pointsEarnRate: 3,
       badgeColor: 'bg-info-subtle text-info-emphasis',
       description: '累積消費滿 NT$ 5,000，全館享 95 折與 3% 點數回饋'
     },
@@ -63,8 +63,8 @@ export const useMarketingStore = defineStore('marketing', () => {
       id: 'GOLD',
       name: '黃金 VIP (GOLD)',
       minSpend: 12000,
-      discountRate: 0.9, // 9 折
-      pointsEarnRate: 5, // 消費回饋 5% 紅利點數
+      discountRate: 0.9,
+      pointsEarnRate: 5,
       badgeColor: 'bg-warning-subtle text-warning-emphasis',
       description: '累積消費滿 NT$ 12,000，全館享 9 折、5% 點數回饋與每月專屬禮券'
     },
@@ -72,25 +72,24 @@ export const useMarketingStore = defineStore('marketing', () => {
       id: 'DIAMOND',
       name: '黑鑽 VIP (DIAMOND)',
       minSpend: 30000,
-      discountRate: 0.85, // 85 折
-      pointsEarnRate: 8, // 消費回饋 8% 紅利點數
+      discountRate: 0.85,
+      pointsEarnRate: 8,
       badgeColor: 'bg-dark text-white',
       description: '累積消費滿 NT$ 30,000，全館享 85 折、8% 點數回饋與生日豪華禮金'
     }
   ])
 
-  // 3. ★ 全館優惠券庫 (整合優惠碼輸入領取與自動派發) ★
+  // 3. 全館優惠券與優惠碼庫
   const couponTemplates = ref([
     {
       id: 'CPN-001',
       code: 'SEOUL100',
       title: '首爾新客見面禮',
-      type: 'FIXED', // FIXED (定額折抵) | PERCENT (折數折扣)
-      value: 100, // 折抵 100 元
+      type: 'FIXED',
+      value: 100,
       minSpend: 500,
       expiryDate: '2026-12-31',
       isActive: true,
-      autoTrigger: 'NONE', // NONE | BIRTHDAY | MONTHLY_VIP
       description: '全館單筆消費滿 NT$ 500 現折 NT$ 100'
     },
     {
@@ -102,7 +101,6 @@ export const useMarketingStore = defineStore('marketing', () => {
       minSpend: 1200,
       expiryDate: '2026-12-31',
       isActive: true,
-      autoTrigger: 'MONTHLY_VIP',
       description: 'VIP 專屬每月福利，滿 NT$ 1,200 折抵 NT$ 200'
     },
     {
@@ -114,7 +112,6 @@ export const useMarketingStore = defineStore('marketing', () => {
       minSpend: 1000,
       expiryDate: '2026-12-31',
       isActive: true,
-      autoTrigger: 'BIRTHDAY',
       description: '祝您生日快樂！當月壽星滿 NT$ 1,000 現折 NT$ 300'
     },
     {
@@ -122,36 +119,26 @@ export const useMarketingStore = defineStore('marketing', () => {
       code: 'WINTER88',
       title: '冬季新品 88 折券',
       type: 'PERCENT',
-      value: 0.88, // 88 折
+      value: 0.88,
       minSpend: 1500,
       expiryDate: '2026-12-31',
       isActive: true,
-      autoTrigger: 'NONE',
       description: '冬裝全系列滿 NT$ 1,500 享 88 折優惠'
     }
   ])
 
-  // 4. 自動化發送優惠券規則開關 (後台可設定開關與對應優惠券)
+  // 4. 自動化發送規則
   const autoDispatchRules = ref({
     birthdayEnabled: true,
     birthdayCouponCode: 'HBD300',
     monthlyVipEnabled: true,
-    monthlyVipCouponCode: 'VIP200',
-    monthlyVipMinTier: 'SILVER' // SILVER 以上自動派發
+    monthlyVipCouponCode: 'VIP200'
   })
 
-  // 依照累積消費金額取得對應 VIP 階級物件
-  const getTierBySpend = (totalSpent = 0) => {
-    const sorted = [...vipTiers.value].sort((a, b) => b.minSpend - a.minSpend)
-    return sorted.find(t => totalSpent >= t.minSpend) || vipTiers.value[0]
-  }
-
-  // 依照階級 ID 取得 VIP 階級物件
   const getTierById = (tierId) => {
     return vipTiers.value.find(t => t.id === tierId) || vipTiers.value[0]
   }
 
-  // 透過優惠碼查詢有效優惠券模板
   const findCouponByCode = (code) => {
     if (!code) return null
     const cleanCode = code.trim().toUpperCase()
@@ -164,7 +151,6 @@ export const useMarketingStore = defineStore('marketing', () => {
     vipTiers,
     couponTemplates,
     autoDispatchRules,
-    getTierBySpend,
     getTierById,
     findCouponByCode
   }

@@ -5,13 +5,13 @@ import { useMarketingStore } from './marketingStore'
 export const useAuthStore = defineStore('auth', () => {
   const marketingStore = useMarketingStore()
 
-  // 1. 會員個人資料核心狀態 (含 birthday 生日欄位)
+  // 1. 會員個人資料狀態
   const user = ref({
     isLoggedIn: true,
     name: '陳哲偉',
     phone: '0912345678',
     email: 'user@md-korea.com',
-    birthday: '1997-03-18', // ★ 會員生日欄位 (YYYY-MM-DD)
+    birthday: '1997-03-18',
     totalSpent: 14850,
     vipTierId: 'GOLD',
     points: 1250,
@@ -57,7 +57,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => isLoggedIn.value)
 
-  // 判斷目前登入會員是否為「本月壽星」
   const isCurrentUserBirthdayMonth = computed(() => {
     if (!user.value?.birthday) return false
     const currentMonth = new Date().getMonth() + 1
@@ -65,18 +64,16 @@ export const useAuthStore = defineStore('auth', () => {
     return currentMonth === bMonth
   })
 
-  // 取得目前會員所屬的 VIP 階級權益
   const currentVipTier = computed(() => {
     const tierId = user.value?.vipTierId || 'GENERAL'
     return marketingStore.getTierById(tierId)
   })
 
-  // 取得會員尚未使用的有效優惠券列表
   const availableUserCoupons = computed(() => {
     return (user.value?.myCoupons || []).filter(c => !c.isUsed)
   })
 
-  // 2. 後台專用：全體會員名冊列表 (全部包含 birthday 生日欄位)
+  // 2. 後台全體會員名冊
   const memberList = ref([
     {
       id: 'MB-1001',
@@ -97,7 +94,7 @@ export const useAuthStore = defineStore('auth', () => {
       name: '黃小芬',
       phone: '0922111333',
       email: 'fen@gmail.com',
-      birthday: '1995-11-24', // 本月壽星
+      birthday: '1995-11-24',
       vipTierId: 'SILVER',
       totalSpent: 6200,
       orderCount: 5,
@@ -125,7 +122,7 @@ export const useAuthStore = defineStore('auth', () => {
       name: '李刷卡',
       phone: '0933444555',
       email: 'cardtest@yahoo.com.tw',
-      birthday: '1998-11-18', // 本月壽星
+      birthday: '1998-11-18',
       vipTierId: 'DIAMOND',
       totalSpent: 35800,
       orderCount: 15,
@@ -136,7 +133,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   ])
 
-  // 3. 會員登入與註冊 (支援註冊時直接存入生日並同步建立後台名冊)
+  // 3. 登入與註冊
   const login = (loginData = {}) => {
     const matched = memberList.value.find(
       m => m.email === loginData.email || m.phone === loginData.account || m.phone === loginData.phone
@@ -147,7 +144,6 @@ export const useAuthStore = defineStore('auth', () => {
       return false
     }
 
-    // 若是新註冊帳號，自動寫入後台 memberList 名冊
     if (loginData.isRegister && !matched) {
       const nextId = 'MB-' + (1000 + memberList.value.length + 1)
       memberList.value.unshift({
@@ -189,7 +185,6 @@ export const useAuthStore = defineStore('auth', () => {
     user.value.isLoggedIn = false
   }
 
-  // 前台會員更新個人資料（含生日，並同步至後台名冊）
   const updateProfile = (profileData = {}) => {
     if (!user.value) return
     Object.assign(user.value, profileData)
@@ -202,7 +197,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // ★ 後台直接編輯修改會員基本資料與生日 ★
   const adminUpdateMemberInfo = (memberId, payload) => {
     const target = memberList.value.find(m => m.id === memberId)
     if (!target) return { success: false, message: '找不到該會員' }
@@ -213,7 +207,6 @@ export const useAuthStore = defineStore('auth', () => {
     if (payload.vipTierId !== undefined) target.vipTierId = payload.vipTierId
     target.updatedAt = new Date().toISOString().slice(0, 10)
 
-    // 若剛好是目前登入使用者，同步更新前台狀態
     if (user.value && (user.value.email === target.email || user.value.phone === target.phone)) {
       user.value.name = target.name
       user.value.phone = target.phone
@@ -268,7 +261,6 @@ export const useAuthStore = defineStore('auth', () => {
     if (cpn) cpn.isUsed = true
   }
 
-  // 後台派發優惠券
   const dispatchCouponToMembers = ({ couponCode, targetGroup, singleMemberId = null }) => {
     const template = marketingStore.findCouponByCode(couponCode)
     if (!template) return { success: false, message: '找不到對應的有效優惠券模板！' }

@@ -39,7 +39,7 @@ export const router = createRouter({
     {
       path: '/profile',
       name: 'profile',
-      component: ProfileView
+      component: () => import('../views/ProfileView.vue')
     },
     {
       path: '/admin',

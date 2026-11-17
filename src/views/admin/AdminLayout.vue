@@ -17,7 +17,6 @@
         </router-link>
       </div>
 
-      <!-- 側邊欄分組標題 (靠左) -->
       <div class="d-none d-lg-block text-start text-muted font-monospace mb-2 px-2" style="font-size: 10px; letter-spacing: 0.08em;">
         MANAGEMENT MODULES
       </div>
@@ -35,7 +34,6 @@
           <component :is="tab.icon" style="width: 16px; height: 16px; flex-shrink: 0;" />
           <span class="text-start flex-grow-1">{{ tab.label }}</span>
 
-          <!-- 狀態提示徽章 (待出貨 / 低庫存 / 風控警示) -->
           <span
             v-if="tab.badgeCount > 0"
             class="badge rounded-pill font-monospace ms-auto"
@@ -55,7 +53,7 @@
       </div>
     </aside>
 
-    <!-- 右側動態主內容工作區 (完整掛載原有的獨立管理視圖元件) -->
+    <!-- 右側動態主內容工作區 (完整掛載原有的六大獨立後台視圖) -->
     <main class="flex-grow-1 p-3 p-md-4 p-lg-5 overflow-x-hidden" style="min-width: 0;">
       <div style="max-width: 1200px; margin: 0 auto;">
         <DashboardView v-if="activeMenu === 'dashboard'" />
@@ -94,29 +92,24 @@ const productStore = useProductStore()
 const authStore = useAuthStore()
 const adminStore = useAdminStore()
 
-// 預設開啟數據統計儀表板
 const activeMenu = ref('dashboard')
 
-// 計算待出貨訂單數量
 const pendingOrderCount = computed(() => {
   return (adminStore.orders || []).filter(o => o.status === '待出貨' || o.status === '處理中').length
 })
 
-// 計算低庫存商品數量
 const lowStockProductCount = computed(() => {
   return (productStore.products || []).filter(p =>
     (p.skus || []).some(sku => sku.stock <= 5)
   ).length
 })
 
-// 計算受風控管制之會員人數
 const restrictedMemberCount = computed(() => {
   return (authStore.memberList || []).filter(m =>
     m.riskStatus && m.riskStatus !== 'NORMAL'
   ).length
 })
 
-// 完整還原所有後台模組導航選單（文字全部靠左對齊）
 const navTabs = computed(() => [
   {
     id: 'dashboard',

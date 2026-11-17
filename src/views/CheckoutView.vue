@@ -1,7 +1,6 @@
 <template>
   <main class="container py-3 py-md-5 checkout-page-container">
     
-    <!-- 麵包屑導航與標題 -->
     <div class="mb-4">
       <nav class="small text-muted mb-2" aria-label="breadcrumb">
         <ol class="breadcrumb mb-0">
@@ -151,7 +150,6 @@
             </span>
           </div>
 
-          <!-- 商品簡明清單 -->
           <div class="d-flex flex-column gap-2.5 mb-3.5 max-h-cart-list overflow-y-auto no-scrollbar">
             <div v-for="item in cartStore.items" :key="item.skuId" class="d-flex align-items-center justify-content-between gap-2 py-1">
               <div class="d-flex align-items-center gap-2 min-w-0">
@@ -167,7 +165,7 @@
             </div>
           </div>
 
-          <!-- ★ 1. 選取會員優惠券 + 支援現場輸入優惠碼領取 ★ -->
+          <!-- 1. 選取會員優惠券 + 支援現場輸入優惠碼領取 -->
           <div class="border-top pt-3 mb-3">
             <label class="form-label text-dark fw-bold small mb-1.5 d-flex align-items-center gap-1.5">
               <Ticket style="width: 14px; height: 14px;" class="text-primary" />
@@ -179,7 +177,6 @@
             </div>
 
             <div v-else class="d-flex flex-column gap-2">
-              <!-- 下拉選取會員錢包內已領取的優惠券 -->
               <select v-model="selectedCouponInstanceId" class="form-select form-select-sm font-sans">
                 <option value="">不使用優惠券</option>
                 <option
@@ -193,13 +190,12 @@
                 </option>
               </select>
 
-              <!-- 同時提供直接輸入優惠碼領取並套用 -->
               <div class="input-group input-group-sm">
                 <input
                   v-model="inlinePromoCode"
                   type="text"
                   class="form-control font-monospace text-uppercase"
-                  placeholder="輸入新優惠碼領取並使用..."
+                  placeholder="輸入新優惠碼領取並套用..."
                   @keyup.enter="claimAndSelectCoupon"
                 />
                 <button type="button" class="btn btn-outline-dark font-monospace" @click="claimAndSelectCoupon">
@@ -209,7 +205,7 @@
             </div>
           </div>
 
-          <!-- ★ 2. 紅利點數自訂輸入折抵 ★ -->
+          <!-- 2. 紅利點數自訂輸入折抵 -->
           <div v-if="authStore.user?.isLoggedIn" class="border-top pt-3 mb-3">
             <div class="d-flex justify-content-between align-items-center mb-1.5">
               <label class="form-label text-dark fw-bold small mb-0 d-flex align-items-center gap-1.5">
@@ -249,14 +245,13 @@
             </div>
           </div>
 
-          <!-- 金額計算明細表 (整合 VIP 折扣 + 優惠券 + 點數 + 回饋預估) -->
+          <!-- 金額計算明細表 -->
           <div class="border-top pt-3 d-flex flex-column gap-2 font-sans small">
             <div class="d-flex justify-content-between text-secondary">
               <span>商品原價小計</span>
               <span class="font-monospace">NT$ {{ rawSubtotal.toLocaleString() }}</span>
             </div>
 
-            <!-- VIP 等級專屬折扣列 -->
             <div v-if="vipDiscountAmount > 0" class="d-flex justify-content-between text-warning-emphasis fw-medium">
               <span>👑 {{ authStore.currentVipTier.name }} ({{ Math.round(authStore.currentVipTier.discountRate * 100) }}折)</span>
               <span class="font-monospace">- NT$ {{ vipDiscountAmount.toLocaleString() }}</span>
@@ -284,13 +279,11 @@
               </div>
             </div>
 
-            <!-- 預計獲得紅利點數回饋提示 -->
             <div v-if="authStore.user?.isLoggedIn" class="bg-light rounded-2 p-2 text-end font-monospace text-muted" style="font-size: 11px;">
               ✨ 本筆完成後預計可獲得 <strong class="text-dark">{{ estimatedEarnedPoints }} 點</strong> 紅利回饋 ({{ authStore.currentVipTier.pointsEarnRate }}%)
             </div>
           </div>
 
-          <!-- 桌面版 LINE Pay 結帳按鈕 -->
           <div class="pt-3.5 d-none d-lg-block">
             <button
               type="button"
@@ -359,12 +352,10 @@ const form = reactive({
   orderNotes: ''
 })
 
-// 1. 商品原價小計
 const rawSubtotal = computed(() => {
   return cartStore.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
 })
 
-// 2. VIP 階級專屬折扣金額
 const vipDiscountAmount = computed(() => {
   if (!authStore.user?.isLoggedIn) return 0
   const rate = authStore.currentVipTier?.discountRate ?? 1.0
@@ -374,7 +365,6 @@ const vipDiscountAmount = computed(() => {
 
 const subtotalAfterVip = computed(() => Math.max(0, rawSubtotal.value - vipDiscountAmount.value))
 
-// 3. 選用優惠券 + 現場輸入優惠碼領取
 const selectedCouponInstanceId = ref('')
 const inlinePromoCode = ref('')
 
@@ -383,7 +373,6 @@ const selectedCoupon = computed(() => {
   return authStore.availableUserCoupons.find(c => c.instanceId === selectedCouponInstanceId.value) || null
 })
 
-// 在結帳頁直接輸入優惠碼領取並套用
 const claimAndSelectCoupon = () => {
   if (!inlinePromoCode.value.trim()) {
     alert('請輸入優惠碼！')
@@ -410,7 +399,6 @@ const couponDiscountAmount = computed(() => {
   return 0
 })
 
-// 4. 自訂紅利點數折抵
 const customPointsInput = ref(0)
 const availableUserPoints = computed(() => authStore.user?.points || 0)
 
@@ -432,7 +420,6 @@ const appliedPointsDiscount = computed(() => {
   return Math.max(0, Math.min(pts, maxUsablePoints.value))
 })
 
-// 5. 運費與最終 LINE Pay 實付金額
 const shippingFee = computed(() => (subtotalAfterVip.value >= 1500 ? 0 : 80))
 
 const finalTotalAmount = computed(() => {
@@ -440,7 +427,6 @@ const finalTotalAmount = computed(() => {
   return Math.max(0, afterDiscounts) + shippingFee.value
 })
 
-// 預計獲得之新紅利點數（依後台設定的 VIP 點數回饋趴數計算）
 const estimatedEarnedPoints = computed(() => {
   const earnRate = authStore.currentVipTier?.pointsEarnRate ?? 1
   return Math.floor(finalTotalAmount.value * (earnRate / 100))
@@ -476,22 +462,47 @@ const submitOrder = async () => {
   isSubmitting.value = true
 
   try {
-    // 1. 扣除使用的點數並加上本筆訂單回饋的新點數
     if (authStore.user?.isLoggedIn) {
       authStore.user.points = Math.max(0, authStore.user.points - appliedPointsDiscount.value) + estimatedEarnedPoints.value
       authStore.user.totalSpent += finalTotalAmount.value
     }
 
-    // 2. 將使用的優惠券標記為已使用
     if (selectedCouponInstanceId.value) {
       authStore.markCouponAsUsed(selectedCouponInstanceId.value)
     }
 
     const orderId = 'ORD-' + Date.now().toString().slice(-8)
-    adminStore.addAuditLog(
-      '完成 LINE Pay 訂單結帳',
-      `訂單 #${orderId}，VIP折扣 NT$${vipDiscountAmount.value}，優惠券折抵 NT$${couponDiscountAmount.value}，點數折抵 ${appliedPointsDiscount.value}點，實付 NT$${finalTotalAmount.value}，新增回饋 ${estimatedEarnedPoints.value}點`
-    )
+    const shippingAddress = form.shippingMethod === 'HOME'
+      ? `${form.city}${form.district}${form.addressDetail}`
+      : `${form.cvsStoreName} (店號:${form.cvsStoreId})`
+
+    // 同步寫入 adminStore.orders 讓後台訂單管理與前台會員中心即時看到新訂單
+    if (adminStore.orders) {
+      adminStore.orders.unshift({
+        id: orderId,
+        orderId,
+        createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        recipientName: form.recipientName,
+        customerName: form.recipientName,
+        phone: form.phone,
+        email: form.email,
+        shippingMethod: form.shippingMethod,
+        shippingAddress,
+        paymentMethod: 'LINE Pay',
+        status: '待出貨',
+        trackingNumber: '',
+        totalAmount: finalTotalAmount.value,
+        total: finalTotalAmount.value,
+        items: [...cartStore.items]
+      })
+    }
+
+    if (adminStore.addAuditLog) {
+      adminStore.addAuditLog(
+        '完成 LINE Pay 訂單結帳',
+        `訂單 #${orderId}，實付 NT$${finalTotalAmount.value}，新增回饋 ${estimatedEarnedPoints.value}點`
+      )
+    }
 
     cartStore.clearCart()
 
