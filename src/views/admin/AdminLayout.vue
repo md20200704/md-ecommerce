@@ -12,7 +12,7 @@
         >
           <span>☰ 選單</span>
         </button>
-        <span class="fw-bold font-serif tracking-wide" style="letter-spacing: 0.05em; font-size: 14.5px;">MD.SELECT 後台管理</span>
+        <span class="fw-bold font-serif tracking-wide" style="letter-spacing: 0.05em; font-size: 14.5px;">M&D SELECT 後台管理</span>
       </div>
       <router-link
         to="/"
@@ -41,7 +41,7 @@
         <div class="d-flex align-items-center justify-content-between pb-3.5 mb-3.5 border-bottom">
           <div>
             <router-link to="/" class="text-decoration-none text-dark fw-bold fs-5 font-serif d-block" style="letter-spacing: 0.08em;">
-              MD.SELECT
+              M&D SELECT
             </router-link>
             <span class="text-muted font-monospace" style="font-size: 10px; letter-spacing: 0.06em;">BACKOFFICE ARCHIVE</span>
           </div>

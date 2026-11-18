@@ -11,7 +11,7 @@
             class="text-decoration-none text-dark fw-bold fs-4 font-serif tracking-wide flex-shrink-0"
             style="letter-spacing: 0.08em;"
           >
-            MD.SELECT
+            M&D SELECT
           </router-link>
         </div>
 
