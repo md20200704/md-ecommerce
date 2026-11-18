@@ -146,7 +146,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   ])
 
-  // 當會員 VIP 升級時，自動觸發發送符合條件的升級優惠券
   const triggerVipUpgradeCoupons = (memberRecord, newTierId) => {
     if (!memberRecord || memberRecord.riskStatus === 'BANNED') return []
 
@@ -189,28 +188,48 @@ export const useAuthStore = defineStore('auth', () => {
     return dispatchedCoupons
   }
 
-  // 僅當訂單正式「已完成」時，才結算累積消費金額、發放紅利點數並檢查 VIP 升級
+  // ★ 當訂單點擊「完成訂單」時，計入「折抵後實際支付金額」與計算紅利點數回饋
   const settleCompletedOrderRewards = (order) => {
     if (!order || order.rewardsSettled) {
-      return { settled: false, upgraded: false }
+      return { settled: false, upgraded: false, paidAmount: 0, earnedPoints: 0 }
     }
 
-    const orderAmount = Number(order.totalAmount || order.total || 0)
-    const earnedPoints = Number(order.earnedPoints || 0)
+    // 計算折抵後實際支付金額（優先取 totalAmount / amount，若無則用 小計 - 優惠券 - 點數 + 運費）
+    const itemsSum = (order.items || []).reduce(
+      (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
+      0
+    )
+    const discount = Number(order.couponDiscount || 0) + Number(order.pointsUsed || 0)
+    const ship = Number(order.shippingFee || 0)
+    const calculatedPaid = Math.max(0, itemsSum - discount) + ship
+
+    const paidAmount = Number(order.totalAmount || order.amount || order.total || calculatedPaid || 0)
+    order.totalAmount = paidAmount
 
     const memberRecord = memberList.value.find(
       m =>
         (order.email && m.email === order.email) ||
         (order.phone && m.phone === order.phone) ||
-        (order.recipientName && m.name === order.recipientName)
+        (order.recipientName && m.name === order.recipientName) ||
+        (order.customerName && m.name === order.customerName)
     )
 
+    // 依會員當前 VIP 等級點數回饋率計算本次獲得紅利點數（以折抵後實付金額計算）
+    const activeTierId = memberRecord?.vipTierId || user.value?.vipTierId || 'GENERAL'
+    const activeTierObj = marketingStore.getTierById(activeTierId) || { pointsEarnRate: 1 }
+    const earnRate = Number(activeTierObj.pointsEarnRate || 1)
+    const earnedPoints = Number(order.earnedPoints) > 0
+      ? Number(order.earnedPoints)
+      : Math.max(1, Math.floor((paidAmount * earnRate) / 100))
+
+    order.earnedPoints = earnedPoints
+
     let newTotalSpent = 0
-    let oldTierId = 'GENERAL'
+    let oldTierId = activeTierId
 
     if (memberRecord) {
       oldTierId = memberRecord.vipTierId || 'GENERAL'
-      memberRecord.totalSpent = (Number(memberRecord.totalSpent) || 0) + orderAmount
+      memberRecord.totalSpent = (Number(memberRecord.totalSpent) || 0) + paidAmount
       memberRecord.orderCount = (Number(memberRecord.orderCount) || 0) + 1
       memberRecord.updatedAt = new Date().toISOString().slice(0, 10)
       newTotalSpent = memberRecord.totalSpent
@@ -220,18 +239,18 @@ export const useAuthStore = defineStore('auth', () => {
       user.value?.isLoggedIn &&
       ((order.email && user.value.email === order.email) ||
         (order.phone && user.value.phone === order.phone) ||
-        (order.recipientName && user.value.name === order.recipientName))
+        (order.recipientName && user.value.name === order.recipientName) ||
+        (order.customerName && user.value.name === order.customerName))
 
     if (isCurrentUser) {
       oldTierId = user.value.vipTierId || oldTierId
       user.value.totalSpent = memberRecord
         ? memberRecord.totalSpent
-        : (Number(user.value.totalSpent) || 0) + orderAmount
+        : (Number(user.value.totalSpent) || 0) + paidAmount
       user.value.points = (Number(user.value.points) || 0) + earnedPoints
       newTotalSpent = user.value.totalSpent
     }
 
-    // 標記此訂單已完成獎勵與累積消費結算，防止重複入帳
     order.rewardsSettled = true
 
     const sortedTiers = [...(marketingStore.vipTiers || [])].sort((a, b) => a.minSpend - b.minSpend)
@@ -253,6 +272,7 @@ export const useAuthStore = defineStore('auth', () => {
       const issuedCoupons = triggerVipUpgradeCoupons(memberRecord || user.value, qualifiedTier.id)
       return {
         settled: true,
+        paidAmount,
         earnedPoints,
         upgraded: true,
         newTier: qualifiedTier,
@@ -262,6 +282,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     return {
       settled: true,
+      paidAmount,
       earnedPoints,
       upgraded: false
     }
@@ -487,8 +508,13 @@ export const useAuthStore = defineStore('auth', () => {
     if (!user.value.wishlist) user.value.wishlist = []
     const id = Number(productId)
     const index = user.value.wishlist.indexOf(id)
-    if (index > -1) user.value.wishlist.splice(index, 1)
-    else user.value.wishlist.push(id)
+    if (index > -1) {
+      user.value.wishlist.splice(index, 1)
+      return { added: false, message: '已從收藏清單移除' }
+    } else {
+      user.value.wishlist.push(id)
+      return { added: true, message: '已加入愛心收藏清單！' }
+    }
   }
 
   const addAddress = (address) => {

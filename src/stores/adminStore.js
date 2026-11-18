@@ -17,227 +17,232 @@ export const useAdminStore = defineStore('admin', () => {
   const maskPhone = (phone) => phone || ''
   const maskName = (name) => name || ''
 
+  // 統一訂單資料結構：包含 id/orderId、status、subtotal、couponDiscount、pointsUsed、shippingFee、totalAmount 與帶圖片的 items
   const orders = ref([
     {
       id: 'ORD-20261106-01',
-      customerName: '陳大文',
+      orderId: 'ORD-20261106-01',
+      customerName: '陳哲偉',
+      recipientName: '陳哲偉',
       phone: '0912345678',
-      amount: 1480,
-      paymentMethod: '信用卡 3D 一次付清',
+      email: 'user@md-korea.com',
+      status: '待出貨',
+      subtotal: 3280,
+      couponDiscount: 100,
+      pointsUsed: 80,
+      shippingFee: 100,
+      totalAmount: 3200, // 折抵後實際支付總金額 (3280 - 100 - 80 + 100)
+      amount: 3200,
+      paymentMethod: 'LINE Pay',
       paymentStatus: 'PAID',
-      shippingMethod: '7-11 超商取貨 (鑫鑫門市)',
-      shippingType: 'CVS',
-      shippingStatus: 'PENDING',
-      trackingCode: '',
-      invoiceNo: 'QQ-88219412',
-      invoiceStatus: 'ISSUED',
-      refundStatus: 'NONE',
-      returnReason: '',
+      shippingMethod: 'CVS',
+      shippingAddress: '7-11 鑫鑫門市 (台北市中正區忠孝西路一段)',
+      trackingNumber: '',
+      cancelReason: '',
+      rewardsSettled: false,
       createdAt: '2026-11-06 14:00',
       items: [
-        { skuId: 'TOP-01-CRM-F', name: '法式極簡微抓皺鬆弛感雪紡襯衫 (奶油杏/FREE)', quantity: 1, price: 1480 }
+        {
+          id: 1,
+          skuId: 'SKU-101',
+          name: '首爾晨霧微光西裝長大衣',
+          color: '晨霧燕麥',
+          size: 'S',
+          quantity: 1,
+          price: 3280,
+          image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80',
+          reviewed: false
+        }
       ]
     },
     {
       id: 'ORD-20261105-08',
-      customerName: '王曉明',
-      phone: '0922888123',
-      amount: 2880,
+      orderId: 'ORD-20261105-08',
+      customerName: '陳哲偉',
+      recipientName: '陳哲偉',
+      phone: '0912345678',
+      email: 'user@md-korea.com',
+      status: '配送中',
+      subtotal: 2960,
+      couponDiscount: 200,
+      pointsUsed: 60,
+      shippingFee: 100,
+      totalAmount: 2800, // 折抵後實際支付總金額 (2960 - 200 - 60 + 100)
+      amount: 2800,
       paymentMethod: 'LINE Pay',
       paymentStatus: 'PAID',
-      shippingMethod: '黑貓宅配到府 (台北市信義區松仁路10號)',
-      shippingType: 'HOME',
-      shippingStatus: 'SHIPPED',
-      trackingCode: 'TCAT-90218842',
-      invoiceNo: 'QQ-88219413',
-      invoiceStatus: 'ISSUED',
-      refundStatus: 'NONE',
-      returnReason: '',
+      shippingMethod: 'HOME',
+      shippingAddress: '台北市中正區忠孝西路一段 100 號 8 樓',
+      trackingNumber: 'TCAT-90218842',
+      cancelReason: '',
+      rewardsSettled: false,
       createdAt: '2026-11-05 09:30',
       items: [
-        { skuId: 'OUT-02-MOC-S', name: '經典廓形雙排扣純羊毛短大衣 (摩卡咖/S)', quantity: 1, price: 2880 }
+        {
+          id: 2,
+          skuId: 'SKU-201',
+          name: '法式慵懶微立領雪紡襯衫',
+          color: '米白',
+          size: 'F',
+          quantity: 1,
+          price: 1380,
+          image: 'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=800&q=80',
+          reviewed: false
+        },
+        {
+          id: 3,
+          skuId: 'SKU-301',
+          name: '高腰垂墜感西裝直筒闊腿褲',
+          color: '卡其灰',
+          size: 'S',
+          quantity: 1,
+          price: 1580,
+          image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=800&q=80',
+          reviewed: false
+        }
       ]
     },
     {
       id: 'ORD-20261102-03',
-      customerName: '張美麗',
-      phone: '0988666222',
-      amount: 1480,
-      paymentMethod: '信用卡 3D 一次付清',
+      orderId: 'ORD-20261102-03',
+      customerName: '陳哲偉',
+      recipientName: '陳哲偉',
+      phone: '0912345678',
+      email: 'user@md-korea.com',
+      status: '已完成',
+      subtotal: 1880,
+      couponDiscount: 0,
+      pointsUsed: 80,
+      shippingFee: 60,
+      totalAmount: 1860,
+      amount: 1860,
+      earnedPoints: 55,
+      paymentMethod: 'LINE Pay',
       paymentStatus: 'PAID',
-      shippingMethod: '黑貓宅配到府',
-      shippingType: 'HOME',
-      shippingStatus: 'DELIVERED',
-      trackingCode: 'TCAT-90218841',
-      invoiceNo: 'QQ-88219400',
-      invoiceStatus: 'ISSUED',
-      refundStatus: 'APPLIED',
-      returnReason: '尺寸不合身，申請退貨',
+      shippingMethod: 'CVS',
+      shippingAddress: '全家 敦南門市',
+      trackingNumber: 'FAMI-77829103',
+      cancelReason: '',
+      rewardsSettled: true,
       createdAt: '2026-11-02 10:10',
       items: [
-        { skuId: 'DRS-04-BEI-F', name: '後開衩優雅垂墜直筒針織長裙 (燕麥杏/FREE)', quantity: 1, price: 1480 }
+        {
+          id: 4,
+          skuId: 'SKU-401',
+          name: '親膚喀什米爾針織落肩開襟衫',
+          color: '燕麥白',
+          size: 'F',
+          quantity: 1,
+          price: 1880,
+          image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=800&q=80',
+          reviewed: false
+        }
       ]
     }
   ])
 
-  const generateShippingLabel = (orderId) => {
-    const order = orders.value.find((o) => o.id === orderId)
-    if (!order) return
-    if (!order.trackingCode) {
-      order.trackingCode = order.shippingType === 'CVS'
-        ? 'CVS-' + Math.floor(10000000 + Math.random() * 90000000)
-        : 'TCAT-' + Math.floor(10000000 + Math.random() * 90000000)
+  // 取得訂單實際支付總金額（相容各種新舊欄位，確保絕不為 0）
+  const getOrderPaidAmount = (ord) => {
+    if (!ord) return 0
+    if (typeof ord.totalAmount === 'number' && ord.totalAmount > 0) return ord.totalAmount
+    if (typeof ord.amount === 'number' && ord.amount > 0) return ord.amount
+    if (typeof ord.total === 'number' && ord.total > 0) return ord.total
+    const itemsSum = (ord.items || []).reduce(
+      (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
+      0
+    )
+    const discount = Number(ord.couponDiscount || 0) + Number(ord.pointsUsed || 0)
+    const ship = Number(ord.shippingFee || 0)
+    return Math.max(0, itemsSum - discount) + ship
+  }
+
+  // 顧客於前台針對「尚未出貨（待出貨）」之訂單提出取消申請
+  const requestCancelOrder = (orderId, reason = '顧客改變心意申請取消') => {
+    const order = orders.value.find(o => (o.orderId || o.id) === orderId)
+    if (!order) return { success: false, message: '找不到該筆訂單' }
+
+    if (!['待出貨', '處理中', '已付款', 'PENDING'].includes(order.status)) {
+      return { success: false, message: '此訂單已進入出貨流程，無法直接取消！' }
     }
-    order.shippingStatus = 'SHIPPED'
-    addAuditLog('產生出貨託運單', `訂單 ${orderId} 生成代碼 ${order.trackingCode} 並轉為已出貨`)
+
+    order.status = '申請取消中'
+    order.cancelReason = reason
+    order.cancelRequestedAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+
+    addAuditLog(
+      '顧客申請取消訂單',
+      `訂單 #${orderId} 顧客提出取消申請（原因：${reason}），等待商家於後台確認`
+    )
+    return {
+      success: true,
+      message: `已送出訂單 #${orderId} 的取消申請！商家已收到系統通知，將於後台為您審核確認。`
+    }
   }
 
-  const markAsDelivered = (orderId) => {
-    const order = orders.value.find((o) => o.id === orderId)
-    if (!order) return
-    order.shippingStatus = 'DELIVERED'
-    authStore.rewardPointsForOrder(order)
-    addAuditLog('訂單送達結案', `訂單 ${orderId} 標記已送達，自動派發回饋點數`)
-  }
+  // 商家於後台「核准取消訂單」（自動回補商品 SKU 庫存與退還已折抵點數）
+  const approveCancelOrder = (orderId) => {
+    const order = orders.value.find(o => (o.orderId || o.id) === orderId)
+    if (!order) return { success: false, message: '找不到該筆訂單' }
 
-  const confirmReturnReceived = (orderId) => {
-    const order = orders.value.find((o) => o.id === orderId)
-    if (!order) return
-    order.refundStatus = 'RECEIVED'
-    order.items.forEach((item) => {
-      productStore.products.forEach((p) => {
-        const targetSku = p.skus.find((s) => s.skuId === item.skuId)
+    order.status = '已取消'
+    order.cancelledAt = new Date().toISOString().slice(0, 16).replace('T', ' ')
+
+    // 1. 自動回補對應商品 SKU 庫存
+    ;(order.items || []).forEach(item => {
+      const prod = (productStore.products || []).find(
+        p => Number(p.id) === Number(item.id) || p.name === item.name
+      )
+      if (prod && Array.isArray(prod.skus)) {
+        const targetSku =
+          prod.skus.find(s => s.skuId === item.skuId || (s.color === item.color && s.size === item.size)) ||
+          prod.skus[0]
         if (targetSku) {
-          targetSku.stock += item.quantity
-          stockLogs.value.unshift({
-            id: 'LOG-' + Date.now().toString().slice(-4),
-            skuId: targetSku.skuId,
-            productName: `${p.name} (${targetSku.color}/${targetSku.size})`,
-            changeQty: +item.quantity,
-            afterStock: targetSku.stock,
-            reason: `退貨驗收入庫 (訂單 ${orderId})`,
-            operator: currentAdmin.value.name,
-            createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
-          })
+          targetSku.stock = (Number(targetSku.stock) || 0) + (Number(item.quantity) || 1)
         }
-      })
+        prod.salesCount = Math.max(0, (Number(prod.salesCount) || 0) - (Number(item.quantity) || 1))
+        if (prod.skus.some(s => s.stock > 0)) {
+          prod.isPublished = true
+        }
+      }
     })
-    addAuditLog('退貨驗收入庫', `訂單 ${orderId} 檢驗無誤，庫存自動回補`)
-    alert(`訂單 ${orderId} 商品驗收完成，庫存已自動回補！`)
-  }
 
-  const executeRefund = (orderId) => {
-    const order = orders.value.find((o) => o.id === orderId)
-    if (!order) return
-    order.refundStatus = 'REFUNDED'
-    order.shippingStatus = 'CANCELLED'
-    order.invoiceStatus = 'ALLOWANCE'
-    addAuditLog('執行金流退款', `訂單 ${orderId} 完成刷退，發票開立折讓單`)
-    alert(`訂單 ${orderId} 款項已原路刷退，發票線上折讓已開立！`)
-  }
-
-  const voidInvoice = (orderId) => {
-    const order = orders.value.find((o) => o.id === orderId)
-    if (!order) return
-    order.invoiceStatus = 'VOID'
-    addAuditLog('發票作廢', `訂單 ${orderId} 發票 ${order.invoiceNo} 標記作廢`)
-    alert(`發票 ${order.invoiceNo} 已作廢！`)
-  }
-
-  const addNewCoupon = (couponData) => {
-    const code = couponData.code.trim().toUpperCase()
-    if (!code) return { success: false, message: '請輸入優惠代碼！' }
-    const exists = cartStore.availableCoupons.some((c) => c.code === code)
-    if (exists) return { success: false, message: '此優惠代碼已存在！' }
-
-    const newCoupon = {
-      code,
-      title: couponData.title,
-      description: couponData.description,
-      type: couponData.type || 'FIXED',
-      discountValue: Number(couponData.discountValue),
-      minSpend: Number(couponData.minSpend || 0),
-      targetCategory: couponData.targetCategory || 'ALL',
-      startDate: couponData.startDate + ' 00:00:00',
-      endDate: couponData.endDate + ' 23:59:59',
-      isActive: true
+    // 2. 若下單時有折抵紅利點數，退還點數給會員
+    const pointsUsed = Number(order.pointsUsed || 0)
+    if (pointsUsed > 0 && authStore.user) {
+      authStore.user.points = (Number(authStore.user.points) || 0) + pointsUsed
     }
-    cartStore.availableCoupons.unshift(newCoupon)
-    addAuditLog('新增行銷優惠券', `建立代碼【${code}】: ${couponData.title}`)
-    return { success: true, message: `優惠券【${code}】已成功建立並同步前台！` }
+
+    addAuditLog(
+      '後台核准取消訂單',
+      `管理員已核准取消訂單 #${orderId}，商品庫存與折抵點數已自動回補`
+    )
+    return {
+      success: true,
+      message: `已確認取消訂單 #${orderId}！商品庫存已自動回補${pointsUsed > 0 ? `，並退還顧客 ${pointsUsed} 點紅利點數` : ''}。`
+    }
+  }
+
+  // 商家於後台「駁回取消申請」（恢復為待出貨或直接轉配送中）
+  const rejectCancelOrder = (orderId) => {
+    const order = orders.value.find(o => (o.orderId || o.id) === orderId)
+    if (!order) return { success: false, message: '找不到該筆訂單' }
+
+    order.status = '待出貨'
+    addAuditLog('後台駁回取消申請', `訂單 #${orderId} 取消申請已駁回，恢復為待出貨狀態`)
+    return { success: true, message: `已駁回訂單 #${orderId} 的取消申請，狀態恢復為「待出貨」。` }
   }
 
   const stockLogs = ref([
     {
       id: 'LOG-5001',
-      skuId: 'TOP-01-CRM-F',
-      productName: '法式極簡雪紡襯衫 (奶油杏/FREE)',
+      skuId: 'SKU-101',
+      productName: '首爾晨霧微光西裝長大衣 (晨霧燕麥/S)',
       changeQty: -1,
-      afterStock: 15,
+      afterStock: 12,
       reason: '顧客結帳扣除 (訂單 ORD-20261106-01)',
       operator: '系統自動',
       createdAt: '2026-11-06 14:00'
     }
-  ])
-
-  const adjustProductStock = (productId, skuId, delta, reason) => {
-    const p = productStore.getProductById(productId)
-    if (!p) return
-    const sku = p.skus.find((s) => s.skuId === skuId)
-    if (!sku) return
-    sku.stock += delta
-    stockLogs.value.unshift({
-      id: 'LOG-' + Date.now().toString().slice(-4),
-      skuId: sku.skuId,
-      productName: `${p.name} (${sku.color}/${sku.size})`,
-      changeQty: delta,
-      afterStock: sku.stock,
-      reason: reason || '管理員手動調整',
-      operator: currentAdmin.value.name,
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
-    })
-    addAuditLog('庫存手動調整', `規格 ${sku.skuId} 變更 ${delta}，現存 ${sku.stock}`)
-  }
-
-  const customers = ref([
-    {
-      id: 'CUST-001',
-      name: '陳大文',
-      phone: '0912345678',
-      email: 'user@md-korea.com',
-      tier: 'VIP 會員',
-      ltv: 14850,
-      orderCount: 8,
-      lastLogin: '2026-11-06 12:40',
-      tags: ['高頻回購', '熱愛外套'],
-      isBlacklisted: false
-    },
-    {
-      id: 'CUST-002',
-      name: '黃小胖',
-      phone: '0977112233',
-      email: 'pang@test.com',
-      tier: '一般會員',
-      ltv: 890,
-      orderCount: 1,
-      lastLogin: '2026-10-20 09:15',
-      tags: ['超商未取貨逾期'],
-      isBlacklisted: true
-    }
-  ])
-
-  const toggleCustomerBlacklist = (custId) => {
-    const c = customers.value.find((u) => u.id === custId)
-    if (!c) return
-    c.isBlacklisted = !c.isBlacklisted
-    addAuditLog('會員黑名單變更', `會員 ${c.name} 改為：${c.isBlacklisted ? '黑名單' : '正常'}`)
-  }
-
-  // 首頁 CMS 區塊定義
-  const homeSections = ref([
-    { id: 'banner', name: '首頁精選輪播 Banner', visible: true },
-    { id: 'filter_bar', name: '分類篩選與即時搜尋欄位', visible: true },
-    { id: 'product_grid', name: '當季熱銷商品展示網格 (Product Grid)', visible: true }
   ])
 
   const auditLogs = ref([
@@ -245,9 +250,9 @@ export const useAdminStore = defineStore('admin', () => {
       id: 'AUD-9001',
       operator: '系統管理者',
       ip: '220.133.45.92',
-      action: '修改商品售價',
-      detail: '更新「純羊毛短大衣」售價',
-      createdAt: '2026-11-05 14:20'
+      action: '系統初始化',
+      detail: '前後台訂單、庫存與會員點數結算模組已連線',
+      createdAt: '2026-11-06 14:20'
     }
   ])
 
@@ -267,17 +272,11 @@ export const useAdminStore = defineStore('admin', () => {
     maskPhone,
     maskName,
     orders,
-    generateShippingLabel,
-    markAsDelivered,
-    confirmReturnReceived,
-    executeRefund,
-    voidInvoice,
-    addNewCoupon,
+    getOrderPaidAmount,
+    requestCancelOrder,
+    approveCancelOrder,
+    rejectCancelOrder,
     stockLogs,
-    adjustProductStock,
-    customers,
-    toggleCustomerBlacklist,
-    homeSections,
     auditLogs,
     addAuditLog
   }

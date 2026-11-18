@@ -1,11 +1,24 @@
 <template>
-  <main class="container py-4 py-md-5" style="max-width: 1120px; margin: 0 auto;">
-    <h1 class="h4 fw-bold text-dark font-serif mb-4">填寫訂單與結帳</h1>
+  <main class="container py-4 py-md-5 px-3 px-md-4" style="max-width: 1120px; margin: 0 auto;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+      <h1 class="h4 fw-bold text-dark font-serif mb-0">填寫訂單與結帳</h1>
+      <button type="button" class="btn btn-link text-secondary small text-decoration-none p-0" @click="cartStore.openDrawer()">
+        ← 返回購物袋修改勾選
+      </button>
+    </div>
+
+    <!-- 風控黑名單攔截警示（與後台 MarketingCrmView 連動） -->
+    <div
+      v-if="currentUser?.riskStatus === 'BLOCK_ORDER'"
+      class="alert alert-danger rounded-4 border-danger-subtle p-3 mb-4 small"
+    >
+      <strong>⚠️ 帳號下單權限受限：</strong>您的帳號目前因多次未取貨或異常紀錄已被系統暫停下單權限，如有疑問請聯繫品牌客服。
+    </div>
 
     <div class="row g-4">
-      <!-- 左側：收件人與配送資訊 -->
+      <!-- 左側：收件人與配送資訊（桌機占 7 欄，手機滿版） -->
       <div class="col-12 col-lg-7">
-        <div class="card-korean p-4 bg-white rounded-4 border shadow-xs">
+        <div class="card-korean p-3.5 p-md-4 bg-white rounded-4 border shadow-xs">
           <h2 class="fs-6 fw-bold text-dark mb-3 pb-2 border-bottom">收件人與配送資訊</h2>
 
           <form @submit.prevent="submitOrder" class="row g-3 small">
@@ -39,18 +52,23 @@
 
             <div class="col-12 pt-2 border-top">
               <label class="form-label text-secondary mb-1">付款方式 *</label>
-              <input type="text" class="form-control form-control-sm font-monospace bg-light" value="LINE Pay 線上支付" disabled />
+              <div class="p-2.5 px-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
+                <span class="font-monospace fw-bold text-dark">LINE Pay 線上支付</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" style="font-size: 10px;">
+                  唯一支援付款管道
+                </span>
+              </div>
             </div>
           </form>
         </div>
       </div>
 
-      <!-- 右側：已勾選結帳商品摘要、優惠券與紅利折抵 -->
+      <!-- 右側：已選結帳商品、優惠券與紅利折抵（桌機占 5 欄置頂，手機滿版堆疊） -->
       <div class="col-12 col-lg-5">
-        <div class="card-korean p-4 bg-white rounded-4 border shadow-xs sticky-top" style="top: 90px;">
+        <div class="card-korean p-3.5 p-md-4 bg-white rounded-4 border shadow-xs sticky-lg-top" style="top: 90px;">
           <h2 class="fs-6 fw-bold text-dark mb-3 pb-2 border-bottom">已選結帳商品 ({{ checkoutItems.length }} 項)</h2>
 
-          <!-- 商品清單（支援在此直接刪除品項） -->
+          <!-- 商品清單（支援在此直接刪除本次結帳商品） -->
           <div v-if="checkoutItems.length > 0" class="d-flex flex-column gap-3 mb-4">
             <div
               v-for="item in checkoutItems"
@@ -58,24 +76,23 @@
               class="d-flex align-items-center justify-content-between gap-2 pb-3 border-bottom small"
             >
               <div class="d-flex align-items-center gap-2.5 min-w-0">
-                <div class="rounded-2 overflow-hidden border flex-shrink-0" style="width: 40px; height: 50px; background-color: #f5f2ed;">
+                <div class="rounded-2 overflow-hidden border flex-shrink-0" style="width: 44px; height: 56px; background-color: #f5f2ed;">
                   <img :src="item.image" class="w-100 h-100 object-fit-cover" />
                 </div>
                 <div class="min-w-0">
-                  <strong class="text-dark d-block text-truncate" style="max-width: 160px;">{{ item.name }}</strong>
+                  <strong class="text-dark d-block text-truncate" style="max-width: 165px;">{{ item.name }}</strong>
                   <span class="text-muted font-monospace" style="font-size: 11px;">{{ item.color }} / {{ item.size }} × {{ item.quantity }}</span>
                 </div>
               </div>
 
-              <div class="d-flex align-items-center gap-2 flex-shrink-0">
+              <div class="d-flex align-items-center gap-2.5 flex-shrink-0">
                 <span class="font-monospace fw-bold text-dark">
                   NT$ {{ (item.price * item.quantity).toLocaleString() }}
                 </span>
-                <!-- 刪除本項結帳商品按鈕 -->
                 <button
                   type="button"
-                  class="btn btn-link text-muted p-0 text-decoration-none"
-                  style="font-size: 16px; line-height: 1;"
+                  class="btn btn-outline-secondary btn-sm rounded-circle p-0 d-inline-flex align-items-center justify-content-center"
+                  style="width: 22px; height: 22px; font-size: 13px; line-height: 1;"
                   title="從本次結帳移除"
                   @click="removeCheckoutItem(item.cartItemId)"
                 >
@@ -88,18 +105,17 @@
           <div v-else class="text-center py-4 text-muted small mb-4">
             尚未勾選任何結帳商品，請返回購物袋重新勾選！
             <div class="mt-2">
-              <router-link to="/" class="btn btn-outline-dark btn-sm rounded-pill px-3">返回首頁選購</router-link>
+              <router-link to="/category" class="btn btn-outline-dark btn-sm rounded-pill px-3">前往選購商品</router-link>
             </div>
           </div>
 
-          <!-- 優惠券與紅利點數折抵區塊 -->
+          <!-- 優惠券與紅利點數折抵區塊（整合於已選結帳商品欄內） -->
           <div v-if="checkoutItems.length > 0" class="p-3 bg-light rounded-3 border mb-4 d-flex flex-column gap-3 small font-monospace">
-            <!-- 優惠券下拉與手動輸入優惠碼新增 -->
             <div>
               <label class="form-label text-dark fw-bold mb-1" style="font-size: 11.5px;">選擇或輸入優惠券</label>
               <div class="d-flex gap-1.5 mb-2">
                 <select v-model="selectedCouponId" class="form-select form-select-sm font-monospace" @change="applyCoupon">
-                  <option value="">-- 請選擇優惠券 --</option>
+                  <option value="">-- 請選擇可用優惠券 --</option>
                   <option
                     v-for="cpn in availableCoupons"
                     :key="cpn.instanceId"
@@ -111,7 +127,7 @@
                 </select>
               </div>
 
-              <!-- 輸入優惠碼新增按鈕 -->
+              <!-- 輸入優惠碼新增並套用 -->
               <div class="input-group input-group-sm">
                 <input
                   v-model="inputCouponCode"
@@ -122,7 +138,7 @@
                 />
                 <button
                   type="button"
-                  class="btn btn-dark px-3 text-nowkrp font-monospace"
+                  class="btn btn-dark px-3 text-nowrap font-monospace"
                   @click="handleClaimAndApplyCode"
                 >
                   新增並套用
@@ -189,10 +205,10 @@
             <button
               type="button"
               class="btn btn-dark w-100 rounded-pill py-3 fw-bold shadow-2xs"
-              :disabled="checkoutItems.length === 0"
+              :disabled="checkoutItems.length === 0 || currentUser?.riskStatus === 'BLOCK_ORDER'"
               @click="submitOrder"
             >
-              確認送出訂單 (NT$ {{ finalTotalAmount.toLocaleString() }})
+              確認以 LINE Pay 結帳 (NT$ {{ finalTotalAmount.toLocaleString() }})
             </button>
           </div>
         </div>
@@ -207,20 +223,18 @@ import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cartStore'
 import { useAdminStore } from '../stores/adminStore'
 import { useAuthStore } from '../stores/authStore'
+import { useProductStore } from '../stores/productStore'
 
 const router = useRouter()
 const cartStore = useCartStore()
 const adminStore = useAdminStore()
 const authStore = useAuthStore()
+const productStore = useProductStore()
 
 const checkoutItems = computed(() => cartStore.selectedItems)
 
-// 在結帳頁面直接從本次結帳清單中移除（取消勾選該商品）
 const removeCheckoutItem = (cartItemId) => {
-  const target = cartStore.items.find(i => i.cartItemId === cartItemId)
-  if (target) {
-    target.selected = false
-  }
+  cartStore.removeItem(cartItemId)
 }
 
 const form = reactive({
@@ -242,7 +256,6 @@ const selectedCouponId = ref('')
 const appliedCoupon = ref(null)
 const inputCouponCode = ref('')
 
-// 輸入優惠碼新增並自動套用
 const handleClaimAndApplyCode = () => {
   const code = inputCouponCode.value.trim().toUpperCase()
   if (!code) {
@@ -255,7 +268,6 @@ const handleClaimAndApplyCode = () => {
     alert(res.message)
     if (res.success) {
       inputCouponCode.value = ''
-      // 自動選取剛領取的優惠券
       const newlyAdded = availableCoupons.value[availableCoupons.value.length - 1]
       if (newlyAdded) {
         selectedCouponId.value = newlyAdded.instanceId
@@ -263,7 +275,7 @@ const handleClaimAndApplyCode = () => {
       }
     }
   } else {
-    alert('優惠碼功能尚未初始化。')
+    alert('請先登入會員以使用優惠碼功能！')
   }
 }
 
@@ -315,11 +327,15 @@ const shippingFee = computed(() => (form.shippingMethod === 'HOME' ? 100 : 60))
 const finalTotalAmount = computed(() => {
   const subtotal = cartStore.totalPrice
   const discount = couponDiscountAmount.value
-  const pointsDeduced = Number(pointsToUse.value) || 0
+  const pointsDeduced = Math.min(maxUsablePoints.value, Math.max(0, Number(pointsToUse.value) || 0))
   return Math.max(0, subtotal - discount - pointsDeduced) + shippingFee.value
 })
 
 const submitOrder = () => {
+  if (currentUser.value?.riskStatus === 'BLOCK_ORDER') {
+    alert('您的帳號目前受風控管制，無法建立新訂單。')
+    return
+  }
   if (checkoutItems.value.length === 0) {
     alert('購物車中沒有勾選任何結帳商品！')
     return
@@ -329,6 +345,24 @@ const submitOrder = () => {
     return
   }
 
+  // 1. 檢查並扣減後台 productStore 的對應 SKU 庫存，若總庫存歸 0 自動下架
+  for (const item of checkoutItems.value) {
+    const targetProd = (productStore.products || []).find(p => p.id === item.id)
+    if (targetProd && Array.isArray(targetProd.skus)) {
+      const targetSku = targetProd.skus.find(s => s.color === item.color && s.size === item.size) || targetProd.skus[0]
+      if (targetSku) {
+        targetSku.stock = Math.max(0, (Number(targetSku.stock) || 0) - item.quantity)
+      }
+      targetProd.salesCount = (Number(targetProd.salesCount) || 0) + item.quantity
+      const remainingTotal = targetProd.skus.reduce((sum, s) => sum + (Number(s.stock) || 0), 0)
+      if (remainingTotal === 0) {
+        targetProd.isPublished = false
+      }
+    }
+  }
+
+  const cleanPointsUsed = Math.min(maxUsablePoints.value, Math.max(0, Number(pointsToUse.value) || 0))
+
   const newOrder = {
     orderId: 'MD-' + Math.floor(100000 + Math.random() * 900000),
     createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
@@ -337,7 +371,7 @@ const submitOrder = () => {
     totalAmount: finalTotalAmount.value,
     subtotal: cartStore.totalPrice,
     couponDiscount: couponDiscountAmount.value,
-    pointsUsed: Number(pointsToUse.value) || 0,
+    pointsUsed: cleanPointsUsed,
     shippingFee: shippingFee.value,
     shippingMethod: form.shippingMethod,
     shippingAddress: form.shippingAddress,
@@ -348,30 +382,36 @@ const submitOrder = () => {
     rewardsSettled: false
   }
 
-  // 1. 寫入後台訂單
+  // 2. 同步寫入後台訂單與會員個人訂單紀錄
   if (adminStore.orders) {
     adminStore.orders.unshift(newOrder)
   }
+  if (authStore.user && Array.isArray(authStore.user.orders)) {
+    authStore.user.orders.unshift(newOrder)
+  }
 
   if (adminStore.addAuditLog) {
-    adminStore.addAuditLog('新訂單成立', `成立訂單 #${newOrder.orderId}，實付 NT$ ${finalTotalAmount.value}`)
+    adminStore.addAuditLog('新訂單成立', `成立訂單 #${newOrder.orderId}（LINE Pay），實付 NT$ ${finalTotalAmount.value}`)
   }
 
-  // 2. 標記優惠券已使用
+  // 3. 標記優惠券已使用
   if (appliedCoupon.value && authStore.markCouponAsUsed) {
     authStore.markCouponAsUsed(appliedCoupon.value.instanceId)
+  } else if (appliedCoupon.value) {
+    appliedCoupon.value.isUsed = true
   }
 
-  // 3. 扣除紅利點數
-  if (pointsToUse.value > 0 && currentUser.value) {
-    currentUser.value.points = Math.max(0, (currentUser.value.points || 0) - Number(pointsToUse.value))
+  // 4. 扣除已折抵紅利點數
+  if (cleanPointsUsed > 0 && currentUser.value) {
+    currentUser.value.points = Math.max(0, (currentUser.value.points || 0) - cleanPointsUsed)
   }
 
-  // 4. 將已結帳商品從購物車移除（保留未勾選商品）
-  const unselectedItems = cartStore.items.filter(i => !i.selected)
-  cartStore.items = unselectedItems
+  // 5. 將已結帳商品從購物車移除（保留未勾選商品）
+  cartStore.items = cartStore.items.filter(i => !i.selected)
 
-  alert(`訂單 #${newOrder.orderId} 結帳成功！`)
-  router.push('/order-success')
+  router.push({
+    path: '/order-success',
+    query: { orderId: newOrder.orderId }
+  })
 }
 </script>

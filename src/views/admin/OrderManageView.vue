@@ -4,11 +4,63 @@
     <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 px-1">
       <div>
         <h1 class="h4 fw-bold text-dark font-serif mb-1">訂單與物流出貨管理</h1>
-        <p class="small text-muted mb-0">透過上方進度流程條快速篩選各階段訂單，將訂單設為「已完成」時自動結算累積消費與 VIP 升級</p>
+        <p class="small text-muted mb-0">即時接收顧客取消訂單申請、更新出貨單號，完成訂單時自動依「折抵後實付金額」結算消費與紅利</p>
       </div>
       <span class="badge bg-white text-dark border px-3.5 py-2 rounded-pill font-monospace small shadow-2xs">
         全站總訂單：{{ allOrders.length }} 筆
       </span>
+    </div>
+
+    <!-- 🔔 顧客申請取消訂單即時通知橫幅（當有訂單處於「申請取消中」時醒目提示商家確認） -->
+    <div
+      v-if="pendingCancelOrders.length > 0"
+      class="alert alert-warning rounded-4 border-warning p-3.5 mb-0 shadow-2xs d-flex flex-column gap-2"
+    >
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="fw-bold text-dark d-flex align-items-center gap-2 small">
+          <span>🔔 商家通知：目前有 {{ pendingCancelOrders.length }} 筆未出貨訂單由顧客提出「取消申請」，請確認處理：</span>
+        </div>
+        <button
+          type="button"
+          class="btn btn-dark btn-sm rounded-pill px-3 py-1 font-monospace"
+          style="font-size: 11px;"
+          @click="selectedStatusNode = 'RETURN'"
+        >
+          篩選查看取消申請
+        </button>
+      </div>
+
+      <div class="d-flex flex-column gap-2 mt-1">
+        <div
+          v-for="cOrd in pendingCancelOrders"
+          :key="cOrd.orderId || cOrd.id"
+          class="bg-white rounded-3 p-2.5 px-3 border d-flex align-items-center justify-content-between flex-wrap gap-2 small"
+        >
+          <div class="font-monospace">
+            <strong class="text-dark">#{{ cOrd.orderId || cOrd.id }}</strong>
+            <span class="text-secondary ms-2">{{ cOrd.recipientName || cOrd.customerName }} ({{ cOrd.phone }})</span>
+            <span class="text-danger ms-2">原因：{{ cOrd.cancelReason || '顧客申請取消未出貨訂單' }}</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-danger btn-sm rounded-pill px-3 py-1 font-monospace fw-bold"
+              style="font-size: 11px;"
+              @click="handleApproveCancel(cOrd)"
+            >
+              ✓ 確認取消訂單 (回補庫存)
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 font-monospace"
+              style="font-size: 11px;"
+              @click="handleRejectCancel(cOrd)"
+            >
+              駁回申請
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 1. 訂單物流進度總流程篩選條 -->
@@ -21,8 +73,8 @@
         <span class="text-muted font-monospace" style="font-size: 11px;">點擊節點切換檢視</span>
       </div>
 
-      <div class="py-3 px-2 px-md-4 rounded-3 bg-light border">
-        <div class="d-flex justify-content-between align-items-start position-relative">
+      <div class="py-3 px-2 px-md-4 rounded-3 bg-light border overflow-x-auto">
+        <div class="d-flex justify-content-between align-items-start position-relative" style="min-width: 420px;">
           <div
             class="position-absolute start-0 w-100 bg-secondary-subtle"
             style="top: 19px; height: 2px; z-index: 1;"
@@ -66,12 +118,6 @@
             <div class="text-muted font-monospace d-none d-sm-block mt-0.5" style="font-size: 10px;">
               {{ node.sublabel }}
             </div>
-
-            <div
-              v-if="selectedStatusNode === node.key"
-              class="mt-1.5 rounded-pill bg-dark"
-              style="width: 24px; height: 3px;"
-            ></div>
           </button>
         </div>
       </div>
@@ -119,7 +165,7 @@
       </div>
     </div>
 
-    <!-- 3. 極簡清爽版訂單可收合卡片列表 -->
+    <!-- 3. 訂單可收合卡片列表 -->
     <div v-if="filteredOrders.length > 0" class="d-flex flex-column gap-3">
       <div
         v-for="ord in filteredOrders"
@@ -127,12 +173,10 @@
         class="minimal-admin-order bg-white rounded-4 border overflow-hidden"
         :class="{ 'is-open': isAdminOrderExpanded(ord.orderId || ord.id) }"
       >
-        <!-- 單筆訂單標頭摘要列（四區寬鬆對齊，告別擁擠標籤） -->
         <div
           class="minimal-admin-header d-flex align-items-center justify-content-between flex-wrap gap-3"
           @click="toggleAdminOrderExpand(ord.orderId || ord.id)"
         >
-          <!-- 區塊 1：訂單編號 + 下單時間 -->
           <div class="d-flex flex-column gap-1" style="min-width: 165px;">
             <span class="font-monospace fw-bold text-dark" style="font-size: 15px;">
               #{{ ord.orderId || ord.id }}
@@ -142,7 +186,6 @@
             </span>
           </div>
 
-          <!-- 區塊 2：收件人姓名與電話 -->
           <div class="d-flex flex-column gap-1" style="min-width: 145px;">
             <span class="fw-semibold text-dark" style="font-size: 14px;">
               {{ ord.recipientName || ord.customerName }}
@@ -152,22 +195,31 @@
             </span>
           </div>
 
-          <!-- 區塊 3：極簡狀態圓點標籤 + 配送與件數 -->
           <div class="d-flex align-items-center gap-3">
             <span class="status-pill d-inline-flex align-items-center gap-1.5 px-3 py-1 rounded-pill font-sans fw-medium" :class="getCleanStatusClass(ord.status)">
               <span class="status-dot"></span>
               <span>{{ ord.status }}</span>
             </span>
             <span class="text-muted small font-monospace">
-              {{ ord.shippingMethod === 'CVS' ? '超取' : '宅配' }} · {{ getAdminOrderTotalQty(ord) }} 件
+              {{ (ord.shippingMethod || ord.shippingType) === 'CVS' ? '超取' : '宅配' }} · {{ getAdminOrderTotalQty(ord) }} 件
             </span>
           </div>
 
-          <!-- 區塊 4：實付總額 + 處理按鈕 + 展開箭頭 -->
-          <div class="d-flex align-items-center gap-3 ms-auto">
-            <span class="font-monospace fw-bold text-dark" style="font-size: 16px;">
-              NT$ {{ (ord.totalAmount || ord.total || 0).toLocaleString() }}
+          <div class="d-flex align-items-center gap-2.5 ms-auto">
+            <span class="font-monospace fw-bold text-dark me-1" style="font-size: 16px;">
+              NT$ {{ getOrderPaidAmount(ord).toLocaleString() }}
             </span>
+
+            <!-- 若顧客申請取消中，直接提供確認取消按鈕 -->
+            <button
+              v-if="ord.status === '申請取消中'"
+              type="button"
+              class="btn btn-danger btn-sm rounded-pill px-3 py-1.5 font-monospace fw-bold"
+              style="font-size: 11.5px;"
+              @click.stop="handleApproveCancel(ord)"
+            >
+              ✓ 確認取消
+            </button>
 
             <button
               type="button"
@@ -186,48 +238,47 @@
           </div>
         </div>
 
-        <!-- 展開後的訂單完整明細內容區 -->
+        <!-- 展開後的訂單完整明細 -->
         <div v-show="isAdminOrderExpanded(ord.orderId || ord.id)" class="minimal-admin-body border-top">
-          
-          <!-- 1. 物流與收件資訊列 -->
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 mb-3 border-bottom small text-secondary">
             <div class="d-flex flex-wrap gap-3 font-monospace" style="font-size: 12px;">
               <span>付款：<strong class="text-dark">{{ ord.paymentMethod || 'LINE Pay' }}</strong></span>
               <span>
                 物流單號：
-                <strong v-if="ord.trackingNumber" class="text-dark">{{ ord.trackingNumber }}</strong>
+                <strong v-if="ord.trackingNumber || ord.trackingCode" class="text-dark">{{ ord.trackingNumber || ord.trackingCode }}</strong>
                 <span v-else class="text-muted fst-italic">尚未填入</span>
               </span>
-              <span>地址：<strong class="text-dark">{{ ord.shippingAddress || '預設收件地址' }}</strong></span>
+              <span>地址：<strong class="text-dark">{{ ord.shippingAddress || ord.shippingMethod || '預設收件地址' }}</strong></span>
             </div>
 
             <div class="font-monospace" style="font-size: 11.5px;">
-              <span v-if="ord.rewardsSettled" class="text-success fw-semibold">✓ 累積消費與點數已結算</span>
+              <span v-if="ord.rewardsSettled" class="text-success fw-semibold">
+                ✓ 實付 NT$ {{ getOrderPaidAmount(ord).toLocaleString() }} 已計入消費與點數
+              </span>
               <span v-else class="text-muted">訂單完成後結算累積消費</span>
             </div>
           </div>
 
-          <!-- 2. 購買商品明細（寬鬆行距，乾淨無雜訊） -->
-          <div class="d-flex flex-column gap-3">
+          <!-- 商品明細（含商品縮圖） -->
+          <div class="d-flex flex-column gap-2.5">
             <div
               v-for="(item, idx) in (ord.items || [])"
               :key="idx"
-              class="d-flex justify-content-between align-items-center gap-3 py-1"
+              class="d-flex justify-content-between align-items-center gap-3 py-1.5 px-2.5 bg-white rounded-3 border"
             >
               <div class="d-flex align-items-center gap-3 min-w-0">
                 <div
-                  v-if="item.image"
                   class="rounded-3 overflow-hidden border flex-shrink-0"
                   style="width: 48px; height: 60px; background-color: #f7f4ef;"
                 >
-                  <img :src="item.image" class="w-100 h-100 object-fit-cover" />
+                  <img :src="getItemImage(item)" class="w-100 h-100 object-fit-cover" />
                 </div>
                 <div class="min-w-0">
                   <div class="fw-semibold text-dark text-truncate" style="max-width: 380px; font-size: 14px;">
                     {{ item.name }}
                   </div>
                   <div class="text-muted font-monospace mt-1" style="font-size: 12px;">
-                    {{ item.color }} / {{ item.size }} · 單價 NT$ {{ (item.price || 0).toLocaleString() }} × {{ item.quantity }}
+                    {{ item.color || '標準' }} / {{ item.size || 'F' }} · 單價 NT$ {{ (item.price || 0).toLocaleString() }} × {{ item.quantity || 1 }}
                   </div>
                 </div>
               </div>
@@ -237,7 +288,6 @@
               </span>
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -259,10 +309,10 @@
               <div class="p-3.5 rounded-3 bg-light border mb-3.5">
                 <div class="d-flex justify-content-between font-monospace fw-bold text-dark mb-1.5">
                   <span>訂單編號：#{{ editingOrder.orderId || editingOrder.id }}</span>
-                  <span>NT$ {{ (editingOrder.totalAmount || editingOrder.total || 0).toLocaleString() }}</span>
+                  <span>實付 NT$ {{ getOrderPaidAmount(editingOrder).toLocaleString() }}</span>
                 </div>
                 <div class="text-secondary mb-1">收件人：{{ editingOrder.recipientName || editingOrder.customerName }} ({{ editingOrder.phone }})</div>
-                <div class="text-secondary">配送地址：{{ editingOrder.shippingAddress || '標準配送地址' }}</div>
+                <div class="text-secondary">配送地址：{{ editingOrder.shippingAddress || editingOrder.shippingMethod || '標準配送地址' }}</div>
               </div>
 
               <form @submit.prevent="saveOrderUpdate" class="d-flex flex-column gap-3.5">
@@ -271,9 +321,10 @@
                   <select v-model="editForm.status" class="form-select form-select-sm font-monospace py-2 px-3" required>
                     <option value="待出貨">待出貨 (備貨包裝中)</option>
                     <option value="配送中">配送中 (已交寄物流)</option>
-                    <option value="已完成">已完成 (顧客已簽收 - 自動結算累積消費與VIP升級)</option>
+                    <option value="已完成">已完成 (顧客已簽收 - 自動結算實付消費與VIP點數)</option>
+                    <option value="申請取消中">申請取消中 (待確認)</option>
                     <option value="退貨審核中">退貨審核中</option>
-                    <option value="已取消">已取消</option>
+                    <option value="已取消">已取消 (確認取消並回補庫存)</option>
                   </select>
                 </div>
 
@@ -304,21 +355,55 @@ import { ref, reactive, computed } from 'vue'
 import { Layers, Package, Truck, CheckCircle2, RotateCcw, ChevronDown } from 'lucide-vue-next'
 import { useAdminStore } from '../../stores/adminStore'
 import { useAuthStore } from '../../stores/authStore'
+import { useProductStore } from '../../stores/productStore'
 
 const adminStore = useAdminStore()
 const authStore = useAuthStore()
+const productStore = useProductStore()
 
 const allOrders = computed(() => adminStore.orders || [])
+
+// 篩選出所有處於「申請取消中」的訂單供頂部通知橫幅顯示
+const pendingCancelOrders = computed(() => {
+  return allOrders.value.filter(o => o.status === '申請取消中')
+})
+
+const getOrderPaidAmount = (ord) => {
+  if (typeof adminStore.getOrderPaidAmount === 'function') {
+    return adminStore.getOrderPaidAmount(ord)
+  }
+  return Number(ord.totalAmount || ord.amount || ord.total || 0)
+}
+
+const getItemImage = (item) => {
+  if (item?.image) return item.image
+  const matchedProd = (productStore.products || []).find(
+    p => Number(p.id) === Number(item?.id) || (item?.name && item.name.includes(p.name))
+  )
+  return matchedProd?.image || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80'
+}
+
+const handleApproveCancel = (ord) => {
+  const orderId = ord.orderId || ord.id
+  if (!confirm(`確定要核准取消訂單 #${orderId} 嗎？\n確認後系統將自動回補該筆訂單的商品庫存，並退還顧客已折抵的紅利點數。`)) {
+    return
+  }
+  const res = adminStore.approveCancelOrder(orderId)
+  alert(res.message)
+}
+
+const handleRejectCancel = (ord) => {
+  const orderId = ord.orderId || ord.id
+  const res = adminStore.rejectCancelOrder(orderId)
+  alert(res.message)
+}
 
 const selectedStatusNode = ref('ALL')
 const shippingFilter = ref('ALL')
 const searchKeyword = ref('')
 
-// 單筆訂單展開收合狀態管理
 const expandedAdminOrderIds = ref({})
-
 const isAdminOrderExpanded = (id) => Boolean(expandedAdminOrderIds.value[id])
-
 const toggleAdminOrderExpand = (id) => {
   expandedAdminOrderIds.value[id] = !expandedAdminOrderIds.value[id]
 }
@@ -344,7 +429,7 @@ const orderFlowNodes = [
   { key: 'PACKING', label: '待出貨 / 備貨', sublabel: '待檢貨包裝', icon: Package },
   { key: 'SHIPPING', label: '物流配送中', sublabel: '宅配/超商轉運', icon: Truck },
   { key: 'COMPLETED', label: '已完成簽收', sublabel: '已結算累積消費', icon: CheckCircle2 },
-  { key: 'RETURN', label: '售後 / 退貨取消', sublabel: '異常與退貨處理', icon: RotateCcw }
+  { key: 'RETURN', label: '取消 / 退貨申請', sublabel: '含待確認取消單', icon: RotateCcw }
 ]
 
 const matchNode = (ord, key) => {
@@ -353,7 +438,7 @@ const matchNode = (ord, key) => {
   if (key === 'PACKING') return ['待出貨', '處理中', '已付款'].includes(st)
   if (key === 'SHIPPING') return st === '配送中'
   if (key === 'COMPLETED') return st === '已完成'
-  if (key === 'RETURN') return ['退貨審核中', '已退貨', '已取消'].includes(st)
+  if (key === 'RETURN') return ['申請取消中', '退貨審核中', '已退貨', '已取消'].includes(st)
   return false
 }
 
@@ -362,7 +447,7 @@ const getNodeCount = (key) => allOrders.value.filter(o => matchNode(o, key)).len
 const filteredOrders = computed(() => {
   return allOrders.value.filter(ord => {
     if (!matchNode(ord, selectedStatusNode.value)) return false
-    if (shippingFilter.value !== 'ALL' && (ord.shippingMethod || 'HOME') !== shippingFilter.value) {
+    if (shippingFilter.value !== 'ALL' && (ord.shippingMethod || ord.shippingType || 'HOME') !== shippingFilter.value) {
       return false
     }
     if (searchKeyword.value.trim()) {
@@ -370,7 +455,7 @@ const filteredOrders = computed(() => {
       const idMatch = (ord.orderId || ord.id || '').toLowerCase().includes(q)
       const nameMatch = (ord.recipientName || ord.customerName || '').toLowerCase().includes(q)
       const phoneMatch = (ord.phone || '').includes(q)
-      const trackMatch = (ord.trackingNumber || '').toLowerCase().includes(q)
+      const trackMatch = (ord.trackingNumber || ord.trackingCode || '').toLowerCase().includes(q)
       if (!idMatch && !nameMatch && !phoneMatch && !trackMatch) return false
     }
     return true
@@ -383,11 +468,11 @@ const resetFilters = () => {
   searchKeyword.value = ''
 }
 
-// 極簡狀態圓點樣式（與會員中心統一設計語言）
 const getCleanStatusClass = (status) => {
   if (['待出貨', '處理中'].includes(status)) return 'pill-pending'
   if (status === '配送中') return 'pill-shipping'
   if (status === '已完成') return 'pill-completed'
+  if (status === '申請取消中') return 'pill-cancel-req'
   return 'pill-return'
 }
 
@@ -397,13 +482,22 @@ const editForm = reactive({ status: '待出貨', trackingNumber: '' })
 
 const openOrderModal = (ord) => {
   editingOrder.value = ord
-  editForm.status = ord.status
-  editForm.trackingNumber = ord.trackingNumber || ''
+  editForm.status = ord.status || '待出貨'
+  editForm.trackingNumber = ord.trackingNumber || ord.trackingCode || ''
   showModal.value = true
 }
 
 const saveOrderUpdate = () => {
   if (!editingOrder.value) return
+  const orderId = editingOrder.value.orderId || editingOrder.value.id
+
+  if (editForm.status === '已取消' && editingOrder.value.status !== '已取消') {
+    const res = adminStore.approveCancelOrder(orderId)
+    alert(res.message)
+    showModal.value = false
+    return
+  }
+
   editingOrder.value.status = editForm.status
   editingOrder.value.trackingNumber = editForm.trackingNumber.trim()
 
@@ -412,7 +506,7 @@ const saveOrderUpdate = () => {
   if (editForm.status === '已完成' && authStore.settleCompletedOrderRewards) {
     const res = authStore.settleCompletedOrderRewards(editingOrder.value)
     if (res.settled) {
-      settleMessage = `\n✓ 已將 NT$ ${(editingOrder.value.totalAmount || editingOrder.value.total || 0).toLocaleString()} 計入會員累積消費，並發放 ${res.earnedPoints} 點紅利。`
+      settleMessage = `\n✓ 已將折抵後實付金額 NT$ ${res.paidAmount.toLocaleString()} 計入會員累積消費，並發放 ${res.earnedPoints} 點紅利。`
       if (res.upgraded) {
         const giftNames = (res.issuedCoupons || []).map(c => `【${c.title}】`).join('、')
         settleMessage += `\n👑 該會員已達成升級門檻晉升為【${res.newTier.name}】${giftNames ? `，並自動發送升級禮券 ${giftNames}` : ''}！`
@@ -423,7 +517,7 @@ const saveOrderUpdate = () => {
   if (adminStore.addAuditLog) {
     adminStore.addAuditLog(
       '更新訂單物流進度',
-      `訂單 #${editingOrder.value.orderId || editingOrder.value.id} 更新為【${editForm.status}】${editForm.trackingNumber ? `，單號：${editForm.trackingNumber}` : ''}`
+      `訂單 #${orderId} 更新為【${editForm.status}】${editForm.trackingNumber ? `，單號：${editForm.trackingNumber}` : ''}`
     )
   }
 
@@ -444,7 +538,6 @@ const saveOrderUpdate = () => {
   transform: scale(1.08);
 }
 
-/* ==================== 極簡韓系後台訂單卡片樣式 ==================== */
 .minimal-admin-order {
   border-color: #e8e2da !important;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -477,7 +570,6 @@ const saveOrderUpdate = () => {
   border-color: #eee9e2 !important;
 }
 
-/* 狀態圓點標籤 */
 .status-pill {
   font-size: 12px;
 }
@@ -511,6 +603,14 @@ const saveOrderUpdate = () => {
 }
 .pill-completed .status-dot {
   background-color: #389e0d;
+}
+
+.pill-cancel-req {
+  background-color: #fff7e6;
+  color: #d46b08;
+}
+.pill-cancel-req .status-dot {
+  background-color: #d46b08;
 }
 
 .pill-return {

@@ -30,9 +30,9 @@
         />
 
         <!-- 商品角標 (內縮 14px，不貼齊邊框) -->
-        <div v-if="product.tag" class="tag-badge-wrap position-absolute">
+        <div v-if="product.tag || product.subcategory" class="tag-badge-wrap position-absolute">
           <span class="product-badge font-monospace">
-            {{ product.tag }}
+            {{ product.tag || product.subcategory }}
           </span>
         </div>
 
@@ -41,13 +41,13 @@
           @click.stop="handleWishlistToggle"
           type="button"
           class="heart-btn position-absolute"
-          :class="{ 'is-active': authStore.isInWishlist(product.id) }"
-          :aria-label="authStore.isInWishlist(product.id) ? '從願望清單移除' : '加入願望清單'"
+          :class="{ 'is-active': authStore.isInWishlist && authStore.isInWishlist(product.id) }"
+          :aria-label="authStore.isInWishlist && authStore.isInWishlist(product.id) ? '從願望清單移除' : '加入願望清單'"
         >
           <Heart
             class="heart-icon"
-            :class="{ 'text-danger': authStore.isInWishlist(product.id) }"
-            :fill="authStore.isInWishlist(product.id) ? '#a85858' : 'none'"
+            :class="{ 'text-danger': authStore.isInWishlist && authStore.isInWishlist(product.id) }"
+            :fill="authStore.isInWishlist && authStore.isInWishlist(product.id) ? '#a85858' : 'none'"
           />
         </button>
 
@@ -60,12 +60,12 @@
         </div>
       </div>
 
-      <!-- 2. 資訊區域 (緊湊內距，消除過度留白) -->
+      <!-- 2. 資訊區域 -->
       <div class="info-box d-flex flex-column justify-content-between flex-grow-1">
         <div>
           <!-- 分類名稱 -->
           <div class="category-name text-uppercase font-monospace mb-1">
-            {{ product.category }}
+            {{ product.category }}<span v-if="product.subcategory"> · {{ product.subcategory }}</span>
           </div>
 
           <!-- 商品名稱 (單行截斷) -->
@@ -74,21 +74,10 @@
           </h3>
         </div>
 
-        <!-- 價格區塊 (折數 % + 實付價 + 原價) -->
+        <!-- 價格區塊：直接對應後台商品設定的售價 -->
         <div class="price-row d-flex align-items-baseline gap-2 pt-0.5">
-          <span v-if="discountPercent > 0" class="discount-rate font-monospace fw-bold">
-            {{ discountPercent }}%
-          </span>
-
           <span class="sale-price font-monospace">
-            NT$ {{ product.basePrice.toLocaleString() }}
-          </span>
-
-          <span
-            v-if="product.originalPrice && product.originalPrice > product.basePrice"
-            class="origin-price font-monospace text-muted text-decoration-line-through"
-          >
-            NT$ {{ product.originalPrice.toLocaleString() }}
+            NT$ {{ displayPrice.toLocaleString() }}
           </span>
         </div>
       </div>
@@ -122,11 +111,9 @@ const secondImage = computed(() => {
   return hasSecondImage.value ? props.product.images[1] : props.product.image
 })
 
-const discountPercent = computed(() => {
-  if (!props.product.originalPrice || props.product.originalPrice <= props.product.basePrice) {
-    return 0
-  }
-  return Math.round(((props.product.originalPrice - props.product.basePrice) / props.product.originalPrice) * 100)
+// 即時對應後台設定的 price（相容舊欄位 basePrice）
+const displayPrice = computed(() => {
+  return Number(props.product.price ?? props.product.basePrice ?? 0)
 })
 
 const isLowStock = computed(() => {
@@ -139,8 +126,10 @@ const goToDetail = () => {
 }
 
 const handleWishlistToggle = () => {
-  const res = authStore.toggleWishlist(props.product.id)
-  alert(res.message)
+  if (typeof authStore.toggleWishlist === 'function') {
+    const res = authStore.toggleWishlist(props.product.id)
+    if (res?.message) alert(res.message)
+  }
 }
 </script>
 
@@ -166,7 +155,6 @@ const handleWishlistToggle = () => {
   box-shadow: 0 6px 18px rgba(45, 38, 33, 0.08);
 }
 
-/* 1:1 正方比例圖片容器 */
 .img-box {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -174,7 +162,8 @@ const handleWishlistToggle = () => {
   border-bottom: 1px solid var(--md-border-light, #f3efe9);
 }
 
-.main-img, .sub-img {
+.main-img,
+.sub-img {
   transition: transform 0.5s cubic-bezier(0.2, 0, 0, 1), opacity 0.35s ease;
 }
 
@@ -183,7 +172,6 @@ const handleWishlistToggle = () => {
   transform: scale(1.04);
 }
 
-/* 角標：內縮 14px 不貼邊 */
 .tag-badge-wrap {
   top: 14px;
   left: 14px;
@@ -201,7 +189,6 @@ const handleWishlistToggle = () => {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
 }
 
-/* 浮動愛心：內縮 14px 不貼邊 */
 .heart-btn {
   top: 14px;
   right: 14px;
@@ -279,19 +266,10 @@ const handleWishlistToggle = () => {
   line-height: 1;
 }
 
-.discount-rate {
-  font-size: 0.9rem;
-  color: #b54949;
-}
-
 .sale-price {
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--md-text-primary, #2d2621);
-}
-
-.origin-price {
-  font-size: 0.725rem;
 }
 
 .cursor-pointer {

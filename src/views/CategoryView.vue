@@ -1,87 +1,176 @@
 <template>
-  <main class="container py-4 py-md-5" style="max-width: 1200px; margin: 0 auto;">
-    <!-- 麵包屑與分類標題 -->
-    <div class="mb-4 pb-3 border-bottom">
-      <nav class="small text-muted mb-2" aria-label="breadcrumb">
-        <ol class="breadcrumb mb-0">
-          <li class="breadcrumb-item">
-            <router-link to="/" class="text-decoration-none text-muted">首頁</router-link>
-          </li>
-          <li v-if="activeMainCategory" class="breadcrumb-item">
-            <button
-              type="button"
-              class="btn btn-link p-0 text-decoration-none text-muted small"
-              @click="selectSubcategory('ALL')"
-            >
-              {{ activeMainCategory }}
-            </button>
-          </li>
-          <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">
-            {{ activeSubcategory !== 'ALL' ? activeSubcategory : (activeMainCategory || '全站精選商品') }}
-          </li>
-        </ol>
-      </nav>
+  <main class="container py-3 py-md-5 px-3 px-md-4" style="max-width: 1240px; margin: 0 auto;">
+    
+    <!-- 1. 頂部導覽與篩選狀態列（維持原版簡潔設計） -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pb-3 mb-4 border-bottom">
+      
+      <!-- 左側：開啟分類選單按鈕 + 當前選擇路徑 -->
+      <div class="d-flex align-items-center flex-wrap gap-2">
+        <button
+          type="button"
+          class="btn btn-dark btn-sm rounded-pill px-3.5 py-2 fw-semibold d-inline-flex align-items-center gap-1.5"
+          @click="openCategorySelector"
+        >
+          <span>選擇分類</span>
+          <ChevronDown style="width: 14px; height: 14px;" />
+        </button>
 
-      <div class="d-flex justify-content-between align-items-end flex-wrap gap-2">
-        <div>
-          <h1 class="h3 fw-bold text-dark font-serif mb-1">
-            {{ activeSubcategory !== 'ALL' ? activeSubcategory : (activeMainCategory || '全站精選服飾') }}
-          </h1>
-          <p class="small text-muted mb-0">
-            {{ activeMainCategory ? `${activeMainCategory} 系列精選單品` : '探索首爾同步最新設計款與質感基礎單品' }}
-          </p>
-        </div>
-
-        <div class="d-flex align-items-center gap-2">
-          <span class="text-muted small font-monospace">共 {{ displayedProducts.length }} 件商品</span>
-          <select v-model="sortBy" class="form-select form-select-sm rounded-pill font-sans" style="width: 155px;">
-            <option value="NEWEST">最新上架優先</option>
-            <option value="PRICE_ASC">價格：由低到高</option>
-            <option value="PRICE_DESC">價格：由高到低</option>
-          </select>
+        <div class="d-flex align-items-center gap-1.5 small ms-1">
+          <span class="fw-bold text-dark">{{ activeMainCategory || '全部商品' }}</span>
+          <template v-if="activeSubcategory && activeSubcategory !== 'ALL'">
+            <span class="text-muted">/</span>
+            <span class="text-secondary fw-semibold">{{ activeSubcategory }}</span>
+          </template>
+          <button
+            v-if="activeMainCategory || (activeSubcategory && activeSubcategory !== 'ALL')"
+            type="button"
+            class="btn btn-link btn-sm text-muted text-decoration-none p-0 ms-1"
+            style="font-size: 12px;"
+            @click="resetAllCategory"
+          >
+            ✕ 清除
+          </button>
         </div>
       </div>
 
-      <!-- 細項子分類快速切換膠囊列 -->
-      <div v-if="currentSubcategoryPills.length > 0" class="d-flex flex-wrap gap-2 mt-3 pt-2">
-        <button
-          type="button"
-          class="btn btn-sm rounded-pill px-3.5 py-1 font-sans"
-          :class="activeSubcategory === 'ALL' ? 'btn-dark fw-bold' : 'btn-outline-secondary'"
-          @click="selectSubcategory('ALL')"
+      <!-- 右側：商品數與排序下拉 -->
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <span class="text-muted font-monospace" style="font-size: 11.5px;">
+          {{ displayedProducts.length }} ITEMS
+        </span>
+        <select
+          v-model="sortBy"
+          class="form-select form-select-sm rounded-pill font-monospace border-secondary-subtle"
+          style="width: 145px; font-size: 11.5px;"
         >
-          全部 {{ activeMainCategory || '商品' }}
-        </button>
-
-        <button
-          v-for="sub in currentSubcategoryPills"
-          :key="sub"
-          type="button"
-          class="btn btn-sm rounded-pill px-3.5 py-1 font-sans"
-          :class="activeSubcategory === sub ? 'btn-dark fw-bold' : 'btn-outline-secondary'"
-          @click="selectSubcategory(sub)"
-        >
-          {{ sub }}
-        </button>
+          <option value="NEWEST">最新上架</option>
+          <option value="PRICE_ASC">價格：低至高</option>
+          <option value="PRICE_DESC">價格：高至低</option>
+        </select>
       </div>
     </div>
 
-    <!-- 商品網格列表 -->
+    <!-- 2. 商品陳列網格 -->
     <div v-if="displayedProducts.length > 0" class="row g-3 g-md-4">
-      <div v-for="prod in displayedProducts" :key="prod.id" class="col-6 col-md-4 col-lg-3">
+      <div
+        v-for="prod in displayedProducts"
+        :key="prod.id"
+        class="col-6 col-md-4 col-lg-3"
+      >
         <ProductCard :product="prod" />
       </div>
     </div>
 
-    <div v-else class="card-korean text-center py-5 my-4 bg-white rounded-4 border text-muted small">
-      目前「{{ activeSubcategory !== 'ALL' ? activeSubcategory : activeMainCategory }}」分類下尚無上架商品，歡迎瀏覽其他系列！
+    <!-- 無商品時之空狀態 -->
+    <div v-else class="bg-white rounded-4 border p-5 text-center my-3">
+      <div class="text-muted small mb-3">此分類目前尚無上架商品。</div>
+      <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-4 py-2" @click="resetAllCategory">
+        返回全部商品
+      </button>
     </div>
+
+    <!-- ==================== 3. 固定於下方的極簡收合式（Bottom Sheet Accordion）分類選單 ==================== -->
+    <Teleport to="body">
+      <div
+        v-if="isSelectorOpen"
+        class="sheet-backdrop"
+        @click.self="isSelectorOpen = false"
+      >
+        <div class="sheet-panel">
+          
+          <!-- 頂部固定把手與標題列 -->
+          <div class="sheet-header">
+            <span class="sheet-title font-serif">選擇商品分類</span>
+            <button
+              type="button"
+              class="btn-close"
+              style="font-size: 12px;"
+              aria-label="關閉"
+              @click="isSelectorOpen = false"
+            ></button>
+          </div>
+
+          <!-- 選單內容捲動區（獨立 Block 流向，左右留白 24px 不貼邊，展開穩定不跑版） -->
+          <div class="sheet-body">
+            
+            <!-- 全部商品總覽 -->
+            <div class="sheet-group">
+              <button
+                type="button"
+                class="sheet-main-btn"
+                :class="{ 'is-active': !activeMainCategory }"
+                @click="resetAllCategory"
+              >
+                <span>全部商品總覽</span>
+                <span class="sheet-count font-monospace">{{ allPublishedProducts.length }}</span>
+              </button>
+            </div>
+
+            <!-- 各大分類（點擊展開/收合小分類） -->
+            <div
+              v-for="cat in categoryTree"
+              :key="cat.name"
+              class="sheet-group"
+            >
+              <!-- 大分類列（高度 54px） -->
+              <button
+                type="button"
+                class="sheet-main-btn"
+                :class="{ 'is-active': expandedCategory === cat.name || activeMainCategory === cat.name }"
+                @click="toggleMainCategory(cat.name)"
+              >
+                <div class="sheet-main-left">
+                  <span>{{ cat.name }}</span>
+                  <span class="sheet-count font-monospace">({{ getMainCategoryCount(cat.name) }})</span>
+                </div>
+                <ChevronDown
+                  style="width: 16px; height: 16px;"
+                  class="sheet-chevron"
+                  :class="{ 'is-open': expandedCategory === cat.name }"
+                />
+              </button>
+
+              <!-- 收合的小分類清單（一行一列，高度 48px 防誤觸，內縮留白不貼邊） -->
+              <div
+                v-if="expandedCategory === cat.name"
+                class="sheet-sub-list"
+              >
+                <button
+                  type="button"
+                  class="sheet-sub-btn"
+                  :class="{ 'is-selected': activeMainCategory === cat.name && (!activeSubcategory || activeSubcategory === 'ALL') }"
+                  @click="selectSubcategory(cat.name, '')"
+                >
+                  <span>全部 {{ cat.name }}</span>
+                  <span class="sheet-count font-monospace">{{ getMainCategoryCount(cat.name) }}</span>
+                </button>
+
+                <button
+                  v-for="subItem in getFlatSubItems(cat)"
+                  :key="subItem"
+                  type="button"
+                  class="sheet-sub-btn"
+                  :class="{ 'is-selected': activeMainCategory === cat.name && activeSubcategory === subItem }"
+                  @click="selectSubcategory(cat.name, subItem)"
+                >
+                  <span>{{ subItem }}</span>
+                  <span class="sheet-count font-monospace">{{ getSubCategoryCount(cat.name, subItem) }}</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
   </main>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ChevronDown } from 'lucide-vue-next'
 import ProductCard from '../components/ProductCard.vue'
 import { useProductStore } from '../stores/productStore'
 import { useMarketingStore } from '../stores/marketingStore'
@@ -91,80 +180,103 @@ const router = useRouter()
 const productStore = useProductStore()
 const marketingStore = useMarketingStore()
 
-const sortBy = ref('NEWEST')
+const categoryTree = computed(() => marketingStore.categoryTree || [])
+
 const activeMainCategory = ref('')
 const activeSubcategory = ref('ALL')
+const sortBy = ref('NEWEST')
 
-// 同步解析網址參數（相容 /category?cat=...&sub=... 與 /category/分類名稱）
-const syncCategoryFromRoute = () => {
-  const rawParam = route.params.category ? decodeURIComponent(String(route.params.category)) : ''
-  const rawCat = route.query.cat ? decodeURIComponent(String(route.query.cat)) : ''
-  const rawSub = route.query.sub ? decodeURIComponent(String(route.query.sub)) : ''
+const isSelectorOpen = ref(false)
+const expandedCategory = ref('')
 
-  const target = rawCat || rawParam
+const allPublishedProducts = computed(() => {
+  return (productStore.products || []).filter(p => {
+    const totalStock = (p.skus || []).reduce((sum, s) => sum + (Number(s.stock) || 0), 0)
+    return p.isPublished !== false && totalStock > 0
+  })
+})
 
-  if (!target) {
-    activeMainCategory.value = ''
-    activeSubcategory.value = rawSub || 'ALL'
-    return
-  }
+const getProductPrice = (prod) => {
+  return Number(prod?.price ?? prod?.basePrice ?? 0)
+}
 
-  // 1. 比對主分類（支援完整名稱如「Top 上衣」或部分關鍵字如「Top」、「上衣」）
-  const mainCatObj = (marketingStore.categoryTree || []).find(
-    c => c.name === target || c.name.includes(target) || target.includes(c.name)
-  )
+const getMainCategoryCount = (mainCatName) => {
+  return allPublishedProducts.value.filter(
+    p => p.category === mainCatName || (p.category && p.category.includes(mainCatName))
+  ).length
+}
 
-  if (mainCatObj) {
-    activeMainCategory.value = mainCatObj.name
-    activeSubcategory.value = rawSub || 'ALL'
-  } else {
-    // 2. 若傳入的是細項分類名稱（如「針織毛衣」），自動反查所屬主分類
-    let foundParent = ''
-    for (const cat of (marketingStore.categoryTree || [])) {
-      const subs = marketingStore.getSubItemsByCategory(cat.name)
-      if (subs.includes(target)) {
-        foundParent = cat.name
-        break
-      }
+const getSubCategoryCount = (mainCatName, subName) => {
+  return allPublishedProducts.value.filter(
+    p =>
+      (p.category === mainCatName || (p.category && p.category.includes(mainCatName))) &&
+      (p.subcategory === subName || (p.name && p.name.includes(subName)))
+  ).length
+}
+
+const getFlatSubItems = (catObj) => {
+  if (!catObj || !Array.isArray(catObj.subcategories)) return []
+  const items = []
+  catObj.subcategories.forEach(group => {
+    if (Array.isArray(group.items)) {
+      items.push(...group.items)
     }
-    activeMainCategory.value = foundParent
-    activeSubcategory.value = target
-  }
+  })
+  return items
+}
+
+const toggleMainCategory = (catName) => {
+  expandedCategory.value = expandedCategory.value === catName ? '' : catName
+}
+
+const openCategorySelector = () => {
+  expandedCategory.value = activeMainCategory.value || ''
+  isSelectorOpen.value = true
+}
+
+const selectSubcategory = (mainCat, subCat) => {
+  activeMainCategory.value = mainCat || ''
+  activeSubcategory.value = subCat || 'ALL'
+  isSelectorOpen.value = false
+
+  const query = {}
+  if (mainCat) query.cat = mainCat
+  if (subCat) query.sub = subCat
+  router.replace({ path: '/category', query })
+}
+
+const resetAllCategory = () => {
+  activeMainCategory.value = ''
+  activeSubcategory.value = 'ALL'
+  expandedCategory.value = ''
+  isSelectorOpen.value = false
+  router.replace({ path: '/category', query: {} })
 }
 
 watch(
-  () => [route.params.category, route.query.cat, route.query.sub],
-  () => {
-    syncCategoryFromRoute()
+  () => [route.query.cat, route.query.sub, route.query.openPicker],
+  ([newCat, newSub, openPicker]) => {
+    activeMainCategory.value = newCat ? decodeURIComponent(String(newCat)) : ''
+    activeSubcategory.value = newSub ? decodeURIComponent(String(newSub)) : 'ALL'
+
+    if (openPicker === '1') {
+      openCategorySelector()
+      const cleanQuery = { ...route.query }
+      delete cleanQuery.openPicker
+      router.replace({ path: '/category', query: cleanQuery })
+    }
   },
   { immediate: true }
 )
 
-const currentSubcategoryPills = computed(() => {
-  if (activeMainCategory.value) {
-    return marketingStore.getSubItemsByCategory(activeMainCategory.value)
+onMounted(() => {
+  if (!route.query.cat && !route.query.sub && window.innerWidth < 992) {
+    openCategorySelector()
   }
-  const allSubs = new Set()
-  ;(marketingStore.categoryTree || []).forEach(cat => {
-    marketingStore.getSubItemsByCategory(cat.name).forEach(s => allSubs.add(s))
-  })
-  return Array.from(allSubs)
 })
 
-const selectSubcategory = (sub) => {
-  activeSubcategory.value = sub
-  const query = {}
-  if (activeMainCategory.value) query.cat = activeMainCategory.value
-  if (sub !== 'ALL') query.sub = sub
-
-  router.push({
-    path: '/category',
-    query
-  })
-}
-
 const displayedProducts = computed(() => {
-  let list = [...(productStore.products || [])]
+  let list = [...allPublishedProducts.value]
 
   if (activeMainCategory.value) {
     list = list.filter(
@@ -181,9 +293,9 @@ const displayedProducts = computed(() => {
   }
 
   if (sortBy.value === 'PRICE_ASC') {
-    list.sort((a, b) => (a.price || 0) - (b.price || 0))
+    list.sort((a, b) => getProductPrice(a) - getProductPrice(b))
   } else if (sortBy.value === 'PRICE_DESC') {
-    list.sort((a, b) => (b.price || 0) - (a.price || 0))
+    list.sort((a, b) => getProductPrice(b) - getProductPrice(a))
   } else {
     list.sort((a, b) => (b.id || 0) - (a.id || 0))
   }
@@ -191,3 +303,158 @@ const displayedProducts = computed(() => {
   return list
 })
 </script>
+
+<style scoped>
+/* ==================== 固定於底部的極簡分類選單（Bottom Sheet） ==================== */
+.sheet-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1090;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet-panel {
+  width: 100%;
+  max-width: 540px;
+  max-height: 75vh;
+  background-color: #ffffff;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+}
+
+/* 頂部標題列：左右留白 24px，不貼邊框 */
+.sheet-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid #eee8df;
+  background-color: #ffffff;
+}
+
+.sheet-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d2621;
+  letter-spacing: 0.02em;
+}
+
+/* 獨立捲動內容區：標準 Block 流向，左右留白 24px，展開子項時絕不擠壓跑版 */
+.sheet-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 24px 24px;
+  box-sizing: border-box;
+}
+
+.sheet-group {
+  border-bottom: 1px solid #f0ece6;
+}
+
+.sheet-group:last-child {
+  border-bottom: none;
+}
+
+/* 大分類按鈕：高度 54px，舒適好點 */
+.sheet-main-btn {
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 4px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  font-size: 15px;
+  color: #595959;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: color 0.15s ease;
+}
+
+.sheet-main-btn:hover,
+.sheet-main-btn.is-active {
+  color: #2d2621;
+  font-weight: 700;
+}
+
+.sheet-main-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-count {
+  font-size: 12px;
+  color: #9c9289;
+  font-weight: 400;
+}
+
+.sheet-chevron {
+  color: #9c9289;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.sheet-chevron.is-open {
+  transform: rotate(180deg);
+  color: #2d2621;
+}
+
+/* 展開後的一行一列小分類清單：柔和米白底色 + 圓角內縮，每列高度 48px 防誤點 */
+.sheet-sub-list {
+  background-color: #faf8f5;
+  border-radius: 12px;
+  padding: 6px 16px;
+  margin-bottom: 14px;
+}
+
+.sheet-sub-btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #eee8df;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  font-size: 14px;
+  color: #595959;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: color 0.15s ease, padding-left 0.15s ease;
+}
+
+.sheet-sub-btn:last-child {
+  border-bottom: none;
+}
+
+.sheet-sub-btn:hover {
+  color: #2d2621;
+  padding-left: 8px;
+}
+
+.sheet-sub-btn.is-selected {
+  color: #2d2621;
+  font-weight: 700;
+}
+
+.sheet-sub-btn.is-selected .sheet-count {
+  color: #2d2621;
+  font-weight: 600;
+}
+</style>

@@ -4,7 +4,16 @@
     <nav class="small text-muted mb-4" aria-label="breadcrumb">
       <ol class="breadcrumb mb-0">
         <li class="breadcrumb-item"><router-link to="/" class="text-decoration-none text-muted">首頁</router-link></li>
-        <li class="breadcrumb-item"><span class="text-muted">{{ product.category }}</span></li>
+        <li class="breadcrumb-item">
+          <router-link :to="{ path: '/category', query: { cat: product.category } }" class="text-decoration-none text-muted">
+            {{ product.category }}
+          </router-link>
+        </li>
+        <li v-if="product.subcategory" class="breadcrumb-item">
+          <router-link :to="{ path: '/category', query: { cat: product.category, sub: product.subcategory } }" class="text-decoration-none text-muted">
+            {{ product.subcategory }}
+          </router-link>
+        </li>
         <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">{{ product.name }}</li>
       </ol>
     </nav>
@@ -51,21 +60,19 @@
       <div class="col-12 col-md-6 d-flex flex-column">
         <div class="d-flex justify-content-between align-items-center mb-1">
           <span class="text-uppercase small fw-bold" style="color: var(--md-primary); font-size: 11px; letter-spacing: 0.1em;">
-            {{ product.category }}
+            {{ product.category }}<span v-if="product.subcategory"> · {{ product.subcategory }}</span>
           </span>
-          <span class="small text-muted font-monospace">已售出 {{ product.salesCount }} 件</span>
+          <span class="small text-muted font-monospace">已售出 {{ product.salesCount || 0 }} 件</span>
         </div>
 
         <h1 class="h4 fw-bold text-dark mb-2" style="font-family: serif; letter-spacing: 0.03em;">
           {{ product.name }}
         </h1>
 
+        <!-- 售價：直接對應後台設定的 price -->
         <div class="d-flex align-items-baseline gap-2 mb-4">
           <span class="fs-4 fw-bold font-monospace" style="color: var(--md-primary);">
             NT$ {{ activePrice.toLocaleString() }}
-          </span>
-          <span v-if="activeOriginalPrice" class="small text-muted text-decoration-line-through font-monospace">
-            NT$ {{ activeOriginalPrice.toLocaleString() }}
           </span>
         </div>
 
@@ -85,7 +92,7 @@
               :key="color"
               type="button"
               class="btn btn-sm rounded-pill px-3 py-1.5 small text-nowrap"
-              :class="selectedColor === color ? 'btn-primary shadow-xs' : 'btn-outline-secondary'"
+              :class="selectedColor === color ? 'btn-dark shadow-xs' : 'btn-outline-secondary'"
               @click="selectedColor = color"
             >
               {{ color }}
@@ -107,7 +114,7 @@
               :key="size"
               type="button"
               class="btn btn-sm rounded-3 px-3 py-1.5 small"
-              :class="selectedSize === size ? 'btn-primary' : 'btn-outline-secondary'"
+              :class="selectedSize === size ? 'btn-dark' : 'btn-outline-secondary'"
               @click="selectedSize = size"
             >
               {{ size }}
@@ -130,11 +137,11 @@
           <button
             v-if="!isOutOfStock"
             type="button"
-            class="btn btn-primary flex-grow-1 rounded-pill py-3 fw-bold tracking-wider text-uppercase d-flex align-items-center justify-content-center gap-2 shadow-sm"
+            class="btn btn-dark flex-grow-1 rounded-pill py-3 fw-bold tracking-wider text-uppercase d-flex align-items-center justify-content-center gap-2 shadow-sm"
             @click="handleAddToCart"
           >
             <ShoppingBag style="width: 18px; height: 18px;" />
-            <span>加入購物袋</span>
+            <span>加入購物袋 (NT$ {{ (activePrice * quantity).toLocaleString() }})</span>
           </button>
 
           <button
@@ -186,7 +193,7 @@
           <button
             v-if="canReviewCurrentProduct"
             type="button"
-            class="btn btn-primary btn-sm rounded-pill px-3 py-1.5 fw-bold font-monospace"
+            class="btn btn-dark btn-sm rounded-pill px-3 py-1.5 fw-bold font-monospace"
             @click="showReviewModal = true"
           >
             ★ 撰寫我的評價與曬圖
@@ -321,7 +328,7 @@
                   <label class="form-label mb-1">通知手機 SMS (選填)</label>
                   <input v-model="restockForm.phone" type="tel" pattern="^09\d{8}$" class="form-control form-control-sm font-monospace" placeholder="0912345678" />
                 </div>
-                <button type="submit" class="btn btn-primary w-100 rounded-pill py-2.5 fw-bold mt-2">
+                <button type="submit" class="btn btn-dark w-100 rounded-pill py-2.5 fw-bold mt-2">
                   確認登記補貨提醒
                 </button>
               </form>
@@ -390,21 +397,21 @@ const currentSku = computed(() => {
   return product.value?.skus.find((s) => s.color === selectedColor.value && s.size === selectedSize.value)
 })
 
-const activePrice = computed(() => currentSku.value?.price || product.value?.basePrice || 0)
-const activeOriginalPrice = computed(() => currentSku.value?.originalPrice || product.value?.originalPrice || null)
+// ★ 直接讀取後台設定的 product.price（確保後台改價時詳情頁與加入購物車價格 100% 同步）
+const activePrice = computed(() => Number(product.value?.price ?? product.value?.basePrice ?? 0))
 const isOutOfStock = computed(() => !currentSku.value || currentSku.value.stock <= 0)
 
 const eligibleOrder = computed(() => {
   if (!authStore.user?.isLoggedIn) return null
   return (adminStore.orders || []).find((o) => {
-    const isCompleted = (o.shippingStatus || o.status) === 'DELIVERED'
-    const containsProduct = o.items.some((item) => item.name.includes(product.value?.name))
+    const isCompleted = (o.shippingStatus || o.status) === 'DELIVERED' || o.status === '已完成'
+    const containsProduct = (o.items || []).some((item) => item.name.includes(product.value?.name))
     return isCompleted && containsProduct
   })
 })
 
 const canReviewCurrentProduct = computed(() => !!eligibleOrder.value)
-const eligibleOrderId = computed(() => eligibleOrder.value?.id || 'ORD-VERIFIED')
+const eligibleOrderId = computed(() => eligibleOrder.value?.id || eligibleOrder.value?.orderId || 'ORD-VERIFIED')
 
 const previewImage = (img) => { lightboxImg.value = img }
 const openLightbox = () => { showLightbox.value = true }
@@ -413,7 +420,7 @@ const onReviewSubmitted = () => { showReviewModal.value = false }
 const initDefaults = () => {
   if (product.value) {
     currentImage.value = allImages.value[0] || product.value.image
-    const defaultSku = product.value.skus.find((s) => s.stock > 0) || product.value.skus[0]
+    const defaultSku = (product.value.skus || []).find((s) => s.stock > 0) || (product.value.skus || [])[0]
     if (defaultSku) {
       selectedColor.value = defaultSku.color
       selectedSize.value = defaultSku.size
@@ -425,9 +432,9 @@ watch(() => route.params.id, () => initDefaults())
 onMounted(() => initDefaults())
 
 const handleWishlistToggle = () => {
-  if (product.value) {
+  if (product.value && typeof authStore.toggleWishlist === 'function') {
     const res = authStore.toggleWishlist(product.value.id)
-    alert(res.message)
+    if (res?.message) alert(res.message)
   }
 }
 
@@ -449,8 +456,7 @@ const submitRestockAlert = () => {
 
 const handleAddToCart = () => {
   if (!currentSku.value || isOutOfStock.value) return
-  const res = cartStore.addToCart(product.value, currentSku.value, quantity.value)
-  if (!res.success) alert(res.message)
+  cartStore.addItem(product.value, selectedColor.value, selectedSize.value, quantity.value)
 }
 </script>
 

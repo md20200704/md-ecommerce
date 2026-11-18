@@ -273,6 +273,14 @@ onMounted(() => {
 onUnmounted(() => {
   stopAutoplay()
 })
+
+// 僅展示「上架中 (isPublished !== false)」且「全規格總庫存 > 0」的商品
+const publishedProducts = computed(() => {
+  return (productStore.products || []).filter(p => {
+    const totalStock = (p.skus || []).reduce((sum, s) => sum + (Number(s.stock) || 0), 0)
+    return p.isPublished !== false && totalStock > 0
+  })
+})
 </script>
 
 <style scoped>

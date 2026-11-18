@@ -18,7 +18,7 @@
         <button type="button" class="btn-close" @click="cartStore.closeDrawer()"></button>
       </div>
 
-      <!-- 全選操作列（已修復連動機制） -->
+      <!-- 全選操作列 -->
       <div v-if="cartStore.items.length > 0" class="px-4 py-3 bg-light border-bottom d-flex justify-content-between align-items-center small">
         <div class="form-check m-0 d-flex align-items-center gap-2">
           <input
@@ -37,7 +37,7 @@
         </span>
       </div>
 
-      <!-- 購物車商品列表 (含 Checkbox 勾選) -->
+      <!-- 購物車商品列表 -->
       <div class="flex-grow-1 overflow-y-auto p-4 d-flex flex-column gap-3">
         <div v-if="cartStore.items.length > 0" class="d-flex flex-column gap-3">
           <div
@@ -61,7 +61,7 @@
               <img :src="item.image" class="w-100 h-100 object-fit-cover" />
             </div>
 
-            <!-- 商品資訊 -->
+            <!-- 商品資訊（即時對應後台商品售價） -->
             <div class="flex-grow-1 min-w-0">
               <div class="fw-bold text-dark text-truncate small mb-1">{{ item.name }}</div>
               <div class="text-muted font-monospace mb-2" style="font-size: 11px;">
@@ -69,7 +69,7 @@
               </div>
               <div class="d-flex justify-content-between align-items-center">
                 <span class="font-monospace fw-bold text-dark" style="font-size: 14px;">
-                  NT$ {{ (item.price * item.quantity).toLocaleString() }}
+                  NT$ {{ (cartStore.getLiveUnitPrice(item) * item.quantity).toLocaleString() }}
                 </span>
 
                 <!-- 數量增減 -->
@@ -93,7 +93,7 @@
         </div>
       </div>
 
-      <!-- 底部結算區 (僅計算有勾選的商品) -->
+      <!-- 底部結算區 -->
       <div v-if="cartStore.items.length > 0" class="p-4 border-top bg-light">
         <div class="d-flex justify-content-between align-items-center mb-3 font-monospace">
           <span class="text-secondary small">已選商品總計 ({{ cartStore.totalCount }} 件)</span>
@@ -122,7 +122,6 @@ import { useCartStore } from '../stores/cartStore'
 const router = useRouter()
 const cartStore = useCartStore()
 
-// 全選狀態的 Proxy 雙向連動
 const allSelectedProxy = computed({
   get: () => cartStore.isAllSelected,
   set: (val) => cartStore.toggleSelectAll(val)

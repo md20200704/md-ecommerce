@@ -1,168 +1,110 @@
 <template>
-  <nav class="mobile-bottom-nav d-lg-none" aria-label="手機端底部導覽列">
-    <div class="bottom-nav-container">
-      
-      <!-- 1. 首頁 (Home) -->
+  <nav class="bottom-nav-fixed d-lg-none bg-white border-top shadow-lg">
+    <div class="d-flex align-items-center justify-content-around py-2 px-1">
+      <!-- 1. 首頁 -->
       <router-link
         to="/"
-        class="bottom-nav-item"
-        :class="{ 'is-active': $route.path === '/' }"
+        class="bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1"
+        :class="route.path === '/' ? 'text-dark fw-bold' : 'text-muted'"
       >
-        <Home class="nav-item-icon" />
-        <span class="nav-item-label">首頁</span>
+        <Home style="width: 19px; height: 19px;" />
+        <span style="font-size: 10.5px;">首頁</span>
       </router-link>
 
-      <!-- 2. 分類 (Category - 展開全品類抽屜) -->
+      <!-- 2. 分類選購（點擊直接觸發開啟大分類 → 小分類選單） -->
       <button
         type="button"
-        class="bottom-nav-item btn-reset"
-        @click="emit('open-category')"
+        class="btn btn-link bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1 p-0"
+        :class="route.path.startsWith('/category') ? 'text-dark fw-bold' : 'text-muted'"
+        @click="openCategoryPicker"
       >
-        <LayoutGrid class="nav-item-icon" />
-        <span class="nav-item-label">分類</span>
+        <Grid style="width: 19px; height: 19px;" />
+        <span style="font-size: 10.5px;">分類選購</span>
       </button>
 
-      <!-- 3. 購物車 (Cart - 展開購物車抽屜 + 數量徽章) -->
+      <!-- 3. 購物袋 -->
       <button
         type="button"
-        class="bottom-nav-item btn-reset position-relative"
-        @click="cartStore.toggleDrawer(true)"
+        class="btn btn-link bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1 p-0 position-relative text-muted"
+        @click="openCartDrawer"
       >
-        <div class="position-relative d-inline-flex">
-          <ShoppingBag class="nav-item-icon" />
-          <span
-            v-if="cartStore.totalCount > 0"
-            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark font-monospace bottom-cart-badge"
-          >
-            {{ cartStore.totalCount }}
-          </span>
-        </div>
-        <span class="nav-item-label">購物袋</span>
+        <ShoppingBag style="width: 19px; height: 19px;" class="text-dark" />
+        <span class="text-dark" style="font-size: 10.5px;">購物袋</span>
+        <span
+          v-if="cartStore.totalCount > 0"
+          class="position-absolute top-0 start-50 translate-middle-y badge rounded-pill bg-dark text-white font-monospace"
+          style="font-size: 9.5px; padding: 2px 5px; margin-left: 6px; margin-top: -2px;"
+        >
+          {{ cartStore.totalCount }}
+        </span>
       </button>
 
-      <!-- 4. 會員中心 (Member / Login) -->
+      <!-- 4. 會員中心 -->
       <router-link
-        v-if="authStore.user?.isLoggedIn"
         to="/profile"
-        class="bottom-nav-item"
-        :class="{ 'is-active': $route.path === '/profile' }"
+        class="bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1"
+        :class="route.path.startsWith('/profile') ? 'text-dark fw-bold' : 'text-muted'"
       >
-        <User class="nav-item-icon" />
-        <span class="nav-item-label">會員</span>
+        <User style="width: 19px; height: 19px;" />
+        <span style="font-size: 10.5px;">會員中心</span>
       </router-link>
-      <button
-        v-else
-        type="button"
-        class="bottom-nav-item btn-reset"
-        @click="emit('open-auth')"
-      >
-        <User class="nav-item-icon" />
-        <span class="nav-item-label">登入</span>
-      </button>
 
-      <!-- 5. 後台管理 (Admin - 僅在管理員身分時顯示) -->
+      <!-- 5. 後台管理 -->
       <router-link
         v-if="authStore.isAdmin"
         to="/admin"
-        class="bottom-nav-item"
-        :class="{ 'is-active': $route.path.startsWith('/admin') }"
+        class="bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1"
+        :class="route.path.startsWith('/admin') ? 'text-dark fw-bold' : 'text-muted'"
       >
-        <Settings class="nav-item-icon" />
-        <span class="nav-item-label">後台</span>
+        <Settings style="width: 19px; height: 19px;" />
+        <span style="font-size: 10.5px;">後台管理</span>
       </router-link>
-
     </div>
   </nav>
 </template>
 
 <script setup>
-import { Home, LayoutGrid, ShoppingBag, User, Settings } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
+import { Home, Grid, ShoppingBag, User, Settings } from 'lucide-vue-next'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 
-const emit = defineEmits(['open-category', 'open-auth'])
+const route = useRoute()
+const router = useRouter()
 const cartStore = useCartStore()
 const authStore = useAuthStore()
+
+const openCategoryPicker = () => {
+  router.push({
+    path: '/category',
+    query: {
+      ...route.query,
+      openPicker: '1'
+    }
+  })
+}
+
+const openCartDrawer = () => {
+  if (typeof cartStore.openDrawer === 'function') {
+    cartStore.openDrawer()
+  } else {
+    cartStore.isOpen = true
+  }
+}
 </script>
 
 <style scoped>
-.mobile-bottom-nav {
+.bottom-nav-fixed {
   position: fixed;
   bottom: 0;
   left: 0;
-  width: 100%;
-  background-color: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid var(--md-border, #ede8e1);
-  z-index: 1025;
+  right: 0;
+  z-index: 1030;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  box-shadow: 0 -4px 16px rgba(45, 38, 33, 0.05);
-}
-
-.bottom-nav-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  height: 56px;
-  max-width: 520px;
-  margin: 0 auto;
-}
-
-.btn-reset {
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
 }
 
 .bottom-nav-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--md-text-muted, #9c9289);
-  text-decoration: none;
-  transition: color 0.18s ease, transform 0.18s ease;
-  user-select: none;
-}
-
-.bottom-nav-item:active {
-  transform: scale(0.92);
-}
-
-.nav-item-icon {
-  width: 20px;
-  height: 20px;
-  stroke-width: 1.8;
-}
-
-.nav-item-label {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  margin-top: 3px;
-  line-height: 1;
-}
-
-.bottom-nav-item.is-active,
-.bottom-nav-item:hover {
-  color: var(--md-primary, #9b7e68);
-}
-
-.bottom-nav-item.is-active .nav-item-icon {
-  stroke-width: 2.2;
-}
-
-.bottom-cart-badge {
-  font-size: 8.5px;
-  padding: 0.25em 0.55em;
-  top: -2px !important;
-  right: -8px !important;
-  background-color: var(--md-text-primary, #2d2621) !important;
-  border: 1.5px solid #ffffff;
+  min-width: 56px;
+  transition: color 0.15s ease;
 }
 </style>

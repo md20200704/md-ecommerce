@@ -2,14 +2,15 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export const useProductStore = defineStore('product', () => {
-  // 商品清單資料（加入 isHotRanking、isSeasonalNew、featuredOrder）
   const products = ref([
     {
       id: 1,
       name: '首爾晨霧微光西裝長大衣',
+      isPublished: true,
       category: 'Outer 外套',
-      basePrice: 3280,
-      originalPrice: 3980,
+      subcategory: '西裝外套',
+      price: 3280,
+      cost: 1480,
       salesCount: 128,
       tag: 'MD PICK',
       image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80',
@@ -22,18 +23,20 @@ export const useProductStore = defineStore('product', () => {
       isSeasonalNew: true,
       featuredOrder: 1,
       skus: [
-        { skuId: 'SKU-101', color: '晨霧燕麥', size: 'S', stock: 12, price: 3280 },
-        { skuId: 'SKU-102', color: '晨霧燕麥', size: 'M', stock: 8, price: 3280 },
-        { skuId: 'SKU-103', color: '曜石炭黑', size: 'S', stock: 4, price: 3280 },
-        { skuId: 'SKU-104', color: '曜石炭黑', size: 'M', stock: 15, price: 3280 }
+        { skuId: 'SKU-101', color: '晨霧燕麥', size: 'S', stock: 12 },
+        { skuId: 'SKU-102', color: '晨霧燕麥', size: 'M', stock: 8 },
+        { skuId: 'SKU-103', color: '曜石炭黑', size: 'S', stock: 4 },
+        { skuId: 'SKU-104', color: '曜石炭黑', size: 'M', stock: 15 }
       ]
     },
     {
       id: 2,
       name: '法式慵懶微立領雪紡襯衫',
+      isPublished: true,
       category: 'Top 上衣',
-      basePrice: 1380,
-      originalPrice: 1680,
+      subcategory: '襯衫/雪紡',
+      price: 1380,
+      cost: 580,
       salesCount: 245,
       tag: 'BESTSELLER',
       image: 'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=800&q=80',
@@ -46,16 +49,18 @@ export const useProductStore = defineStore('product', () => {
       isSeasonalNew: false,
       featuredOrder: 2,
       skus: [
-        { skuId: 'SKU-201', color: '米白', size: 'F', stock: 22, price: 1380 },
-        { skuId: 'SKU-202', color: '杏色', size: 'F', stock: 18, price: 1380 }
+        { skuId: 'SKU-201', color: '米白', size: 'F', stock: 22 },
+        { skuId: 'SKU-202', color: '杏色', size: 'F', stock: 18 }
       ]
     },
     {
       id: 3,
       name: '高腰垂墜感西裝直筒闊腿褲',
+      isPublished: true,
       category: 'Bottom 下身',
-      basePrice: 1580,
-      originalPrice: 1880,
+      subcategory: '西裝長褲',
+      price: 1580,
+      cost: 690,
       salesCount: 198,
       tag: 'NEW ARRIVAL',
       image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=800&q=80',
@@ -68,17 +73,19 @@ export const useProductStore = defineStore('product', () => {
       isSeasonalNew: true,
       featuredOrder: 3,
       skus: [
-        { skuId: 'SKU-301', color: '卡其灰', size: 'S', stock: 6, price: 1580 },
-        { skuId: 'SKU-302', color: '卡其灰', size: 'M', stock: 14, price: 1580 },
-        { skuId: 'SKU-303', color: '深墨黑', size: 'S', stock: 9, price: 1580 }
+        { skuId: 'SKU-301', color: '卡其灰', size: 'S', stock: 6 },
+        { skuId: 'SKU-302', color: '卡其灰', size: 'M', stock: 14 },
+        { skuId: 'SKU-303', color: '深墨黑', size: 'S', stock: 9 }
       ]
     },
     {
       id: 4,
       name: '親膚喀什米爾針織落肩開襟衫',
+      isPublished: true,
       category: 'Top 上衣',
-      basePrice: 1880,
-      originalPrice: 2280,
+      subcategory: '針織毛衣',
+      price: 1880,
+      cost: 820,
       salesCount: 167,
       tag: 'WINTER SPEC',
       image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=800&q=80',
@@ -90,13 +97,12 @@ export const useProductStore = defineStore('product', () => {
       isSeasonalNew: true,
       featuredOrder: 4,
       skus: [
-        { skuId: 'SKU-401', color: '燕麥白', size: 'F', stock: 10, price: 1880 },
-        { skuId: 'SKU-402', color: '可可咖', size: 'F', stock: 3, price: 1880 }
+        { skuId: 'SKU-401', color: '燕麥白', size: 'F', stock: 10 },
+        { skuId: 'SKU-402', color: '可可咖', size: 'F', stock: 3 }
       ]
     }
   ])
 
-  // 評價資料
   const reviews = ref([
     {
       id: 'REV-01',
@@ -110,15 +116,46 @@ export const useProductStore = defineStore('product', () => {
     }
   ])
 
+  // 新增評價（由會員中心完成訂單後或商品詳情頁呼叫）
+  const addReview = (payload) => {
+    const newRev = {
+      id: 'REV-' + Date.now().toString().slice(-5),
+      orderId: payload.orderId || 'ORD-VERIFIED',
+      productId: Number(payload.productId || 1),
+      userName: payload.userName || '認證會員',
+      rating: Number(payload.rating || 5),
+      content: payload.content || '',
+      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      images: Array.isArray(payload.images) ? [...payload.images] : []
+    }
+    reviews.value.unshift(newRev)
+    return {
+      success: true,
+      message: '感謝您的真實評價與穿搭分享！評價已發布至商品頁面。',
+      review: newRev
+    }
+  }
+
   const categories = ref(['ALL', 'Top 上衣', 'Outer 外套', 'Bottom 下身'])
   const selectedCategory = ref('ALL')
   const sortBy = ref('default')
   const searchQuery = ref('')
   const searchInput = ref('')
 
-  // 篩選與排序計算
+  const getProductPrice = (prod) => {
+    if (!prod) return 0
+    return Number(prod.price ?? prod.basePrice ?? 0)
+  }
+
+  const publishedProducts = computed(() => {
+    return products.value.filter(p => {
+      const totalStock = (p.skus || []).reduce((sum, s) => sum + (Number(s.stock) || 0), 0)
+      return p.isPublished !== false && totalStock > 0
+    })
+  })
+
   const filteredProducts = computed(() => {
-    let result = [...products.value]
+    let result = [...publishedProducts.value]
 
     if (selectedCategory.value && selectedCategory.value !== 'ALL') {
       result = result.filter(p => p.category === selectedCategory.value)
@@ -126,17 +163,18 @@ export const useProductStore = defineStore('product', () => {
 
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.trim().toLowerCase()
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(q) || 
+      result = result.filter(p =>
+        p.name.toLowerCase().includes(q) ||
         p.category.toLowerCase().includes(q) ||
+        (p.subcategory && p.subcategory.toLowerCase().includes(q)) ||
         (p.tag && p.tag.toLowerCase().includes(q))
       )
     }
 
     if (sortBy.value === 'price-asc') {
-      result.sort((a, b) => a.basePrice - b.basePrice)
+      result.sort((a, b) => getProductPrice(a) - getProductPrice(b))
     } else if (sortBy.value === 'price-desc') {
-      result.sort((a, b) => b.basePrice - a.basePrice)
+      result.sort((a, b) => getProductPrice(b) - getProductPrice(a))
     } else if (sortBy.value === 'sales') {
       result.sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0))
     } else if (sortBy.value === 'newest') {
@@ -146,30 +184,22 @@ export const useProductStore = defineStore('product', () => {
     return result
   })
 
-  // 熱門排行商品 (後台指定 isHotRanking)
   const hotRankingProducts = computed(() => {
-    return products.value
+    return publishedProducts.value
       .filter(p => p.isHotRanking)
       .sort((a, b) => (a.featuredOrder || 99) - (b.featuredOrder || 99))
   })
 
-  // 當季新品推薦 (後台指定 isSeasonalNew)
   const seasonalNewProducts = computed(() => {
-    return products.value
+    return publishedProducts.value
       .filter(p => p.isSeasonalNew)
       .sort((a, b) => (a.featuredOrder || 99) - (b.featuredOrder || 99))
   })
 
   const paginatedProducts = computed(() => filteredProducts.value)
 
-  const setCategory = (cat) => {
-    selectedCategory.value = cat
-  }
-
-  const setSortBy = (sort) => {
-    sortBy.value = sort
-  }
-
+  const setCategory = (cat) => { selectedCategory.value = cat }
+  const setSortBy = (sort) => { sortBy.value = sort }
   const setSearchQuery = (q) => {
     searchInput.value = q
     searchQuery.value = q
@@ -196,7 +226,6 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
-  // 後台專用：快速開關首頁熱門或新品狀態
   const toggleProductFeatured = (productId, field) => {
     const prod = products.value.find(p => p.id === Number(productId))
     if (prod && (field === 'isHotRanking' || field === 'isSeasonalNew')) {
@@ -208,7 +237,9 @@ export const useProductStore = defineStore('product', () => {
 
   return {
     products,
+    publishedProducts,
     reviews,
+    addReview,
     categories,
     selectedCategory,
     sortBy,
@@ -218,6 +249,7 @@ export const useProductStore = defineStore('product', () => {
     paginatedProducts,
     hotRankingProducts,
     seasonalNewProducts,
+    getProductPrice,
     setCategory,
     setSortBy,
     setSearchQuery,
