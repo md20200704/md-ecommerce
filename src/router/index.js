@@ -4,6 +4,12 @@ import ProductDetailView from '../views/ProductDetailView.vue'
 import CheckoutView from '../views/CheckoutView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import AdminLayout from '../views/admin/AdminLayout.vue'
+import DashboardView from '../views/admin/DashboardView.vue'
+import ProductManageView from '../views/admin/ProductManageView.vue'
+import OrderManageView from '../views/admin/OrderManageView.vue'
+import MarketingCrmView from '../views/admin/MarketingCrmView.vue'
+import CmsLayoutView from '../views/admin/CmsLayoutView.vue'
+import AuditLogView from '../views/admin/AuditLogView.vue'
 import OrderSuccessView from '../views/OrderSuccessView.vue'
 import CategoryView from '../views/CategoryView.vue'
 import { useAuthStore } from '../stores/authStore'
@@ -18,8 +24,8 @@ export const router = createRouter({
     },
     {
       path: '/category/:category?',
-  name: 'Category',
-  component: () => import('../views/CategoryView.vue')
+      name: 'Category',
+      component: CategoryView
     },
     {
       path: '/product/:id',
@@ -39,16 +45,22 @@ export const router = createRouter({
     {
       path: '/profile',
       name: 'profile',
-      component: () => import('../views/ProfileView.vue')
+      component: ProfileView
     },
     {
       path: '/admin',
-      name: 'admin-portal',
       component: AdminLayout,
-      meta: { requiresAdmin: true }
+      meta: { requiresAdmin: true },
+      children: [
+        { path: '', name: 'admin-dashboard', component: DashboardView },
+        { path: 'products', name: 'admin-products', component: ProductManageView },
+        { path: 'orders', name: 'admin-orders', component: OrderManageView },
+        { path: 'marketing', name: 'admin-marketing', component: MarketingCrmView },
+        { path: 'cms', name: 'admin-cms', component: CmsLayoutView },
+        { path: 'logs', name: 'admin-logs', component: AuditLogView }
+      ]
     },
     {
-      // 捕獲所有找不到的路由，一律回到首頁
       path: '/:pathMatch(.*)*',
       redirect: '/'
     }
@@ -58,7 +70,7 @@ export const router = createRouter({
   }
 })
 
-// 全域守衛安全防護：確保每條路徑一定會走到 next()
+// 全域守衛安全防護
 router.beforeEach((to, from, next) => {
   if (to.meta && to.meta.requiresAdmin) {
     const authStore = useAuthStore()
@@ -67,7 +79,6 @@ router.beforeEach((to, from, next) => {
       return next({ path: '/' })
     }
   }
-  // 正常放行
   next()
 })
 

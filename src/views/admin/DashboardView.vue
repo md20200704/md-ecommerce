@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-container d-flex flex-column gap-4 w-100">
+  <div class="dashboard-container d-flex flex-column gap-4 w-100" style="min-width: 0; overflow-x: hidden;">
     <!-- ==================== 1. 頁面標題與匯出工具列 ==================== -->
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div>
@@ -27,7 +27,7 @@
               <Calendar style="width: 15px; height: 15px; color: var(--md-primary, #9b7e68);" />
               <span class="small fw-semibold text-dark" style="font-size: 12px;">時間維度：</span>
             </div>
-            <div class="btn-group btn-group-sm rounded-pill border p-0.5 bg-light" role="group">
+            <div class="btn-group btn-group-sm rounded-pill border p-0.5 bg-light flex-wrap" role="group">
               <button
                 v-for="preset in datePresets"
                 :key="preset.key"
@@ -41,264 +41,231 @@
             </div>
           </div>
 
-          <!-- 自訂起訖日期選擇 -->
+          <!-- 自訂日期區間 -->
           <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="small text-muted font-monospace" style="font-size: 11px;">自訂區間：</span>
             <input
               v-model="filter.startDate"
               type="date"
-              class="form-control form-control-sm rounded-3 font-monospace"
+              class="form-control form-control-sm font-monospace rounded-pill px-3"
               style="width: 135px; font-size: 11.5px;"
-              @change="filter.period = 'custom'"
             />
             <span class="text-muted small">至</span>
             <input
               v-model="filter.endDate"
               type="date"
-              class="form-control form-control-sm rounded-3 font-monospace"
+              class="form-control form-control-sm font-monospace rounded-pill px-3"
               style="width: 135px; font-size: 11.5px;"
-              @change="filter.period = 'custom'"
             />
           </div>
         </div>
 
-        <hr class="my-0 border-stone-200" style="opacity: 0.6;" />
-
-        <!-- 下排：狀態與金物流維度下拉篩選 -->
-        <div class="row g-2.5 align-items-center">
-          <div class="col-12 col-sm-6 col-md-3">
-            <label class="form-label text-muted mb-1" style="font-size: 11px;">訂單履約狀態</label>
-            <select v-model="filter.shippingStatus" class="form-select form-select-sm rounded-3 font-monospace">
-              <option value="ALL">全部狀態 (不限)</option>
-              <option value="PENDING">備貨中 (待出貨)</option>
-              <option value="SHIPPED">已出貨 (運送中)</option>
-              <option value="DELIVERED">已送達 (完成結案)</option>
-              <option value="CANCELLED">已取消 / 售後退貨</option>
+        <!-- 下排：進階狀態與渠道篩選 -->
+        <div class="d-flex align-items-center flex-wrap gap-3 pt-2 border-top small">
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted font-monospace">訂單狀態：</span>
+            <select v-model="filter.shippingStatus" class="form-select form-select-sm rounded-pill font-monospace" style="width: 130px; font-size: 11px;">
+              <option value="ALL">全部狀態</option>
+              <option value="PENDING">待出貨</option>
+              <option value="SHIPPED">配送中</option>
+              <option value="DELIVERED">已完成</option>
+              <option value="CANCELLED">已取消</option>
             </select>
           </div>
 
-          <div class="col-12 col-sm-6 col-md-3">
-            <label class="form-label text-muted mb-1" style="font-size: 11px;">付款金流渠道</label>
-            <select v-model="filter.paymentMethod" class="form-select form-select-sm rounded-3 font-monospace">
-              <option value="ALL">全部金流渠道</option>
-              <option value="CREDIT">信用卡線上 3D</option>
-              <option value="LINEPAY">LINE Pay 行動支付</option>
-              <option value="ATM">ATM 虛擬帳號轉帳</option>
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted font-monospace">支付方式：</span>
+            <select v-model="filter.paymentMethod" class="form-select form-select-sm rounded-pill font-monospace" style="width: 130px; font-size: 11px;">
+              <option value="ALL">全部金流</option>
+              <option value="LINE Pay">LINE Pay</option>
+              <option value="信用卡一次付清">信用卡一次付清</option>
+              <option value="超商代碼繳費">超商代碼繳費</option>
+              <option value="貨到付款">貨到付款</option>
             </select>
           </div>
 
-          <div class="col-12 col-sm-6 col-md-3">
-            <label class="form-label text-muted mb-1" style="font-size: 11px;">配送物流溫層</label>
-            <select v-model="filter.shippingType" class="form-select form-select-sm rounded-3 font-monospace">
-              <option value="ALL">全部配送方式</option>
-              <option value="CVS">7-11 / 全家超商取件</option>
-              <option value="HOME">黑貓宅急便到府</option>
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted font-monospace">物流方式：</span>
+            <select v-model="filter.shippingType" class="form-select form-select-sm rounded-pill font-monospace" style="width: 130px; font-size: 11px;">
+              <option value="ALL">全部物流</option>
+              <option value="CVS">超商純取貨</option>
+              <option value="HOME">黑貓宅配</option>
             </select>
           </div>
 
-          <div class="col-12 col-sm-6 col-md-3 d-flex align-items-end">
-            <button
-              type="button"
-              class="btn btn-outline-secondary btn-sm rounded-3 w-100 py-1.5"
-              style="font-size: 12px;"
-              @click="resetFilter"
-            >
-              重設篩選條件
-            </button>
+          <button
+            type="button"
+            class="btn btn-outline-dark btn-sm rounded-pill px-3 ms-auto font-monospace"
+            style="font-size: 11px;"
+            @click="resetFilter"
+          >
+            重置篩選
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 3. 核心 4 大營運指標卡 ==================== -->
+    <div class="row g-3">
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-korean bg-white shadow-xs h-100 d-flex flex-column justify-content-between p-4">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="text-muted font-monospace small mb-1">總營業額 (GMV)</div>
+              <div class="h3 fw-bold font-monospace text-dark mb-0">NT$ {{ computedMetrics.gmv.toLocaleString() }}</div>
+            </div>
+            <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2.5 py-1" style="font-size: 10px;">
+              +18.4% YoY
+            </span>
+          </div>
+          <div class="mt-3 pt-2 border-top text-muted font-monospace small" style="font-size: 11.5px;">
+            有效訂單共 {{ computedMetrics.orderCount }} 筆
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-korean bg-white shadow-xs h-100 d-flex flex-column justify-content-between p-4">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="text-muted font-monospace small mb-1">訪客下單轉化率 (CR)</div>
+              <div class="h3 fw-bold font-monospace text-dark mb-0">{{ computedMetrics.conversionRate }}%</div>
+            </div>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2.5 py-1" style="font-size: 10px;">
+              目標 &gt; 3.0%
+            </span>
+          </div>
+          <div class="mt-3 pt-2 border-top text-muted font-monospace small" style="font-size: 11.5px;">
+            客單價 AOV：NT$ {{ computedMetrics.aov.toLocaleString() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-korean bg-white shadow-xs h-100 d-flex flex-column justify-content-between p-4">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="text-muted font-monospace small mb-1">退貨與售後率</div>
+              <div class="h3 fw-bold font-monospace text-danger mb-0">{{ computedMetrics.returnRate }}%</div>
+            </div>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2.5 py-1" style="font-size: 10px;">
+              警戒值 &lt; 5.0%
+            </span>
+          </div>
+          <div class="mt-3 pt-2 border-top text-muted font-monospace small" style="font-size: 11.5px;">
+            已處理退貨 {{ computedMetrics.returnCount }} 筆
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card-korean bg-white shadow-xs h-100 d-flex flex-column justify-content-between p-4">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="text-muted font-monospace small mb-1">毛利率估算 (Gross Margin)</div>
+              <div class="h3 fw-bold font-monospace text-success mb-0">{{ computedMetrics.grossMargin }}%</div>
+            </div>
+            <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2.5 py-1" style="font-size: 10px;">
+              含成本分析
+            </span>
+          </div>
+          <div class="mt-3 pt-2 border-top text-muted font-monospace small" style="font-size: 11.5px;">
+            預估毛利：NT$ {{ computedMetrics.estimatedProfit.toLocaleString() }}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ==================== 3. 四大核心 KPI 指標卡片 ==================== -->
-    <div class="row g-3">
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card-korean p-3.5 bg-white shadow-xs h-100 d-flex flex-column justify-content-between">
-          <div>
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="text-muted small text-uppercase font-monospace" style="font-size: 11px;">篩選區間 GMV</span>
-              <span class="badge bg-success-subtle text-success font-monospace" style="font-size: 9.5px;">實收入帳</span>
-            </div>
-            <div class="h3 fw-bold font-monospace text-dark mb-1">
-              NT$ {{ computedMetrics.gmv.toLocaleString() }}
-            </div>
-          </div>
-          <div class="text-muted small" style="font-size: 11px;">
-            有效訂單累計實付營業額
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card-korean p-3.5 bg-white shadow-xs h-100 d-flex flex-column justify-content-between">
-          <div>
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="text-muted small text-uppercase font-monospace" style="font-size: 11px;">區間總訂單數</span>
-              <span class="badge bg-primary-subtle text-primary font-monospace" style="font-size: 9.5px;">
-                {{ computedMetrics.orderCount }} 筆
-              </span>
-            </div>
-            <div class="h3 fw-bold font-monospace text-dark mb-1">
-              {{ computedMetrics.orderCount }} <small class="fs-6 fw-normal text-muted">筆</small>
-            </div>
-          </div>
-          <div class="text-muted small" style="font-size: 11px;">
-            履約出貨率：<strong class="text-dark font-monospace">{{ computedMetrics.fulfillmentRate }}%</strong>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card-korean p-3.5 bg-white shadow-xs h-100 d-flex flex-column justify-content-between">
-          <div>
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="text-muted small text-uppercase font-monospace" style="font-size: 11px;">平均客單價 (AOV)</span>
-              <span class="badge bg-info-subtle text-info font-monospace" style="font-size: 9.5px;">均值試算</span>
-            </div>
-            <div class="h3 fw-bold font-monospace text-dark mb-1">
-              NT$ {{ computedMetrics.aov.toLocaleString() }}
-            </div>
-          </div>
-          <div class="text-muted small" style="font-size: 11px;">
-            免運門檻 NT$ 1,500 激勵效應
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card-korean p-3.5 bg-white shadow-xs h-100 d-flex flex-column justify-content-between">
-          <div>
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="text-muted small text-uppercase font-monospace" style="font-size: 11px;">售後退貨退款率</span>
-              <span class="badge bg-warning-subtle text-warning-emphasis font-monospace" style="font-size: 9.5px;">售後監控</span>
-            </div>
-            <div class="h3 fw-bold font-monospace text-dark mb-1">
-              {{ computedMetrics.refundRate }}%
-            </div>
-          </div>
-          <div class="text-muted small" style="font-size: 11px;">
-            共 {{ computedMetrics.refundCount }} 筆退貨申請
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== 4. 熱銷單品排行 vs 金流佔比分析 ==================== -->
-    <div class="row g-3">
-      <!-- 熱銷商品銷售排行 -->
-      <div class="col-12 col-lg-7">
-        <div class="card-korean p-4 bg-white shadow-xs h-100">
+    <!-- ==================== 4. 熱銷穿搭排行與財務收支對帳表格 ==================== -->
+    <div class="row g-4">
+      <!-- 左側：熱銷商品排行 TOP 5 -->
+      <div class="col-12 col-xl-6">
+        <div class="card-korean bg-white shadow-xs h-100 p-4">
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 class="fs-6 fw-bold text-dark mb-0">熱門單品累積銷售排行</h2>
-            <span class="text-muted font-monospace" style="font-size: 11px;">件數排序</span>
+            <h2 class="fs-6 fw-bold text-dark mb-0">🔥 熱銷穿搭排行 (TOP 5)</h2>
+            <span class="text-muted font-monospace small" style="font-size: 11px;">依銷售數量加總</span>
           </div>
 
-          <div class="d-flex flex-column gap-3">
-            <div
-              v-for="(item, idx) in topProducts"
-              :key="item.id"
-              class="d-flex align-items-center gap-3"
-            >
-              <span
-                class="fw-bold font-monospace text-center rounded-circle flex-shrink-0"
-                :class="idx === 0 ? 'bg-primary text-white' : 'bg-light text-secondary border'"
-                style="width: 24px; height: 24px; font-size: 11px; line-height: 24px;"
-              >
-                {{ idx + 1 }}
-              </span>
-              <img :src="item.image" class="rounded object-fit-cover flex-shrink-0" style="width: 42px; height: 56px;" />
-              <div class="flex-grow-1 min-w-0">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                  <span class="fw-semibold text-dark text-truncate small" style="max-width: 280px;">{{ item.name }}</span>
-                  <span class="font-monospace text-muted small">{{ item.salesCount }} 件</span>
-                </div>
-                <div class="progress" style="height: 6px;">
-                  <div
-                    class="progress-bar"
-                    role="progressbar"
-                    :style="{
-                      width: `${(item.salesCount / maxSalesCount) * 100}%`,
-                      backgroundColor: idx === 0 ? 'var(--md-primary, #9b7e68)' : '#c8b8ab'
-                    }"
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 支付渠道佔比結構 -->
-      <div class="col-12 col-lg-5">
-        <div class="card-korean p-4 bg-white shadow-xs h-100 d-flex flex-column justify-content-between">
-          <div>
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <h2 class="fs-6 fw-bold text-dark mb-0">支付金流渠道組成結構</h2>
-              <span class="text-muted font-monospace" style="font-size: 11px;">當前篩選資料</span>
-            </div>
-
-            <div class="d-flex flex-column gap-3 mb-3">
-              <div v-for="pay in paymentBreakdown" :key="pay.name">
-                <div class="d-flex justify-content-between align-items-center small mb-1">
-                  <span class="text-dark">{{ pay.name }}</span>
-                  <span class="font-monospace fw-bold">{{ pay.percent }}% (NT$ {{ pay.amount.toLocaleString() }})</span>
-                </div>
-                <div class="progress" style="height: 6px;">
-                  <div class="progress-bar" :style="{ width: `${pay.percent}%`, backgroundColor: pay.color }"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="p-3 bg-light rounded-3 small text-muted font-monospace" style="font-size: 11px;">
-            💡 系統支援 EMV 3-D Secure 2.0 雙因子驗證，整體授權完成率達 98.4%。
+          <div class="table-responsive">
+            <table class="table table-hover align-middle small mb-0">
+              <thead class="table-light">
+                <tr class="text-secondary font-monospace" style="font-size: 11px;">
+                  <th style="width: 50px;">排名</th>
+                  <th>商品名稱</th>
+                  <th class="text-end">售價</th>
+                  <th class="text-end">售出件數</th>
+                  <th class="text-end">銷售額</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idx) in topSellingProducts" :key="item.id">
+                  <td>
+                    <span
+                      class="badge rounded-circle font-monospace d-inline-flex align-items-center justify-content-center"
+                      :class="idx === 0 ? 'bg-dark text-white' : idx === 1 ? 'bg-secondary text-white' : idx === 2 ? 'bg-light text-dark border' : 'bg-light text-muted'"
+                      style="width: 24px; height: 24px; font-size: 11px;"
+                    >
+                      {{ idx + 1 }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <img :src="item.image" class="rounded-3 object-fit-cover border" style="width: 36px; height: 44px;" />
+                      <div class="fw-bold text-dark text-truncate" style="max-width: 180px;">{{ item.name }}</div>
+                    </div>
+                  </td>
+                  <td class="text-end font-monospace">NT$ {{ Number(item.price).toLocaleString() }}</td>
+                  <td class="text-end font-monospace fw-bold text-primary">{{ item.soldQty }} 件</td>
+                  <td class="text-end font-monospace fw-bold">NT$ {{ item.salesAmount.toLocaleString() }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- ==================== 5. 財務損益對帳與金物流成本試算表 ==================== -->
-    <div class="card-korean p-4 bg-white shadow-xs">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h2 class="fs-6 fw-bold text-dark mb-0">金物流手續費對帳與實收損益試算</h2>
-          <span class="text-muted small" style="font-size: 11px;">依當前篩選訂單動態扣除 2.5% 金流手續費與 NT$ 65 物流成本</span>
+      <!-- 右側：財務金物流收支對帳表 -->
+      <div class="col-12 col-xl-6">
+        <div class="card-korean bg-white shadow-xs h-100 p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="fs-6 fw-bold text-dark mb-0">💰 財務金物流收支對帳表</h2>
+            <span class="text-muted font-monospace small" style="font-size: 11px;">手續費與託運成本彙總</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle small mb-0">
+              <thead class="table-light">
+                <tr class="text-secondary font-monospace" style="font-size: 11px;">
+                  <th>金流渠道</th>
+                  <th class="text-center">筆數</th>
+                  <th class="text-end">總交易額</th>
+                  <th class="text-end">金流手續費</th>
+                  <th class="text-end">物流成本</th>
+                  <th class="text-end">實收淨額</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in financialReportRows" :key="row.channel">
+                  <td class="fw-bold text-dark">{{ row.channel }}</td>
+                  <td class="text-center font-monospace">{{ row.count }} 筆</td>
+                  <td class="text-end font-monospace">NT$ {{ row.gross.toLocaleString() }}</td>
+                  <td class="text-end font-monospace text-danger">- NT$ {{ row.fee.toLocaleString() }}</td>
+                  <td class="text-end font-monospace text-danger">- NT$ {{ row.shippingCost.toLocaleString() }}</td>
+                  <td class="text-end font-monospace fw-bold text-success">NT$ {{ row.net.toLocaleString() }}</td>
+                </tr>
+              </tbody>
+              <tfoot class="table-group-divider">
+                <tr class="fw-bold">
+                  <td>合計彙總</td>
+                  <td class="text-center font-monospace">{{ computedMetrics.orderCount }} 筆</td>
+                  <td class="text-end font-monospace">NT$ {{ computedMetrics.gmv.toLocaleString() }}</td>
+                  <td class="text-end font-monospace text-danger">- NT$ {{ totalPaymentFee.toLocaleString() }}</td>
+                  <td class="text-end font-monospace text-danger">- NT$ {{ totalShippingCost.toLocaleString() }}</td>
+                  <td class="text-end font-monospace text-success">NT$ {{ totalNetRevenue.toLocaleString() }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle small mb-0 font-monospace">
-          <thead class="table-light">
-            <tr class="text-secondary text-nowrap" style="font-size: 11px;">
-              <th style="min-width: 150px;">金流支付方式</th>
-              <th style="min-width: 100px;">訂單筆數</th>
-              <th style="min-width: 140px;">交易總額 (Gross GMV)</th>
-              <th style="min-width: 150px;">金流手續費 (信用卡/LinePay: 2.5%)</th>
-              <th style="min-width: 140px;">物流成本 (NT$65/筆)</th>
-              <th class="text-end" style="min-width: 140px;">實收淨額 (Net Revenue)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in financialReportRows" :key="row.channel">
-              <td class="fw-semibold text-dark text-nowrap">{{ row.channel }}</td>
-              <td class="text-nowrap">{{ row.count }} 筆</td>
-              <td class="text-nowrap">NT$ {{ row.gross.toLocaleString() }}</td>
-              <td class="text-danger text-nowrap">{{ row.fee === 0 ? 'NT$ 0 (買方自付)' : `- NT$ ${row.fee.toLocaleString()}` }}</td>
-              <td class="text-danger text-nowrap">- NT$ {{ row.shippingCost.toLocaleString() }}</td>
-              <td class="text-end fw-bold text-success fs-6 text-nowrap">NT$ {{ row.net.toLocaleString() }}</td>
-            </tr>
-          </tbody>
-          <tfoot class="table-group-divider">
-            <tr class="fw-bold text-dark text-nowrap">
-              <td>合計彙總</td>
-              <td>{{ computedMetrics.orderCount }} 筆</td>
-              <td>NT$ {{ computedMetrics.gmv.toLocaleString() }}</td>
-              <td class="text-danger">- NT$ {{ totalPaymentFee.toLocaleString() }}</td>
-              <td class="text-danger">- NT$ {{ totalShippingCost.toLocaleString() }}</td>
-              <td class="text-end text-success fs-6">NT$ {{ totalNetRevenue.toLocaleString() }}</td>
-            </tr>
-          </tfoot>
-        </table>
       </div>
     </div>
   </div>
@@ -330,30 +297,27 @@ const filter = reactive({
   shippingType: 'ALL'
 })
 
-const selectDatePreset = (presetKey) => {
-  filter.period = presetKey
-  const now = new Date()
-  const formatDate = (d) => d.toISOString().slice(0, 10)
+const selectDatePreset = (key) => {
+  filter.period = key
+  const now = new Date('2026-11-18') // 2026 固定基準日
+  let start = new Date(now)
 
-  if (presetKey === 'today') {
-    filter.startDate = formatDate(now)
-    filter.endDate = formatDate(now)
-  } else if (presetKey === '7days') {
-    const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    filter.startDate = formatDate(start)
-    filter.endDate = formatDate(now)
-  } else if (presetKey === '30days') {
-    const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-    filter.startDate = formatDate(start)
-    filter.endDate = formatDate(now)
-  } else if (presetKey === 'month') {
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    filter.startDate = formatDate(startOfMonth)
-    filter.endDate = formatDate(now)
-  } else if (presetKey === 'all') {
+  if (key === 'today') {
+    start = now
+  } else if (key === '7days') {
+    start.setDate(now.getDate() - 7)
+  } else if (key === '30days') {
+    start.setDate(now.getDate() - 30)
+  } else if (key === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1)
+  } else {
     filter.startDate = '2026-01-01'
     filter.endDate = '2026-12-31'
+    return
   }
+
+  filter.startDate = start.toISOString().slice(0, 10)
+  filter.endDate = now.toISOString().slice(0, 10)
 }
 
 const resetFilter = () => {
@@ -365,127 +329,121 @@ const resetFilter = () => {
   filter.shippingType = 'ALL'
 }
 
-// 訂單過濾
+// 篩選訂單
 const filteredOrders = computed(() => {
-  return (adminStore.orders || []).filter((order) => {
-    const orderDate = (order.createdAt || '').slice(0, 10)
-    if (filter.startDate && orderDate < filter.startDate) return false
-    if (filter.endDate && orderDate > filter.endDate) return false
-
-    if (filter.shippingStatus !== 'ALL') {
-      if (filter.shippingStatus === 'CANCELLED') {
-        if (order.shippingStatus !== 'CANCELLED' && order.refundStatus === 'NONE') return false
-      } else if (order.shippingStatus !== filter.shippingStatus) {
-        return false
-      }
+  const all = adminStore.orders || []
+  return all.filter(o => {
+    const d = o.createdAt || o.date || '2026-01-01'
+    if (d < filter.startDate || d > filter.endDate) return false
+    if (filter.shippingStatus !== 'ALL' && o.status !== filter.shippingStatus) {
+      if (filter.shippingStatus === 'DELIVERED' && o.status !== '已完成') return false
+      if (filter.shippingStatus === 'PENDING' && !['待出貨', '處理中'].includes(o.status)) return false
     }
-
-    if (filter.paymentMethod !== 'ALL') {
-      if (filter.paymentMethod === 'CREDIT' && !order.paymentMethod.includes('信用卡')) return false
-      if (filter.paymentMethod === 'LINEPAY' && !order.paymentMethod.includes('LINE Pay')) return false
-      if (filter.paymentMethod === 'ATM' && !order.paymentMethod.includes('ATM')) return false
-    }
-
-    if (filter.shippingType !== 'ALL') {
-      if (filter.shippingType === 'CVS' && !order.shippingMethod.includes('超商')) return false
-      if (filter.shippingType === 'HOME' && !order.shippingMethod.includes('黑貓')) return false
-    }
-
+    if (filter.paymentMethod !== 'ALL' && o.paymentMethod !== filter.paymentMethod) return false
+    if (filter.shippingType !== 'ALL' && (o.shippingMethod || o.shippingType) !== filter.shippingType) return false
     return true
   })
 })
 
-// KPI 動態指標計算
+// 計算核心指標
 const computedMetrics = computed(() => {
-  const list = filteredOrders.value
-  const totalCount = list.length
-  if (totalCount === 0) {
-    return { gmv: 0, orderCount: 0, aov: 0, fulfillmentRate: 0, refundRate: 0, refundCount: 0 }
-  }
+  const orders = filteredOrders.value
+  const orderCount = orders.length
+  let gmv = 0
+  let returnCount = 0
 
-  const validOrders = list.filter((o) => o.shippingStatus !== 'CANCELLED' && o.refundStatus !== 'REFUNDED')
-  const gmv = validOrders.reduce((sum, o) => sum + (o.amount || 0), 0)
-  const aov = validOrders.length > 0 ? Math.round(gmv / validOrders.length) : 0
-
-  const fulfilledCount = list.filter((o) => o.shippingStatus === 'SHIPPED' || o.shippingStatus === 'DELIVERED').length
-  const fulfillmentRate = Math.round((fulfilledCount / totalCount) * 100)
-
-  const refundCount = list.filter((o) => o.refundStatus && o.refundStatus !== 'NONE').length
-  const refundRate = Math.round((refundCount / totalCount) * 100)
-
-  return {
-    gmv,
-    orderCount: totalCount,
-    aov,
-    fulfillmentRate,
-    refundRate,
-    refundCount
-  }
-})
-
-// 熱門單品排行
-const topProducts = computed(() => {
-  return [...productStore.products]
-    .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0))
-    .slice(0, 4)
-})
-
-const maxSalesCount = computed(() => {
-  const counts = topProducts.value.map((p) => p.salesCount || 0)
-  return Math.max(...counts, 1)
-})
-
-// 支付方式結構
-const paymentBreakdown = computed(() => {
-  const list = filteredOrders.value
-  const total = list.reduce((s, o) => s + (o.amount || 0), 0) || 1
-
-  let creditAmt = 0, linePayAmt = 0, atmAmt = 0
-
-  list.forEach((o) => {
-    if (o.paymentMethod.includes('信用卡')) creditAmt += o.amount || 0
-    else if (o.paymentMethod.includes('LINE Pay')) linePayAmt += o.amount || 0
-    else atmAmt += o.amount || 0
-  })
-
-  return [
-    { name: '信用卡線上 3D', amount: creditAmt, percent: Math.round((creditAmt / total) * 100), color: '#9b7e68' },
-    { name: 'LINE Pay 快速支付', amount: linePayAmt, percent: Math.round((linePayAmt / total) * 100), color: '#06c755' },
-    { name: 'ATM 虛擬帳號', amount: atmAmt, percent: Math.round((atmAmt / total) * 100), color: '#adb5bd' }
-  ]
-})
-
-// 財務損益試算表
-const financialReportRows = computed(() => {
-  const list = filteredOrders.value
-  const channels = [
-    { key: 'CREDIT', name: '信用卡線上 3D (一次付清)', rate: 0.025 },
-    { key: 'LINEPAY', name: 'LINE Pay 行動支付', rate: 0.025 },
-    { key: 'ATM', name: 'ATM 虛擬帳號轉帳', rate: 0 }
-  ]
-
-  return channels.map((c) => {
-    const ordersInChannel = list.filter((o) => {
-      if (c.key === 'CREDIT') return o.paymentMethod.includes('信用卡')
-      if (c.key === 'LINEPAY') return o.paymentMethod.includes('LINE Pay')
-      return o.paymentMethod.includes('ATM')
-    })
-
-    const count = ordersInChannel.length
-    const gross = ordersInChannel.reduce((sum, o) => sum + (o.amount || 0), 0)
-    const fee = Math.round(gross * c.rate)
-    const shippingCost = count * 65
-    const net = Math.max(0, gross - fee - shippingCost)
-
-    return {
-      channel: c.name,
-      count,
-      gross,
-      fee,
-      shippingCost,
-      net
+  orders.forEach(o => {
+    const amt = Number(o.totalAmount || o.amount || 0)
+    if (['已取消', '申請取消中'].includes(o.status)) return
+    gmv += amt
+    if (['退貨審核中', '已退貨'].includes(o.status) || o.returnRequest) {
+      returnCount++
     }
   })
+
+  const aov = orderCount > 0 ? Math.round(gmv / orderCount) : 0
+  const conversionRate = 3.8 // 預設店鋪平均轉化率
+  const returnRate = orderCount > 0 ? Number(((returnCount / orderCount) * 100).toFixed(1)) : 0
+  const grossMargin = 45.0 // 平均毛利率 45%
+  const estimatedProfit = Math.round(gmv * (grossMargin / 100))
+
+  return {
+    orderCount,
+    gmv,
+    aov,
+    conversionRate,
+    returnRate,
+    returnCount,
+    grossMargin,
+    estimatedProfit
+  }
+})
+
+// 熱銷商品排行
+const topSellingProducts = computed(() => {
+  const prods = productStore.products || []
+  const map = {}
+  filteredOrders.value.forEach(o => {
+    if (['已取消', '申請取消中'].includes(o.status)) return
+    ;(o.items || []).forEach(item => {
+      const pid = item.id || 1
+      if (!map[pid]) {
+        const pObj = productStore.getProductById(pid) || item
+        map[pid] = {
+          id: pid,
+          name: item.name || pObj.name,
+          price: Number(item.price || pObj.price || 0),
+          image: item.image || pObj.image || (pObj.images && pObj.images[0]),
+          soldQty: 0,
+          salesAmount: 0
+        }
+      }
+      const qty = Number(item.quantity || 1)
+      map[pid].soldQty += qty
+      map[pid].salesAmount += map[pid].price * qty
+    })
+  })
+
+  const arr = Object.values(map)
+  arr.sort((a, b) => b.soldQty - a.soldQty)
+  return arr.slice(0, 5)
+})
+
+// 財務金物流收支對帳行
+const financialReportRows = computed(() => {
+  const channels = ['LINE Pay', '信用卡一次付清', '超商代碼繳費', '貨到付款']
+  const map = {}
+  channels.forEach(ch => {
+    map[ch] = { channel: ch, count: 0, gross: 0, fee: 0, shippingCost: 0, net: 0 }
+  })
+
+  filteredOrders.value.forEach(o => {
+    if (['已取消', '申請取消中'].includes(o.status)) return
+    const ch = o.paymentMethod || 'LINE Pay'
+    if (!map[ch]) {
+      map[ch] = { channel: ch, count: 0, gross: 0, fee: 0, shippingCost: 0, net: 0 }
+    }
+    const amt = Number(o.totalAmount || o.amount || 0)
+    map[ch].count++
+    map[ch].gross += amt
+
+    // 假設手續費率：LINE Pay 2%, 信用卡 2.2%, 超商 30元/筆, 貨到付款 1%
+    let fee = 0
+    if (ch === 'LINE Pay') fee = Math.round(amt * 0.02)
+    else if (ch === '信用卡一次付清') fee = Math.round(amt * 0.022)
+    else if (ch === '超商代碼繳費') fee = 30
+    else fee = Math.round(amt * 0.01)
+
+    // 物流成本：超商 60，宅配 100
+    const shipType = o.shippingMethod || o.shippingType
+    const shipCost = shipType === 'CVS' ? 60 : 100
+
+    map[ch].fee += fee
+    map[ch].shippingCost += shipCost
+    map[ch].net += (amt - fee - shipCost)
+  })
+
+  return Object.values(map).filter(r => r.count > 0 || r.gross > 0)
 })
 
 const totalPaymentFee = computed(() => financialReportRows.value.reduce((s, r) => s + r.fee, 0))

@@ -1,70 +1,78 @@
 <template>
-  <div class="admin-layout d-flex flex-column flex-lg-row min-vh-100 bg-light">
+  <div class="admin-layout-root d-flex flex-column flex-lg-row min-vh-100" style="background-color: var(--md-bg, #faf9f6);">
     
-    <!-- 手機/平板版頂部導覽列（< 992px 顯示） -->
-    <header class="d-lg-none bg-dark text-white px-3 py-2.5 d-flex align-items-center justify-content-between sticky-top shadow-sm" style="z-index: 1040;">
-      <div class="d-flex align-items-center gap-2">
+    <!-- 手機/平板版頂部導覽列（< 992px 顯示，與前台一致的黑底白字高質感極簡風格） -->
+    <header class="d-lg-none bg-dark text-white px-3 py-3 d-flex align-items-center justify-content-between sticky-top shadow-2xs" style="z-index: 1040;">
+      <div class="d-flex align-items-center gap-2.5">
         <button
           type="button"
-          class="btn btn-sm btn-outline-light rounded-3 px-2 py-1"
+          class="btn btn-sm btn-outline-light rounded-pill px-3 py-1.5 font-monospace d-flex align-items-center gap-1"
+          style="font-size: 11.5px; border-color: rgba(255, 255, 255, 0.3);"
           @click="mobileMenuOpen = !mobileMenuOpen"
         >
-          ☰ 選單
+          <span>☰ 選單</span>
         </button>
-        <span class="fw-bold font-serif tracking-wide">MD.SELECT 後台管理</span>
+        <span class="fw-bold font-serif tracking-wide" style="letter-spacing: 0.05em; font-size: 14.5px;">MD.SELECT 後台管理</span>
       </div>
-      <router-link to="/" class="btn btn-light btn-sm rounded-pill px-3 py-1 font-monospace" style="font-size: 11px;">
-        返回前台 →
+      <router-link
+        to="/"
+        class="btn btn-light btn-sm rounded-pill px-3 py-1.5 font-monospace fw-semibold"
+        style="font-size: 11px;"
+      >
+        返回前台商店 →
       </router-link>
     </header>
 
-    <!-- 手機版側邊選單遮罩 -->
+    <!-- 手機版側邊選單毛玻璃遮罩 -->
     <div
       v-if="mobileMenuOpen"
-      class="d-lg-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50"
+      class="d-lg-none position-fixed top-0 start-0 w-100 h-100 modal-backdrop-custom"
       style="z-index: 1045;"
       @click="mobileMenuOpen = false"
     ></div>
 
-    <!-- 左側管理導覽列（桌機固定顯示，手機版滑出抽屜） -->
+    <!-- 左側管理導覽列（桌機固定顯示，手機版平滑滑出抽屜） -->
     <aside
-      class="admin-sidebar bg-white border-end d-flex flex-column justify-content-between p-3.5 flex-shrink-0"
+      class="admin-sidebar bg-white border-end d-flex flex-column justify-content-between p-4 flex-shrink-0"
       :class="{ 'show-mobile-sidebar': mobileMenuOpen }"
     >
       <div>
-        <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom">
+        <!-- 品牌標頭 -->
+        <div class="d-flex align-items-center justify-content-between pb-3.5 mb-3.5 border-bottom">
           <div>
-            <router-link to="/" class="text-decoration-none text-dark fw-bold fs-5 font-serif d-block">
+            <router-link to="/" class="text-decoration-none text-dark fw-bold fs-5 font-serif d-block" style="letter-spacing: 0.08em;">
               MD.SELECT
             </router-link>
-            <span class="text-muted font-monospace" style="font-size: 10.5px;">BACKOFFICE SYSTEM</span>
+            <span class="text-muted font-monospace" style="font-size: 10px; letter-spacing: 0.06em;">BACKOFFICE ARCHIVE</span>
           </div>
           <button
             type="button"
-            class="btn-close d-lg-none"
+            class="btn-close d-lg-none shadow-none"
             @click="mobileMenuOpen = false"
           ></button>
         </div>
 
-        <ul class="nav nav-pills flex-column gap-1.5 small font-sans">
+        <!-- 功能選單列表 -->
+        <ul class="nav nav-pills flex-column gap-2 small font-sans">
           <li v-for="item in navItems" :key="item.path" class="nav-item">
             <router-link
               :to="item.path"
-              class="nav-link rounded-3 py-2.5 px-3 d-flex align-items-center justify-content-between"
-              :class="isActiveRoute(item.path) ? 'bg-dark text-white fw-bold' : 'text-secondary hover-bg-light'"
+              class="admin-sidebar-btn nav-link rounded-pill py-2.5 px-3.5 d-flex align-items-center justify-content-between"
+              :class="{ 'active-menu': isActiveRoute(item.path) }"
               @click="mobileMenuOpen = false"
             >
-              <span>{{ item.label }}</span>
+              <span class="fw-semibold" style="font-size: 12.5px;">{{ item.label }}</span>
               <span class="font-monospace opacity-50" style="font-size: 11px;">›</span>
             </router-link>
           </li>
         </ul>
       </div>
 
+      <!-- 底部返回前台按鈕 -->
       <div class="pt-3 border-top mt-4">
         <router-link
           to="/"
-          class="btn btn-outline-dark btn-sm w-100 rounded-pill py-2 font-monospace"
+          class="btn btn-outline-dark btn-sm w-100 rounded-pill py-2 font-monospace fw-semibold shadow-2xs"
           style="font-size: 11.5px;"
         >
           ← 返回品牌前台商店
@@ -72,7 +80,7 @@
       </div>
     </aside>
 
-    <!-- 右側主內容工作區（自適應流體寬度，防止表格撐破版面） -->
+    <!-- 右側主內容工作區（自動撐開、流體寬度、防止表格或長卡片撐破版面） -->
     <main class="flex-grow-1 p-3 p-md-4 p-xl-5" style="min-width: 0; overflow-x: hidden;">
       <router-view />
     </main>
@@ -106,14 +114,12 @@ const isActiveRoute = (path) => {
 
 <style scoped>
 .admin-sidebar {
-  width: 250px;
+  width: 260px;
+  border-right-color: var(--md-border, #ede8e1) !important;
+  background-color: var(--md-surface, #ffffff) !important;
 }
 
-.hover-bg-light:hover {
-  background-color: #faf8f5;
-  color: #2d2621 !important;
-}
-
+/* 抽屜側邊欄 RWD 手機滑出效果 */
 @media (max-width: 991.98px) {
   .admin-sidebar {
     position: fixed;
@@ -122,8 +128,8 @@ const isActiveRoute = (path) => {
     bottom: 0;
     z-index: 1050;
     transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+    box-shadow: 0 10px 30px rgba(45, 38, 33, 0.15);
   }
 
   .admin-sidebar.show-mobile-sidebar {
