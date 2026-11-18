@@ -13,6 +13,7 @@ import AuditLogView from '../views/admin/AuditLogView.vue'
 import OrderSuccessView from '../views/OrderSuccessView.vue'
 import CategoryView from '../views/CategoryView.vue'
 import { useAuthStore } from '../stores/authStore'
+import CustomerServiceView from '../views/admin/CustomerServiceView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -57,6 +58,7 @@ export const router = createRouter({
         { path: 'orders', name: 'admin-orders', component: OrderManageView },
         { path: 'marketing', name: 'admin-marketing', component: MarketingCrmView },
         { path: 'cms', name: 'admin-cms', component: CmsLayoutView },
+        { path: 'cs', name: 'admin-cs', component: CustomerServiceView },
         { path: 'logs', name: 'admin-logs', component: AuditLogView }
       ]
     },

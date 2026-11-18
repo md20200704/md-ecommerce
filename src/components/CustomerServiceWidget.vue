@@ -1,0 +1,431 @@
+<template>
+  <div class="cs-widget-wrapper">
+    <!-- 懸浮客服圓形按鈕 -->
+    <button
+      v-if="!isOpen"
+      type="button"
+      class="cs-fab-btn shadow-lg d-flex align-items-center justify-content-center position-relative"
+      @click="isOpen = true"
+      title="聯絡線上客服"
+    >
+      <span style="font-size: 24px;">💬</span>
+      <span
+        v-if="chatStore.totalUnreadCount > 0"
+        class="cs-unread-badge font-monospace"
+      >
+        {{ chatStore.totalUnreadCount }}
+      </span>
+    </button>
+
+    <!-- 展開對話視窗 -->
+    <div v-else class="cs-widget-box d-flex flex-column font-sans">
+      <!-- 1. 頂部標題列 -->
+      <div class="cs-widget-header d-flex align-items-center justify-content-between flex-shrink-0">
+        <div class="d-flex align-items-center gap-3">
+          <span class="cs-online-dot"></span>
+          <div class="d-flex flex-column">
+            <div class="fw-bold font-serif text-white" style="font-size: 15px; letter-spacing: 0.06em; line-height: 1.35;">
+              M&D 線上風格客服
+            </div>
+            <div class="text-white-50 font-monospace mt-1" style="font-size: 11px; line-height: 1.2;">
+              支援傳送商品截圖與即時諮詢
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="btn-close btn-close-white shadow-none"
+          style="font-size: 12px;"
+          @click="isOpen = false"
+        ></button>
+      </div>
+
+      <!-- 2. 中間訊息捲動區 -->
+      <div ref="chatScrollRef" class="cs-widget-body flex-grow-1 overflow-auto d-flex flex-column">
+        <div class="text-center my-2">
+          <span class="cs-welcome-pill font-monospace">
+            👋 您好！可輸入問題或點擊左下角 📷 傳送圖片
+          </span>
+        </div>
+
+        <div
+          v-for="msg in chatStore.activeThread.messages"
+          :key="msg.id"
+          class="d-flex flex-column"
+          :class="msg.sender === 'user' ? 'align-items-end' : 'align-items-start'"
+        >
+          <div
+            class="cs-chat-bubble font-monospace"
+            :class="msg.sender === 'user' ? 'is-user' : 'is-admin'"
+          >
+            <!-- 若訊息包含圖片 -->
+            <div v-if="msg.image" class="cs-msg-image-wrap" :class="{ 'mb-2': msg.text }">
+              <img
+                :src="msg.image"
+                alt="對話圖片"
+                class="cs-msg-image"
+                @click="previewLightboxImage = msg.image"
+              />
+            </div>
+            <!-- 若訊息包含文字 -->
+            <div v-if="msg.text">{{ msg.text }}</div>
+          </div>
+          <span class="text-muted font-monospace mt-1 px-1" style="font-size: 10px;">
+            {{ msg.time }}
+          </span>
+        </div>
+      </div>
+
+      <!-- 3. 底部輸入框與圖片預覽列 -->
+      <div class="cs-widget-footer bg-white flex-shrink-0">
+        <!-- 待發送圖片預覽小卡 -->
+        <div v-if="pendingImage" class="cs-pending-preview mb-2 d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <img :src="pendingImage" class="cs-pending-thumb rounded-2 object-fit-cover" />
+            <span class="text-secondary font-monospace" style="font-size: 11px;">已選取 1 張圖片</span>
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm btn-link text-danger text-decoration-none font-monospace p-0"
+            style="font-size: 11px;"
+            @click="clearPendingImage"
+          >
+            ✕ 移除
+          </button>
+        </div>
+
+        <form @submit.prevent="handleSend" class="d-flex align-items-center gap-2">
+          <!-- 隱藏的圖片檔案選取器 -->
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/*"
+            class="d-none"
+            @change="handleImageSelect"
+          />
+          <!-- 上傳圖片按鈕 -->
+          <button
+            type="button"
+            class="cs-upload-btn flex-shrink-0"
+            title="上傳圖片"
+            @click="triggerFileSelect"
+          >
+            📷
+          </button>
+
+          <input
+            v-model="inputText"
+            type="text"
+            class="form-control cs-input rounded-pill"
+            placeholder="輸入訊息或傳送圖片..."
+          />
+          <button
+            type="submit"
+            class="btn btn-dark rounded-pill cs-send-btn font-monospace fw-bold flex-shrink-0"
+            :disabled="!inputText.trim() && !pendingImage"
+          >
+            發送
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 點擊圖片放大檢視燈箱 -->
+    <Teleport to="body">
+      <div
+        v-if="previewLightboxImage"
+        class="cs-lightbox-backdrop"
+        @click="previewLightboxImage = null"
+      >
+        <img :src="previewLightboxImage" class="cs-lightbox-img" @click.stop />
+        <button
+          type="button"
+          class="btn btn-light rounded-pill px-3 py-1 font-monospace fw-bold position-fixed top-0 end-0 m-4"
+          style="font-size: 12px;"
+          @click="previewLightboxImage = null"
+        >
+          ✕ 關閉預覽
+        </button>
+      </div>
+    </Teleport>
+  </div>
+</template>
+
+<script setup>
+import { ref, nextTick, watch } from 'vue'
+import { useChatStore } from '../stores/chatStore'
+
+const chatStore = useChatStore()
+const isOpen = ref(false)
+const inputText = ref('')
+const pendingImage = ref(null)
+const previewLightboxImage = ref(null)
+const fileInputRef = ref(null)
+const chatScrollRef = ref(null)
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (chatScrollRef.value) {
+      chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+    }
+  })
+}
+
+watch(isOpen, (val) => {
+  if (val) scrollToBottom()
+})
+
+const triggerFileSelect = () => {
+  if (fileInputRef.value) {
+    fileInputRef.value.click()
+  }
+}
+
+const handleImageSelect = (event) => {
+  const file = event.target.files && event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    if (e.target && e.target.result) {
+      pendingImage.value = e.target.result
+    }
+  }
+  reader.readAsDataURL(file)
+}
+
+const clearPendingImage = () => {
+  pendingImage.value = null
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+const handleSend = () => {
+  if (!inputText.value.trim() && !pendingImage.value) return
+  chatStore.sendMessage('USER-001', inputText.value.trim(), 'user', pendingImage.value)
+  inputText.value = ''
+  clearPendingImage()
+  scrollToBottom()
+
+  setTimeout(() => {
+    chatStore.sendMessage('USER-001', '感謝您的留言！客服專員已收到您的訊息與圖片，將立即為您查詢處理。', 'admin')
+    scrollToBottom()
+  }, 1500)
+}
+</script>
+
+<style scoped>
+.cs-widget-wrapper {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1060;
+}
+
+@media (max-width: 991.98px) {
+  .cs-widget-wrapper {
+    right: 16px;
+    bottom: 84px;
+  }
+}
+
+.cs-fab-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background-color: #2d2621;
+  border: 2px solid #ffffff;
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cs-fab-btn:hover {
+  transform: translateY(-2px);
+}
+
+.cs-unread-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background-color: #dc3545;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+}
+
+.cs-widget-box {
+  width: 375px;
+  max-width: calc(100vw - 32px);
+  height: 550px;
+  max-height: calc(100vh - 120px);
+  background-color: #ffffff;
+  border: 1px solid #e8e2da;
+  border-radius: 20px;
+  box-shadow: 0 14px 40px rgba(45, 38, 33, 0.14);
+  overflow: hidden;
+  animation: csFadeInUp 0.22s ease;
+}
+
+.cs-widget-header {
+  background-color: #2d2621;
+  padding: 18px 20px;
+  min-height: 72px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cs-online-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #389e0d;
+  box-shadow: 0 0 0 3px rgba(56, 158, 13, 0.25);
+  flex-shrink: 0;
+}
+
+.cs-widget-body {
+  background-color: #faf8f5;
+  padding: 20px 18px;
+  gap: 16px;
+}
+
+.cs-welcome-pill {
+  display: inline-block;
+  background-color: #ffffff;
+  color: #70665f;
+  border: 1px solid #e8e2da;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 11px;
+  box-shadow: 0 2px 6px rgba(45, 38, 33, 0.03);
+}
+
+.cs-chat-bubble {
+  max-width: 80%;
+  padding: 12px 15px;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+  box-shadow: 0 2px 8px rgba(45, 38, 33, 0.04);
+}
+
+.cs-chat-bubble.is-user {
+  background-color: #2d2621;
+  color: #ffffff;
+  border-radius: 18px 18px 4px 18px;
+}
+
+.cs-chat-bubble.is-admin {
+  background-color: #ffffff;
+  color: #2d2621;
+  border: 1px solid #e8e2da;
+  border-radius: 18px 18px 18px 4px;
+}
+
+.cs-msg-image-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 220px;
+}
+
+.cs-msg-image {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  display: block;
+  cursor: zoom-in;
+  transition: opacity 0.15s ease;
+}
+
+.cs-msg-image:hover {
+  opacity: 0.92;
+}
+
+.cs-widget-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #ede8e1;
+}
+
+.cs-pending-preview {
+  background-color: #faf8f5;
+  border: 1px solid #e8e2da;
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.cs-pending-thumb {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #ded6cb;
+}
+
+.cs-upload-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid #dcd6cd;
+  background-color: #faf8f5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cs-upload-btn:hover {
+  background-color: #f0ebe3;
+  border-color: #9b7e68;
+}
+
+.cs-input {
+  font-size: 13px;
+  padding: 9px 15px;
+  border-color: #dcd6cd;
+  background-color: #faf8f5;
+}
+
+.cs-input:focus {
+  background-color: #ffffff;
+  border-color: #2d2621;
+  box-shadow: none;
+}
+
+.cs-send-btn {
+  font-size: 12px;
+  padding: 9px 16px;
+}
+
+.cs-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(20, 17, 15, 0.82);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.cs-lightbox-img {
+  max-width: 90vw;
+  max-height: 86vh;
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes csFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>

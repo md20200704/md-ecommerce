@@ -101,6 +101,7 @@ const navItems = [
   { path: '/admin/orders', label: '📦 訂單與物流狀態管理' },
   { path: '/admin/marketing', label: '🎟️ 優惠券、VIP 與風控 CRM' },
   { path: '/admin/cms', label: '🎨 首頁視覺與分類樹 CMS' },
+  { path: '/admin/cs', label: '💬 客服訊息與即時對話' },
   { path: '/admin/logs', label: '🛡️ 系統安全稽核日誌' }
 ]
 

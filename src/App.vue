@@ -22,6 +22,9 @@
     <!-- 全域會員登入/註冊彈窗 -->
     <AuthModal />
 
+    <!-- 全域懸浮線上客服 Widget (僅前台顯示) -->
+    <CustomerServiceWidget v-if="!isAdminRoute" />
+
     <!-- 手機版專屬底部固定導覽列（桌機版自動隱藏） -->
     <BottomNav v-if="!isAdminRoute" class="d-lg-none" />
   </div>
@@ -34,6 +37,7 @@ import Navbar from './components/Navbar.vue'
 import CartDrawer from './components/CartDrawer.vue'
 import AuthModal from './components/AuthModal.vue'
 import BottomNav from './components/BottomNav.vue'
+import CustomerServiceWidget from './components/CustomerServiceWidget.vue'
 
 const route = useRoute()
 const isAdminRoute = computed(() => route.path.startsWith('/admin'))
