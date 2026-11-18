@@ -232,7 +232,7 @@
           </table>
         </div>
 
-        <!-- 【手機／窄螢幕版顯示模式】：精美獨立卡片清單 (d-lg-none) 販售狀態在圖名下方，規格明細可完美收合 -->
+        <!-- 【手機／窄螢幕版顯示模式】：精美獨立卡片清單 (d-lg-none) 獨立狀態、升級版展開收合按鈕 -->
         <div class="d-lg-none d-flex flex-column gap-3.5 px-1">
           <div
             v-for="prod in filteredProducts"
@@ -286,14 +286,14 @@
               </div>
             </div>
 
-            <!-- 卡片第四行：總庫存摘要與「展開／收合規格」按鈕 -->
-            <div class="d-flex align-items-center justify-content-between mb-2 font-monospace px-1" style="font-size: 12px;">
-              <div class="text-secondary">
-                總庫存：<strong :class="getTotalStock(prod) === 0 ? 'text-danger' : 'text-dark'">{{ getTotalStock(prod) }} 件</strong>
-              </div>
+            <!-- 卡片第四行：升級版優化按鈕 —— 點擊可確實控制下方 SKU 庫存細節的展開與收合 -->
+            <div class="d-flex align-items-center justify-content-between mb-2 pt-1">
+              <span class="text-muted font-monospace" style="font-size: 11.5px;">
+                全規格總庫存：<strong :class="getTotalStock(prod) === 0 ? 'text-danger' : 'text-dark'">{{ getTotalStock(prod) }} 件</strong>
+              </span>
               <button
                 type="button"
-                class="btn btn-link btn-sm p-0 text-primary font-monospace fw-semibold text-decoration-none"
+                class="btn btn-sm rounded-pill px-2 py-1 font-monospace fw-semibold d-flex align-items-center gap-1 shadow-2xs btn-korean-toggle"
                 style="font-size: 11.5px;"
                 @click="toggleMobileSkuExpand(prod.id)"
               >
@@ -301,8 +301,12 @@
               </button>
             </div>
 
-            <!-- 完整的各規格庫存細節區塊（點擊收合按鈕時確實進行展開／收合） -->
-            <div v-show="isMobileSkuExpanded(prod.id)" class="d-flex flex-column gap-2 mb-3.5 font-monospace pt-2.5 border-top bg-light p-3 rounded-3 border shadow-2xs" style="font-size: 12px;">
+            <!-- 各規格庫存細節 (SKU) 區塊：受按鈕控制確實展開與收合 -->
+            <div
+              v-if="isMobileSkuExpanded(prod.id)"
+              class="d-flex flex-column gap-2 my-3 font-monospace pt-3 border-top bg-light p-3 rounded-3 border shadow-2xs"
+              style="font-size: 12px;"
+            >
               <div class="text-dark mb-1 fw-bold" style="font-size: 11.5px;">各規格庫存細節 (SKU)：</div>
               <div
                 v-for="sku in (prod.skus || [])"
@@ -1324,5 +1328,29 @@ const createNewProduct = () => {
   height: 7px;
   border-radius: 50%;
   display: inline-block;
+}
+
+/* 簡約韓系風格規格展開／收合按鈕 */
+.btn-korean-toggle {
+  background-color: #faf8f5 !important;
+  border: 1px solid #ded6cb !important;
+  color: #70665f !important;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 1px 2px rgba(45, 38, 33, 0.03);
+}
+
+.btn-korean-toggle:hover {
+  background-color: #f5f2ed !important;
+  border-color: #9b7e68 !important;
+  color: #2d2621 !important;
+  transform: translateY(-1px);
+}
+
+.btn-korean-toggle:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 </style>
