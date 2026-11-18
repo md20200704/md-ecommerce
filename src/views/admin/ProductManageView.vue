@@ -131,7 +131,7 @@
       <div v-if="filteredProducts.length > 0">
         
         <!-- 【桌機版顯示模式】：精緻完整表格 (d-none d-lg-block) -->
-        <div class="d-none d-lg-block table-responsive px-1">
+        <div class="d-none d-lg-block table-responsive">
           <table class="table align-middle mb-0 font-sans product-manage-table">
             <thead>
               <tr class="text-secondary text-nowrap" style="font-size: 11.5px;">
@@ -1319,8 +1319,20 @@ const createNewProduct = () => {
 
 /* SKU 規格膠囊條 */
 .sku-stock-pill {
-  border-color: #e8e2da !important;
-  background-color: #fcfaf7 !important;
+  border: none !important;
+  border-bottom: 1px solid #f0ece6 !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+  padding: 0.4rem 0.25rem !important;
+  transition: background-color 0.15s ease;
+}
+
+.sku-stock-pill:last-child {
+  border-bottom: none !important;
+}
+
+.sku-stock-pill:hover {
+  background-color: #faf8f5 !important;
 }
 
 .sku-dot {
@@ -1352,5 +1364,12 @@ const createNewProduct = () => {
 .btn-korean-toggle:active {
   transform: translateY(0);
   box-shadow: none;
+}
+
+/* 商品庫存與規格明細列表標題與下方明細之間的間距優化 */
+.card-korean > .d-flex.justify-content-between.align-items-center {
+  margin-bottom: 1rem !important; /* 拉開標題與列表之間的距離 */
+  padding-bottom: 0.85rem !important;
+  border-bottom: 1px solid #ede8e1 !important;
 }
 </style>
