@@ -1,30 +1,43 @@
 <template>
   <section class="profile-card">
     <div class="vip-top-grid">
-      <!-- 左側：會員名稱、徽章與累計消費 -->
+      <!-- 左側：會員名稱、徽章、登出按鈕與累計消費 -->
       <div class="vip-info-col">
-        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-          <h1 class="vip-user-name font-serif mb-0">{{ currentUser.name || '尊榮會員' }}</h1>
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+          <div class="d-flex align-items-center flex-wrap gap-2">
+            <h1 class="vip-user-name font-serif mb-0">{{ currentUser.name || '尊榮會員' }}</h1>
 
-          <span
-            class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold d-inline-flex align-items-center gap-1"
-            :class="vipTierInfo.badgeColor"
+            <span
+              class="badge rounded-pill px-3 py-1.5 font-monospace fw-bold d-inline-flex align-items-center gap-1"
+              :class="vipTierInfo.badgeColor"
+            >
+              <Crown style="width: 13px; height: 13px;" />
+              <span>{{ vipTierInfo.name }}</span>
+            </span>
+
+            <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 font-monospace" style="font-size: 11px;">
+              🎂 {{ currentUser.birthday || '尚未填寫生日' }}
+            </span>
+
+            <span
+              v-if="authStore.isCurrentUserBirthdayMonth"
+              class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1 font-monospace"
+              style="font-size: 11px;"
+            >
+              🎉 本月壽星！
+            </span>
+          </div>
+
+          <!-- 會員登出按鈕（手機與桌機皆可一鍵登出） -->
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 font-monospace d-inline-flex align-items-center gap-1 flex-shrink-0"
+            style="font-size: 11.5px; border-color: #dcd6cd;"
+            @click="handleLogout"
           >
-            <Crown style="width: 13px; height: 13px;" />
-            <span>{{ vipTierInfo.name }}</span>
-          </span>
-
-          <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1 font-monospace" style="font-size: 11px;">
-            🎂 {{ currentUser.birthday || '尚未填寫生日' }}
-          </span>
-
-          <span
-            v-if="authStore.isCurrentUserBirthdayMonth"
-            class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1 font-monospace"
-            style="font-size: 11px;"
-          >
-            🎉 本月壽星！
-          </span>
+            <LogOut style="width: 12px; height: 12px;" />
+            <span>登出帳號</span>
+          </button>
         </div>
 
         <p class="small text-muted mb-2">{{ vipTierInfo.description }}</p>
@@ -36,7 +49,7 @@
         </div>
       </div>
 
-      <!-- 右側：可用紅利點數盒（RWD 手機版橫條、桌機版方塊） -->
+      <!-- 右側：可用紅利點數盒 -->
       <div class="vip-points-box">
         <span class="points-label font-monospace">可用紅利點數</span>
         <div class="points-value font-monospace text-primary">
@@ -109,7 +122,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Crown } from 'lucide-vue-next'
+import { Crown, LogOut } from 'lucide-vue-next'
 import { useAuthStore } from '../../stores/authStore'
 import { useMarketingStore } from '../../stores/marketingStore'
 
@@ -117,6 +130,12 @@ const authStore = useAuthStore()
 const marketingStore = useMarketingStore()
 
 const currentUser = computed(() => authStore.user || {})
+
+const handleLogout = () => {
+  if (confirm('確定要登出目前的會員帳號嗎？')) {
+    authStore.logout()
+  }
+}
 
 const vipTierInfo = computed(() => {
   return authStore.currentVipTier || {
@@ -190,6 +209,10 @@ const vipUpgradeProgress = computed(() => {
     align-items: center;
     justify-content: space-between;
   }
+}
+
+.vip-info-col {
+  flex: 1 1 auto;
 }
 
 .vip-user-name {

@@ -1,11 +1,11 @@
 <template>
   <div class="app-root d-flex flex-column min-vh-100 bg-cream">
     <!-- 前台頂部導覽列（進入後台路由時自動隱藏，由 AdminLayout 接管） -->
-    <Navbar v-if="!isAdminRoute" />
+    <Navbar v-if="!isAdminRoute" @open-auth="showAuthModal = true" />
 
     <!-- 主路由視圖區（手機版預留底部導覽列高度） -->
     <div class="flex-grow-1" :class="{ 'pb-mobile-nav': !isAdminRoute }">
-      <router-view />
+      <router-view @open-auth="showAuthModal = true" />
     </div>
 
     <!-- 前台極簡頁尾 -->
@@ -20,7 +20,7 @@
     <CartDrawer />
 
     <!-- 全域會員登入/註冊彈窗 -->
-    <AuthModal />
+    <AuthModal :is-open="showAuthModal" @close="showAuthModal = false" />
 
     <!-- 全域懸浮線上客服 Widget (僅前台顯示) -->
     <CustomerServiceWidget v-if="!isAdminRoute" />
@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import CartDrawer from './components/CartDrawer.vue'
@@ -41,6 +41,7 @@ import CustomerServiceWidget from './components/CustomerServiceWidget.vue'
 
 const route = useRoute()
 const isAdminRoute = computed(() => route.path.startsWith('/admin'))
+const showAuthModal = ref(false)
 </script>
 
 <style>

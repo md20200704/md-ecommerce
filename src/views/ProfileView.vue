@@ -5,17 +5,24 @@
       <User class="mb-2 opacity-40 text-muted" style="width: 44px; height: 44px;" />
       <h2 class="h5 fw-bold text-dark font-serif">請先登入會員帳號</h2>
       <p class="small text-muted mb-3">登入後即可檢視各狀態訂單、VIP 專屬折扣與生日禮券</p>
-      <router-link to="/" class="btn btn-dark btn-sm rounded-pill px-4 py-2 fw-bold">
-        返回首頁登入
-      </router-link>
+      <div class="d-flex justify-content-center gap-2">
+        <button
+          type="button"
+          class="btn btn-dark btn-sm rounded-pill px-4 py-2 fw-bold"
+          @click="$emit('open-auth')"
+        >
+          立即登入 / 註冊
+        </button>
+        <router-link to="/" class="btn btn-outline-secondary btn-sm rounded-pill px-4 py-2">
+          返回首頁
+        </router-link>
+      </div>
     </div>
 
-    <!-- 2. 已登入會員中心（正式載入拆分後的 6 個子元件） -->
+    <!-- 2. 已登入會員中心 -->
     <div v-else class="d-flex flex-column gap-3 gap-md-4">
-      <!-- 頂部 VIP 尊榮摘要卡片 -->
       <VipSummaryCard />
 
-      <!-- 五大功能頁籤導覽列 -->
       <nav class="profile-tabs-bar no-scrollbar" aria-label="會員中心功能切換">
         <button
           v-for="tab in profileTabs"
@@ -33,7 +40,6 @@
         </button>
       </nav>
 
-      <!-- 動態切換五大功能子元件 -->
       <ProfileOrdersTab v-if="activeTab === 'orders'" />
       <ProfileCouponsTab v-else-if="activeTab === 'coupons'" />
       <ProfileInfoTab v-else-if="activeTab === 'profile'" />
@@ -56,6 +62,8 @@ import ProfileAddressesTab from '../components/profile/ProfileAddressesTab.vue'
 import { useAuthStore } from '../stores/authStore'
 import { useAdminStore } from '../stores/adminStore'
 import { useProductStore } from '../stores/productStore'
+
+defineEmits(['open-auth'])
 
 const authStore = useAuthStore()
 const adminStore = useAdminStore()

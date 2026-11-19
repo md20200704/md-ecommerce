@@ -1,7 +1,7 @@
 <template>
   <div class="admin-layout-root d-flex flex-column flex-lg-row min-vh-100" style="background-color: var(--md-bg, #faf9f6);">
     
-    <!-- 手機/平板版頂部導覽列（< 992px 顯示，與前台一致的黑底白字高質感極簡風格） -->
+    <!-- 手機/平板版頂部導覽列 -->
     <header class="d-lg-none bg-dark text-white px-3 py-3 d-flex align-items-center justify-content-between sticky-top shadow-2xs" style="z-index: 1040;">
       <div class="d-flex align-items-center gap-2.5">
         <button
@@ -31,7 +31,7 @@
       @click="mobileMenuOpen = false"
     ></div>
 
-    <!-- 左側管理導覽列（桌機固定顯示，手機版平滑滑出抽屜） -->
+    <!-- 左側管理導覽列 -->
     <aside
       class="admin-sidebar bg-white border-end d-flex flex-column justify-content-between p-4 flex-shrink-0"
       :class="{ 'show-mobile-sidebar': mobileMenuOpen }"
@@ -68,8 +68,8 @@
         </ul>
       </div>
 
-      <!-- 底部返回前台按鈕 -->
-      <div class="pt-3 border-top mt-4">
+      <!-- 底部返回前台與登出按鈕 -->
+      <div class="pt-3 border-top mt-4 d-flex flex-column gap-2">
         <router-link
           to="/"
           class="btn btn-outline-dark btn-sm w-100 rounded-pill py-2 font-monospace fw-semibold shadow-2xs"
@@ -77,10 +77,18 @@
         >
           ← 返回品牌前台商店
         </router-link>
+        <button
+          type="button"
+          class="btn btn-outline-danger btn-sm w-100 rounded-pill py-2 font-monospace fw-semibold"
+          style="font-size: 11.5px;"
+          @click="handleAdminLogout"
+        >
+          登出管理員帳號
+        </button>
       </div>
     </aside>
 
-    <!-- 右側主內容工作區（自動撐開、流體寬度、防止表格或長卡片撐破版面） -->
+    <!-- 右側主內容工作區 -->
     <main class="flex-grow-1 p-3 p-md-4 p-xl-5" style="min-width: 0; overflow-x: hidden;">
       <router-view />
     </main>
@@ -90,9 +98,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../../stores/authStore'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 const mobileMenuOpen = ref(false)
 
 const navItems = [
@@ -111,6 +122,14 @@ const isActiveRoute = (path) => {
   }
   return route.path.startsWith(path)
 }
+
+const handleAdminLogout = () => {
+  if (confirm('確定要登出後台管理員帳號並返回首頁嗎？')) {
+    authStore.logout()
+    mobileMenuOpen.value = false
+    router.push('/')
+  }
+}
 </script>
 
 <style scoped>
@@ -120,7 +139,6 @@ const isActiveRoute = (path) => {
   background-color: var(--md-surface, #ffffff) !important;
 }
 
-/* 抽屜側邊欄 RWD 手機滑出效果 */
 @media (max-width: 991.98px) {
   .admin-sidebar {
     position: fixed;

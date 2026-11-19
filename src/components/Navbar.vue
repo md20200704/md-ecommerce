@@ -83,11 +83,21 @@
         <!-- 3. 最右側：功能按鈕群（僅在桌機版 d-lg-flex 顯示，RWD 時隱藏） -->
         <div class="d-none d-lg-flex align-items-center justify-content-end gap-2 flex-shrink-0">
           <router-link
+            v-if="authStore.isAuthenticated"
             to="/profile"
             class="btn btn-outline-dark btn-sm rounded-pill px-3.5 py-1.5 font-sans text-nowrap"
           >
-            {{ authStore.isAuthenticated ? authStore.user?.name || '會員中心' : '會員中心' }}
+            {{ authStore.user?.name || '會員中心' }}
           </router-link>
+          <button
+            v-else
+            type="button"
+            class="btn btn-outline-dark btn-sm rounded-pill px-3.5 py-1.5 font-sans text-nowrap"
+            @click="$emit('open-auth')"
+          >
+            登入 / 註冊
+          </button>
+
           <router-link
             v-if="authStore.isAdmin"
             to="/admin"
@@ -118,6 +128,8 @@ import { ChevronDown } from 'lucide-vue-next'
 import { useMarketingStore } from '../stores/marketingStore'
 import { useAuthStore } from '../stores/authStore'
 import { useCartStore } from '../stores/cartStore'
+
+defineEmits(['open-auth'])
 
 const route = useRoute()
 const router = useRouter()
