@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "bootstrap": "^5.3.3",
     "lucide-vue-next": "^0.368.0",
     "pinia": "^2.1.7",

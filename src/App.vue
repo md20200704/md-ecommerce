@@ -27,12 +27,16 @@
 
     <!-- 手機版專屬底部固定導覽列（桌機版自動隱藏） -->
     <BottomNav v-if="!isAdminRoute" class="d-lg-none" />
+
+    <!-- Vercel Web Analytics 網站流量分析 -->
+    <Analytics />
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { Analytics } from '@vercel/analytics/vue'
 import Navbar from './components/Navbar.vue'
 import CartDrawer from './components/CartDrawer.vue'
 import AuthModal from './components/AuthModal.vue'
