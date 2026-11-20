@@ -1,139 +1,173 @@
 <template>
-  <main class="max-w-7xl mx-auto px-4 py-8">
-    <!-- 主宣傳橫幅 (Banner) -->
-    <div class="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-800 rounded-3xl p-8 sm:p-12 text-white mb-8 shadow-sm relative overflow-hidden">
-      <div class="relative z-10 max-w-xl">
-        <span class="text-xs uppercase tracking-wider font-semibold bg-white/20 backdrop-blur px-3 py-1 rounded-full">
-          限時強檔慶典
-        </span>
-        <h1 class="text-3xl sm:text-4xl font-extrabold mt-3 mb-2 leading-tight">
-          極致質感 生活選品季
-        </h1>
-        <p class="text-indigo-100 text-sm sm:text-base mb-6">
-          全站消費滿 NT$ 1,000 輸入代碼 <span class="font-mono font-bold bg-white/20 px-1.5 py-0.5 rounded">SALE100</span> 現折 $100，單筆滿 NT$ 1,500 即享免運！
+  <main class="container py-5 px-3" style="max-width: 640px; margin: 0 auto;">
+    <div class="bg-white rounded-4 border p-4 p-md-5 text-center shadow-xs" style="border-color: #e8e2da !important;">
+      
+      <!-- 1. 正在向 LINE Pay 確認扣款中 -->
+      <div v-if="status === 'CONFIRMING'" class="py-4">
+        <div class="spinner-border text-dark mb-3" role="status"></div>
+        <h1 class="h5 fw-bold text-dark font-serif mb-2">正在確認 LINE Pay 付款狀態...</h1>
+        <p class="small text-muted font-monospace mb-0">
+          正在與 LINE Pay 伺服器進行安全交易核對，請勿關閉視窗
         </p>
-        <button
-          @click="applyBannerCoupon"
-          class="bg-white text-indigo-600 font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl hover:bg-indigo-50 transition active:scale-95 shadow-sm"
-        >
-          一鍵套用 SALE100 折扣碼
-        </button>
       </div>
-    </div>
 
-    <!-- 限時秒殺專區 (Flash Sale 倒數計時器) -->
-    <section class="bg-rose-50 border border-rose-100 rounded-2xl p-5 mb-8">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <div class="flex items-center gap-2">
-          <span class="text-rose-600 font-black text-lg flex items-center gap-1">
-            <Flame class="w-5 h-5 text-rose-500 fill-rose-500" />
-            限時搶購特賣
-          </span>
-          <span class="text-xs text-rose-500 font-medium bg-rose-100 px-2 py-0.5 rounded-md">
-            每日限量
-          </span>
+      <!-- 2. 付款與訂單成立成功 -->
+      <div v-else-if="status === 'SUCCESS'" class="py-2">
+        <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mb-3" style="width: 64px; height: 64px; font-size: 28px;">
+          ✓
+        </div>
+        <div class="text-muted font-monospace mb-1" style="font-size: 11px; letter-spacing: 0.1em;">
+          LINE PAY PAYMENT CONFIRMED
+        </div>
+        <h1 class="h4 fw-bold text-dark font-serif mb-2">感謝您的訂購，付款已完成！</h1>
+        <p class="small text-muted mb-4">
+          我們已收到您的 LINE Pay 款項，倉庫人員將盡快為您安排出貨。
+        </p>
+
+        <div class="bg-light rounded-4 border p-3.5 text-start font-monospace small mb-4 d-flex flex-column gap-2" style="border-color: #ede8e1 !important; padding: 16px 20px;">
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">訂單編號：</span>
+            <strong class="text-dark">#{{ orderInfo.orderId }}</strong>
+          </div>
+          <div v-if="transactionId" class="d-flex justify-content-between">
+            <span class="text-muted">LINE Pay 交易序號：</span>
+            <span class="text-dark">{{ transactionId }}</span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">付款方式：</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle">LINE Pay 已付款</span>
+          </div>
+          <div class="d-flex justify-content-between pt-2 border-top">
+            <span class="text-muted">實付總金額：</span>
+            <strong class="text-dark fs-6">NT$ {{ Number(orderInfo.amount || 0).toLocaleString() }}</strong>
+          </div>
         </div>
 
-        <!-- 倒數時鐘 -->
-        <div class="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-          <Clock class="w-4 h-4 text-rose-500" />
-          <span>距結束僅剩：</span>
-          <span class="bg-slate-900 text-white font-mono px-2 py-1 rounded-md">{{ timeLeft.hours }}</span>
-          <span>:</span>
-          <span class="bg-slate-900 text-white font-mono px-2 py-1 rounded-md">{{ timeLeft.minutes }}</span>
-          <span>:</span>
-          <span class="bg-slate-900 text-white font-mono px-2 py-1 rounded-md">{{ timeLeft.seconds }}</span>
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-2.5">
+          <router-link to="/profile" class="btn btn-dark rounded-pill px-4 py-2.5 fw-bold font-monospace" style="font-size: 12.5px;">
+            前往會員中心查看訂單
+          </router-link>
+          <router-link to="/" class="btn btn-outline-dark rounded-pill px-4 py-2.5 font-monospace" style="font-size: 12.5px;">
+            繼續逛逛選品
+          </router-link>
         </div>
       </div>
 
-      <!-- 秒殺商品排版 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <ProductCard
-          v-for="product in flashSaleProducts"
-          :key="'flash-' + product.id"
-          :product="product"
-        />
-      </div>
-    </section>
-
-    <!-- 分類與排序操作欄 -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-      <div class="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
-        <button
-          v-for="cat in productStore.categories"
-          :key="cat"
-          @click="productStore.selectedCategory = cat"
-          class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition"
-          :class="productStore.selectedCategory === cat ? 'bg-slate-900 text-white shadow-xs' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'"
-        >
-          {{ cat }}
-        </button>
+      <!-- 3. 付款確認失敗 -->
+      <div v-else class="py-3">
+        <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle text-danger mb-3" style="width: 64px; height: 64px; font-size: 28px;">
+          ✕
+        </div>
+        <h1 class="h5 fw-bold text-dark font-serif mb-2">LINE Pay 付款確認失敗</h1>
+        <p class="small text-danger font-monospace mb-4">{{ errorMessage }}</p>
+        <router-link to="/checkout" class="btn btn-dark rounded-pill px-4 py-2.5 fw-bold font-monospace" style="font-size: 12.5px;">
+          返回結帳頁面重試
+        </router-link>
       </div>
 
-      <div class="flex items-center gap-2 self-end sm:self-auto">
-        <span class="text-xs text-slate-500 whitespace-nowrap">排序：</span>
-        <select
-          v-model="productStore.sortBy"
-          class="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500"
-        >
-          <option value="default">綜合推薦</option>
-          <option value="price-asc">價格：由低至高</option>
-          <option value="price-desc">價格：由高至低</option>
-          <option value="sales">熱門銷量排行</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- 一般商品網格 -->
-    <div v-if="productStore.filteredProducts.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      <ProductCard
-        v-for="product in productStore.filteredProducts"
-        :key="product.id"
-        :product="product"
-      />
-    </div>
-    <div v-else class="text-center py-20 bg-white rounded-2xl border border-slate-200 text-slate-400">
-      沒有找到符合條件的商品。
     </div>
   </main>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Flame, Clock } from 'lucide-vue-next'
-import ProductCard from '../components/ProductCard.vue'
-import { useProductStore } from '../stores/productStore'
+import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useCartStore } from '../stores/cartStore'
+import { useAdminStore } from '../stores/adminStore'
+import { useAuthStore } from '../stores/authStore'
+import { useProductStore } from '../stores/productStore'
 
-const productStore = useProductStore()
+const route = useRoute()
 const cartStore = useCartStore()
+const adminStore = useAdminStore()
+const authStore = useAuthStore()
+const productStore = useProductStore()
 
-// 限時特賣商品 (取前 2 件)
-const flashSaleProducts = computed(() => productStore.products.slice(0, 2))
+const status = ref('CONFIRMING')
+const errorMessage = ref('')
+const transactionId = ref(String(route.query.transactionId || ''))
+const orderInfo = reactive({
+  orderId: String(route.query.orderId || ''),
+  amount: Number(route.query.amount || 0)
+})
 
-// 倒數計時器邏輯
-const timeLeft = ref({ hours: '08', minutes: '45', seconds: '30' })
-let timer = null
+const finalizeOrderInStore = () => {
+  const rawDraft = sessionStorage.getItem('md_pending_linepay_order')
+  if (!rawDraft) return
 
-onMounted(() => {
-  let totalSec = 8 * 3600 + 45 * 60 + 30
-  timer = setInterval(() => {
-    if (totalSec > 0) {
-      totalSec--
-      const h = String(Math.floor(totalSec / 3600)).padStart(2, '0')
-      const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0')
-      const s = String(totalSec % 60).padStart(2, '0')
-      timeLeft.value = { hours: h, minutes: m, seconds: s }
+  const draft = JSON.parse(rawDraft)
+  draft.transactionId = transactionId.value
+  draft.paymentStatus = 'PAID'
+
+  // 1. 扣減商品 SKU 庫存，總庫存歸 0 自動下架
+  for (const item of (draft.items || [])) {
+    const targetProd = (productStore.products || []).find(p => p.id === item.id)
+    if (targetProd && Array.isArray(targetProd.skus)) {
+      const targetSku = targetProd.skus.find(s => s.color === item.color && s.size === item.size) || targetProd.skus[0]
+      if (targetSku) {
+        targetSku.stock = Math.max(0, (Number(targetSku.stock) || 0) - item.quantity)
+      }
+      targetProd.salesCount = (Number(targetProd.salesCount) || 0) + item.quantity
+      const remainingTotal = targetProd.skus.reduce((sum, s) => sum + (Number(s.stock) || 0), 0)
+      if (remainingTotal === 0) {
+        targetProd.isPublished = false
+      }
     }
-  }, 1000)
-})
+  }
 
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
+  // 2. 寫入後台訂單列表
+  if (adminStore.orders && !adminStore.orders.some(o => o.orderId === draft.orderId)) {
+    adminStore.orders.unshift(draft)
+  }
 
-const applyBannerCoupon = () => {
-  const res = cartStore.applyCoupon('SALE100')
-  alert(res.message)
+  if (adminStore.addAuditLog) {
+    adminStore.addAuditLog(
+      'LINE Pay 付款完成',
+      `訂單 #${draft.orderId} 已完成 LINE Pay 扣款（交易序號：${transactionId.value}），實付 NT$ ${draft.totalAmount}`
+    )
+  }
+
+  // 3. 核銷優惠券與扣除紅利點數
+  if (draft.appliedCouponInstanceId && authStore.markCouponAsUsed) {
+    authStore.markCouponAsUsed(draft.appliedCouponInstanceId)
+  }
+  if (draft.pointsUsed > 0 && authStore.user) {
+    authStore.user.points = Math.max(0, (authStore.user.points || 0) - draft.pointsUsed)
+  }
+
+  // 4. 清空已結帳購物車項目並清除暫存
+  cartStore.items = cartStore.items.filter(i => !i.selected)
+  sessionStorage.removeItem('md_pending_linepay_order')
 }
+
+onMounted(async () => {
+  const txId = String(route.query.transactionId || '')
+  const amt = Number(route.query.amount || 0)
+
+  if (!txId || !amt) {
+    // 若無 transactionId（例如直接瀏覽此頁），顯示一般成立狀態
+    status.value = 'SUCCESS'
+    return
+  }
+
+  try {
+    const res = await fetch('/api/linepay-confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionId: txId, amount: amt })
+    })
+    const data = await res.json()
+
+    if (data.success) {
+      finalizeOrderInStore()
+      status.value = 'SUCCESS'
+    } else {
+      status.value = 'ERROR'
+      errorMessage.value = `${data.returnCode || ''} ${data.message || '確認扣款失敗'}`
+    }
+  } catch (err) {
+    status.value = 'ERROR'
+    errorMessage.value = err.message
+  }
+})
 </script>

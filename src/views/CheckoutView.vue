@@ -7,7 +7,15 @@
       </button>
     </div>
 
-    <!-- 風控黑名單攔截警示（與後台 MarketingCrmView 連動） -->
+    <!-- 若消費者從 LINE Pay 頁面取消付款導回時的提示 -->
+    <div
+      v-if="route.query.canceled === '1'"
+      class="alert alert-warning rounded-4 border-warning-subtle p-3 mb-4 small font-monospace"
+    >
+      ⚠️ 您已取消本次 LINE Pay 付款流程，購物袋商品已為您保留，可重新確認後再次結帳。
+    </div>
+
+    <!-- 風控黑名單攔截警示 -->
     <div
       v-if="currentUser?.riskStatus === 'BLOCK_ORDER'"
       class="alert alert-danger rounded-4 border-danger-subtle p-3 mb-4 small"
@@ -16,7 +24,7 @@
     </div>
 
     <div class="row g-4">
-      <!-- 左側：收件人與配送資訊（桌機占 7 欄，手機滿版） -->
+      <!-- 左側：收件人與配送資訊 -->
       <div class="col-12 col-lg-7">
         <div class="card-korean p-3.5 p-md-4 bg-white rounded-4 border shadow-xs">
           <h2 class="fs-6 fw-bold text-dark mb-3 pb-2 border-bottom">收件人與配送資訊</h2>
@@ -53,9 +61,9 @@
             <div class="col-12 pt-2 border-top">
               <label class="form-label text-secondary mb-1">付款方式 *</label>
               <div class="p-2.5 px-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
-                <span class="font-monospace fw-bold text-dark">LINE Pay 線上支付</span>
+                <span class="font-monospace fw-bold text-dark">LINE Pay 線上支付 (API v3)</span>
                 <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" style="font-size: 10px;">
-                  唯一支援付款管道
+                  支援沙盒真實跳轉測試
                 </span>
               </div>
             </div>
@@ -63,12 +71,11 @@
         </div>
       </div>
 
-      <!-- 右側：已選結帳商品、優惠券與紅利折抵（桌機占 5 欄置頂，手機滿版堆疊） -->
+      <!-- 右側：已選結帳商品、優惠券與紅利折抵 -->
       <div class="col-12 col-lg-5">
         <div class="card-korean p-3.5 p-md-4 bg-white rounded-4 border shadow-xs sticky-lg-top" style="top: 90px;">
           <h2 class="fs-6 fw-bold text-dark mb-3 pb-2 border-bottom">已選結帳商品 ({{ checkoutItems.length }} 項)</h2>
 
-          <!-- 商品清單（支援在此直接刪除本次結帳商品） -->
           <div v-if="checkoutItems.length > 0" class="d-flex flex-column gap-3 mb-4">
             <div
               v-for="item in checkoutItems"
@@ -109,7 +116,7 @@
             </div>
           </div>
 
-          <!-- 優惠券與紅利點數折抵區塊（整合於已選結帳商品欄內） -->
+          <!-- 優惠券與紅利點數折抵區塊 -->
           <div v-if="checkoutItems.length > 0" class="p-3 bg-light rounded-3 border mb-4 d-flex flex-column gap-3 small font-monospace">
             <div>
               <label class="form-label text-dark fw-bold mb-1" style="font-size: 11.5px;">選擇或輸入優惠券</label>
@@ -127,7 +134,6 @@
                 </select>
               </div>
 
-              <!-- 輸入優惠碼新增並套用 -->
               <div class="input-group input-group-sm">
                 <input
                   v-model="inputCouponCode"
@@ -150,7 +156,6 @@
               </div>
             </div>
 
-            <!-- 紅利點數折抵 -->
             <div class="pt-2 border-top">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <label class="form-label text-dark fw-bold mb-0" style="font-size: 11.5px;">紅利點數 (可用 {{ currentUserPoints }} 點)</label>
@@ -205,10 +210,11 @@
             <button
               type="button"
               class="btn btn-dark w-100 rounded-pill py-3 fw-bold shadow-2xs"
-              :disabled="checkoutItems.length === 0 || currentUser?.riskStatus === 'BLOCK_ORDER'"
+              :disabled="isSubmitting || checkoutItems.length === 0 || currentUser?.riskStatus === 'BLOCK_ORDER'"
               @click="submitOrder"
             >
-              確認以 LINE Pay 結帳 (NT$ {{ finalTotalAmount.toLocaleString() }})
+              <span v-if="isSubmitting">正在連線至 LINE Pay 付款頁面...</span>
+              <span v-else>前往 LINE Pay 線上付款 (NT$ {{ finalTotalAmount.toLocaleString() }})</span>
             </button>
           </div>
         </div>
@@ -219,18 +225,15 @@
 
 <script setup>
 import { reactive, ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useCartStore } from '../stores/cartStore'
-import { useAdminStore } from '../stores/adminStore'
 import { useAuthStore } from '../stores/authStore'
-import { useProductStore } from '../stores/productStore'
 
-const router = useRouter()
+const route = useRoute()
 const cartStore = useCartStore()
-const adminStore = useAdminStore()
 const authStore = useAuthStore()
-const productStore = useProductStore()
 
+const isSubmitting = ref(false)
 const checkoutItems = computed(() => cartStore.selectedItems)
 
 const removeCheckoutItem = (cartItemId) => {
@@ -242,11 +245,10 @@ const form = reactive({
   phone: authStore.user?.phone || '',
   email: authStore.user?.email || '',
   shippingMethod: 'HOME',
-  shippingAddress: '',
+  shippingAddress: '台北市中正區忠孝西路一段 100 號 8 樓',
   paymentMethod: 'LINE Pay'
 })
 
-// ==================== 優惠券與紅利點數邏輯 ====================
 const currentUser = computed(() => authStore.user || {})
 const availableCoupons = computed(() => {
   return (authStore.availableUserCoupons || currentUser.value.myCoupons || []).filter(c => !c.isUsed)
@@ -331,7 +333,7 @@ const finalTotalAmount = computed(() => {
   return Math.max(0, subtotal - discount - pointsDeduced) + shippingFee.value
 })
 
-const submitOrder = () => {
+const submitOrder = async () => {
   if (currentUser.value?.riskStatus === 'BLOCK_ORDER') {
     alert('您的帳號目前受風控管制，無法建立新訂單。')
     return
@@ -345,33 +347,58 @@ const submitOrder = () => {
     return
   }
 
-  // 1. 檢查並扣減後台 productStore 的對應 SKU 庫存，若總庫存歸 0 自動下架
-  for (const item of checkoutItems.value) {
-    const targetProd = (productStore.products || []).find(p => p.id === item.id)
-    if (targetProd && Array.isArray(targetProd.skus)) {
-      const targetSku = targetProd.skus.find(s => s.color === item.color && s.size === item.size) || targetProd.skus[0]
-      if (targetSku) {
-        targetSku.stock = Math.max(0, (Number(targetSku.stock) || 0) - item.quantity)
-      }
-      targetProd.salesCount = (Number(targetProd.salesCount) || 0) + item.quantity
-      const remainingTotal = targetProd.skus.reduce((sum, s) => sum + (Number(s.stock) || 0), 0)
-      if (remainingTotal === 0) {
-        targetProd.isPublished = false
-      }
-    }
-  }
+  isSubmitting.value = true
 
   const cleanPointsUsed = Math.min(maxUsablePoints.value, Math.max(0, Number(pointsToUse.value) || 0))
+  const totalDiscount = couponDiscountAmount.value + cleanPointsUsed
+  const orderId = 'MD-' + Date.now()
 
-  const newOrder = {
-    orderId: 'MD-' + Math.floor(100000 + Math.random() * 900000),
+  // 建立符合 LINE Pay v3 嚴格金額檢核的 packages 結構（products 加總 + 運費 + 負數折扣 = amount）
+  const lineProducts = checkoutItems.value.map(item => ({
+    id: String(item.id),
+    name: `${item.name} (${item.color}/${item.size})`,
+    quantity: Number(item.quantity),
+    price: Math.round(Number(item.price))
+  }))
+
+  if (shippingFee.value > 0) {
+    lineProducts.push({
+      id: 'SHIPPING',
+      name: form.shippingMethod === 'HOME' ? '黑貓宅急便運費' : '超商純取貨運費',
+      quantity: 1,
+      price: Math.round(shippingFee.value)
+    })
+  }
+
+  if (totalDiscount > 0) {
+    lineProducts.push({
+      id: 'DISCOUNT',
+      name: '優惠券與紅利點數折抵',
+      quantity: 1,
+      price: -Math.round(totalDiscount)
+    })
+  }
+
+  const packages = [
+    {
+      id: 'PKG-' + orderId,
+      amount: Math.round(finalTotalAmount.value),
+      name: 'M&D SELECT 韓系選品訂單',
+      products: lineProducts
+    }
+  ]
+
+  // 先將待確認訂單資料暫存於 sessionStorage，待 LINE Pay 跳轉回來時完成 Confirm 扣款並寫入訂單
+  const pendingOrderDraft = {
+    orderId,
     createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
     status: '待出貨',
-    items: [...checkoutItems.value],
-    totalAmount: finalTotalAmount.value,
+    items: JSON.parse(JSON.stringify(checkoutItems.value)),
+    totalAmount: Math.round(finalTotalAmount.value),
     subtotal: cartStore.totalPrice,
     couponDiscount: couponDiscountAmount.value,
     pointsUsed: cleanPointsUsed,
+    appliedCouponInstanceId: appliedCoupon.value?.instanceId || null,
     shippingFee: shippingFee.value,
     shippingMethod: form.shippingMethod,
     shippingAddress: form.shippingAddress,
@@ -381,37 +408,32 @@ const submitOrder = () => {
     email: form.email,
     rewardsSettled: false
   }
+  sessionStorage.setItem('md_pending_linepay_order', JSON.stringify(pendingOrderDraft))
 
-  // 2. 同步寫入後台訂單與會員個人訂單紀錄
-  if (adminStore.orders) {
-    adminStore.orders.unshift(newOrder)
+  try {
+    const res = await fetch('/api/linepay-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        amount: Math.round(finalTotalAmount.value),
+        packages,
+        originUrl: window.location.origin
+      })
+    })
+
+    const data = await res.json()
+
+    if (data.success && data.paymentUrl) {
+      // 正式跳轉至 LINE Pay 官方付款畫面！
+      window.location.href = data.paymentUrl
+    } else {
+      isSubmitting.value = false
+      alert(`LINE Pay 請求失敗 (${data.returnCode || 'ERROR'})：${data.message || '請檢查環境變數或金額設定'}`)
+    }
+  } catch (err) {
+    isSubmitting.value = false
+    alert('連線至後端 API 失敗：' + err.message + '\n（請確認已部署至 Vercel 並設定環境變數）')
   }
-  if (authStore.user && Array.isArray(authStore.user.orders)) {
-    authStore.user.orders.unshift(newOrder)
-  }
-
-  if (adminStore.addAuditLog) {
-    adminStore.addAuditLog('新訂單成立', `成立訂單 #${newOrder.orderId}（LINE Pay），實付 NT$ ${finalTotalAmount.value}`)
-  }
-
-  // 3. 標記優惠券已使用
-  if (appliedCoupon.value && authStore.markCouponAsUsed) {
-    authStore.markCouponAsUsed(appliedCoupon.value.instanceId)
-  } else if (appliedCoupon.value) {
-    appliedCoupon.value.isUsed = true
-  }
-
-  // 4. 扣除已折抵紅利點數
-  if (cleanPointsUsed > 0 && currentUser.value) {
-    currentUser.value.points = Math.max(0, (currentUser.value.points || 0) - cleanPointsUsed)
-  }
-
-  // 5. 將已結帳商品從購物車移除（保留未勾選商品）
-  cartStore.items = cartStore.items.filter(i => !i.selected)
-
-  router.push({
-    path: '/order-success',
-    query: { orderId: newOrder.orderId }
-  })
 }
 </script>
