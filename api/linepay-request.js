@@ -7,8 +7,9 @@ export default async function handler(req, res) {
 
   const CHANNEL_ID = process.env.LINE_PAY_CHANNEL_ID
   const CHANNEL_SECRET = process.env.LINE_PAY_CHANNEL_SECRET
-  // 預設使用 Sandbox 沙盒測試網址，正式上線可改為 https://api-pay.line.me
-  const LINE_PAY_SITE = process.env.LINE_PAY_SITE || 'https://sandbox-api-pay.line.me'
+ const rawSite = (process.env.LINE_PAY_SITE || 'https://sandbox-api-pay.line.me').trim()
+const matchUrl = rawSite.match(/https?:\/\/[a-zA-Z0-9.-]+/)
+const LINE_PAY_SITE = matchUrl ? matchUrl[0] : 'https://sandbox-api-pay.line.me'
 
   if (!CHANNEL_ID || !CHANNEL_SECRET) {
     return res.status(500).json({
