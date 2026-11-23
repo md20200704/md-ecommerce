@@ -91,61 +91,12 @@ const orderInfo = reactive({
   amount: Number(route.query.amount || 0)
 })
 
-const finalizeOrderInStore = () => {
-  const rawDraft = sessionStorage.getItem('md_pending_linepay_order')
-  if (!rawDraft) return
-
-  const draft = JSON.parse(rawDraft)
-  draft.transactionId = transactionId.value
-  draft.paymentStatus = 'PAID'
-
-  // 1. 扣減商品 SKU 庫存，總庫存歸 0 自動下架
-  for (const item of (draft.items || [])) {
-    const targetProd = (productStore.products || []).find(p => p.id === item.id)
-    if (targetProd && Array.isArray(targetProd.skus)) {
-      const targetSku = targetProd.skus.find(s => s.color === item.color && s.size === item.size) || targetProd.skus[0]
-      if (targetSku) {
-        targetSku.stock = Math.max(0, (Number(targetSku.stock) || 0) - item.quantity)
-      }
-      targetProd.salesCount = (Number(targetProd.salesCount) || 0) + item.quantity
-      const remainingTotal = targetProd.skus.reduce((sum, s) => sum + (Number(s.stock) || 0), 0)
-      if (remainingTotal === 0) {
-        targetProd.isPublished = false
-      }
-    }
-  }
-
-  // 2. 寫入後台訂單列表
-  if (adminStore.orders && !adminStore.orders.some(o => o.orderId === draft.orderId)) {
-    adminStore.orders.unshift(draft)
-  }
-
-  if (adminStore.addAuditLog) {
-    adminStore.addAuditLog(
-      'LINE Pay 付款完成',
-      `訂單 #${draft.orderId} 已完成 LINE Pay 扣款（交易序號：${transactionId.value}），實付 NT$ ${draft.totalAmount}`
-    )
-  }
-
-  // 3. 核銷優惠券與扣除紅利點數
-  if (draft.appliedCouponInstanceId && authStore.markCouponAsUsed) {
-    authStore.markCouponAsUsed(draft.appliedCouponInstanceId)
-  }
-  if (draft.pointsUsed > 0 && authStore.user) {
-    authStore.user.points = Math.max(0, (authStore.user.points || 0) - draft.pointsUsed)
-  }
-
-  // 4. 清空已結帳購物車項目並清除暫存
-  cartStore.items = cartStore.items.filter(i => !i.selected)
-  sessionStorage.removeItem('md_pending_linepay_order')
-}
-
 onMounted(async () => {
   const txId = String(route.query.transactionId || '')
   const amt = Number(route.query.amount || 0)
+  const ordId = String(route.query.orderId || '')
 
   if (!txId || !amt) {
-    // 若無 transactionId（例如直接瀏覽此頁），顯示一般成立狀態
     status.value = 'SUCCESS'
     return
   }
@@ -154,12 +105,18 @@ onMounted(async () => {
     const res = await fetch('/api/linepay-confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transactionId: txId, amount: amt })
+      body: JSON.stringify({ transactionId: txId, amount: amt, orderId: ordId })
     })
     const data = await res.json()
 
     if (data.success) {
-      finalizeOrderInStore()
+      sessionStorage.removeItem('md_pending_linepay_order')
+      await Promise.all([
+        productStore.fetchProducts(),
+        adminStore.fetchOrders(),
+        cartStore.fetchCart(),
+        authStore.initSession()
+      ])
       status.value = 'SUCCESS'
     } else {
       status.value = 'ERROR'

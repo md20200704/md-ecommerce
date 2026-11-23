@@ -1,70 +1,30 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { apiRequest } from '../services/apiClient'
 
 export const useMarketingStore = defineStore('marketing', () => {
-  // 1. 首頁輪播與多層級分類樹（主分類 -> 分組 -> 細項分類）
-  const banners = ref([
-    {
-      id: 1,
-      tag: 'NEW ARRIVAL · 2026',
-      title: '首爾晨霧微光特輯，\n探索冬日極簡鬆弛感。',
-      subtitle: '全館冬季新品結帳享免運，滿額 NT$ 2,500 再贈精緻羊毛圍巾。',
-      buttonText: '探索新品',
-      linkType: 'category',
-      linkUrl: 'Top 上衣',
-      image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80',
-      isActive: true
-    }
-  ])
-
+  const banners = ref([])
   const categoryTree = ref([
     {
       name: 'Top 上衣',
       subcategories: [
-        { name: '季節精選', items: ['針織毛衣', '氣質襯衫', '修身內搭', '大學T / 衛衣'] },
-        { name: '風格分類', items: ['韓系極簡', '法式慵懶'] }
+        { name: '季節精選', items: ['針織毛衣', '氣質襯衫', '修身內搭', '大學T / 衛衣'] }
       ]
     },
     {
       name: 'Outer 外套',
       subcategories: [
-        { name: '大衣與外套', items: ['羊毛長大衣', '西裝外套', '短版夾克', '針織開襟外套'] }
+        { name: '大衣與外套', items: ['羊毛長大衣', '西裝外套', '短版夾克'] }
       ]
     },
     {
       name: 'Bottom 下身',
       subcategories: [
-        { name: '褲裝與裙裝', items: ['直筒西裝褲', '牛仔寬褲', 'A字長裙', '百褶短裙'] }
-      ]
-    },
-    {
-      name: 'Dress 洋裝 / 套裝',
-      subcategories: [
-        { name: '連身系列', items: ['針織長洋裝', '氣質襯衫洋裝', '兩件式套裝'] }
-      ]
-    },
-    {
-      name: 'Accessories 配件',
-      subcategories: [
-        { name: '包款與飾品', items: ['真皮肩背包', '羊毛圍巾', '極簡飾品'] }
+        { name: '褲裝與裙裝', items: ['直筒西裝褲', '牛仔寬褲', 'A字長裙'] }
       ]
     }
   ])
 
-  // 依據主分類名稱取得底下所有細項清單
-  const getSubItemsByCategory = (categoryName) => {
-    const cat = categoryTree.value.find(c => c.name === categoryName)
-    if (!cat || !cat.subcategories) return []
-    const items = []
-    cat.subcategories.forEach(group => {
-      if (Array.isArray(group.items)) {
-        items.push(...group.items)
-      }
-    })
-    return items
-  }
-
-  // 2. VIP 階級與紅利點數回饋趴數制度
   const vipTiers = ref([
     {
       id: 'GENERAL',
@@ -74,42 +34,50 @@ export const useMarketingStore = defineStore('marketing', () => {
       pointsEarnRate: 1,
       badgeColor: 'bg-secondary-subtle text-secondary',
       description: '註冊即享基礎會員資格，消費回饋 1% 紅利點數'
-    },
-    {
-      id: 'SILVER',
-      name: '白銀 VIP (SILVER)',
-      minSpend: 5000,
-      discountRate: 0.95,
-      pointsEarnRate: 3,
-      badgeColor: 'bg-info-subtle text-info-emphasis',
-      description: '累積消費滿 NT$ 5,000，全館享 95 折與 3% 點數回饋'
-    },
-    {
-      id: 'GOLD',
-      name: '黃金 VIP (GOLD)',
-      minSpend: 12000,
-      discountRate: 0.9,
-      pointsEarnRate: 5,
-      badgeColor: 'bg-warning-subtle text-warning-emphasis',
-      description: '累積消費滿 NT$ 12,000，全館享 9 折、5% 點數回饋與每月專屬禮券'
-    },
-    {
-      id: 'DIAMOND',
-      name: '黑鑽 VIP (DIAMOND)',
-      minSpend: 30000,
-      discountRate: 0.85,
-      pointsEarnRate: 8,
-      badgeColor: 'bg-dark text-white',
-      description: '累積消費滿 NT$ 30,000，全館享 85 折、8% 點數回饋與生日豪華禮金'
     }
   ])
 
+  const couponTemplates = ref([])
+  const autoDispatchRules = ref([])
+  const isLoaded = ref(false)
+
+  const fetchMarketingConfig = async () => {
+    try {
+      const res = await apiRequest('/api/marketing-cms')
+      if (res.success) {
+        if (Array.isArray(res.banners)) banners.value = res.banners
+        if (Array.isArray(res.categoryTree) && res.categoryTree.length > 0) {
+          categoryTree.value = res.categoryTree
+        }
+        if (Array.isArray(res.vipTiers) && res.vipTiers.length > 0) {
+          vipTiers.value = res.vipTiers
+        }
+        if (Array.isArray(res.couponTemplates)) couponTemplates.value = res.couponTemplates
+        if (Array.isArray(res.autoDispatchRules)) autoDispatchRules.value = res.autoDispatchRules
+        isLoaded.value = true
+      }
+    } catch (err) {
+      console.warn('[marketingStore] 載入資料庫行銷設定失敗：', err.message)
+    }
+  }
+
+  const getSubItemsByCategory = (categoryName) => {
+    const cat = categoryTree.value.find(c => c.name === categoryName)
+    if (!cat || !cat.subcategories) return []
+    const items = []
+    cat.subcategories.forEach(group => {
+      if (Array.isArray(group.items)) items.push(...group.items)
+    })
+    return items
+  }
+
+  // VIP 階級 CRUD
   const addVipTier = (newTier) => {
     const cleanId = (newTier.id || 'TIER_' + Date.now()).trim().toUpperCase()
     if (vipTiers.value.some(t => t.id === cleanId)) {
       return { success: false, message: `階級代碼 ${cleanId} 已存在，請更換其他代碼！` }
     }
-    vipTiers.value.push({
+    const payload = {
       id: cleanId,
       name: newTier.name.trim(),
       minSpend: Number(newTier.minSpend) || 0,
@@ -117,9 +85,23 @@ export const useMarketingStore = defineStore('marketing', () => {
       pointsEarnRate: Number(newTier.pointsEarnRate) || 1,
       badgeColor: newTier.badgeColor || 'bg-primary-subtle text-primary',
       description: newTier.description || '專屬 VIP 尊榮禮遇'
-    })
+    }
+    vipTiers.value.push(payload)
     vipTiers.value.sort((a, b) => a.minSpend - b.minSpend)
-    return { success: true, message: `已新增 VIP 階級【${newTier.name}】` }
+
+    apiRequest('/api/marketing-cms', {
+      method: 'POST',
+      body: JSON.stringify({ resource: 'vip-tier', ...payload })
+    }).catch(err => console.error('新增 VIP 階級同步失敗:', err))
+
+    return { success: true, message: `已新增 VIP 階級【${payload.name}】` }
+  }
+
+  const saveVipTier = async (tier) => {
+    await apiRequest('/api/marketing-cms', {
+      method: 'PUT',
+      body: JSON.stringify({ resource: 'vip-tier', ...tier })
+    })
   }
 
   const removeVipTier = (tierId) => {
@@ -130,108 +112,17 @@ export const useMarketingStore = defineStore('marketing', () => {
     if (idx > -1) {
       const removedName = vipTiers.value[idx].name
       vipTiers.value.splice(idx, 1)
+      apiRequest(`/api/marketing-cms?resource=vip-tier&id=${encodeURIComponent(tierId)}`, {
+        method: 'DELETE'
+      }).catch(err => console.error('刪除 VIP 階級同步失敗:', err))
       return { success: true, message: `已刪除 VIP 階級【${removedName}】` }
     }
     return { success: false, message: '找不到該階級' }
   }
 
-  // 3. 全館優惠券與優惠碼庫
-  const couponTemplates = ref([
-    {
-      id: 'CPN-001',
-      code: 'SEOUL100',
-      title: '首爾新客見面禮',
-      type: 'FIXED',
-      value: 100,
-      maxDiscount: 0,
-      minSpend: 500,
-      expiryDate: '2026-12-31',
-      isActive: true,
-      description: '全館單筆消費滿 NT$ 500 現折 NT$ 100'
-    },
-    {
-      id: 'CPN-002',
-      code: 'VIP200',
-      title: 'VIP 尊榮月度禮金',
-      type: 'FIXED',
-      value: 200,
-      maxDiscount: 0,
-      minSpend: 1200,
-      expiryDate: '2026-12-31',
-      isActive: true,
-      description: 'VIP 專屬每月福利，滿 NT$ 1,200 折抵 NT$ 200'
-    },
-    {
-      id: 'CPN-003',
-      code: 'HBD300',
-      title: '壽星專屬生日禮券',
-      type: 'FIXED',
-      value: 300,
-      maxDiscount: 0,
-      minSpend: 1000,
-      expiryDate: '2026-12-31',
-      isActive: true,
-      description: '祝您生日快樂！當月壽星滿 NT$ 1,000 現折 NT$ 300'
-    },
-    {
-      id: 'CPN-004',
-      code: 'WINTER88',
-      title: '冬季新品 88 折券',
-      type: 'PERCENT',
-      value: 0.88,
-      maxDiscount: 500,
-      minSpend: 1500,
-      expiryDate: '2026-12-31',
-      isActive: true,
-      description: '冬裝全系列滿 NT$ 1,500 享 88 折（最高折抵 NT$ 500）'
-    },
-    {
-      id: 'CPN-005',
-      code: 'UPGRADE500',
-      title: 'VIP 晉升專屬賀禮券',
-      type: 'FIXED',
-      value: 500,
-      maxDiscount: 0,
-      minSpend: 2000,
-      expiryDate: '2026-12-31',
-      isActive: true,
-      description: '恭喜晉升 VIP 等級！單筆滿 NT$ 2,000 現折 NT$ 500'
-    }
-  ])
-
-  // 4. 自動化優惠券派發規則排程
-  const autoDispatchRules = ref([
-    {
-      id: 'RULE-01',
-      name: '當月壽星生日禮自動發送',
-      targetGroup: 'BIRTHDAY_MONTH',
-      scheduleType: 'MONTHLY_1ST',
-      specificDate: '',
-      couponCode: 'HBD300',
-      isActive: true
-    },
-    {
-      id: 'RULE-02',
-      name: '全體 VIP 會員每月購物金',
-      targetGroup: 'ALL_VIP',
-      scheduleType: 'MONTHLY_1ST',
-      specificDate: '',
-      couponCode: 'VIP200',
-      isActive: true
-    },
-    {
-      id: 'RULE-03',
-      name: '會員 VIP 階級升級專屬賀禮',
-      targetGroup: 'ANY_UPGRADE',
-      scheduleType: 'VIP_UPGRADE',
-      specificDate: '',
-      couponCode: 'UPGRADE500',
-      isActive: true
-    }
-  ])
-
+  // 自動派發規則 CRUD
   const addAutoDispatchRule = (rule) => {
-    autoDispatchRules.value.unshift({
+    const payload = {
       id: 'RULE-' + Date.now(),
       name: rule.name.trim(),
       targetGroup: rule.targetGroup,
@@ -239,11 +130,73 @@ export const useMarketingStore = defineStore('marketing', () => {
       specificDate: rule.scheduleType === 'SPECIFIC_DATE' ? rule.specificDate : '',
       couponCode: rule.couponCode,
       isActive: true
-    })
+    }
+    autoDispatchRules.value.unshift(payload)
+    apiRequest('/api/marketing-cms', {
+      method: 'POST',
+      body: JSON.stringify({ resource: 'rule', ...payload })
+    }).then(() => fetchMarketingConfig()).catch(err => console.error('新增規則失敗:', err))
   }
 
   const removeAutoDispatchRule = (ruleId) => {
     autoDispatchRules.value = autoDispatchRules.value.filter(r => r.id !== ruleId)
+    apiRequest(`/api/marketing-cms?resource=rule&id=${encodeURIComponent(ruleId)}`, {
+      method: 'DELETE'
+    }).catch(err => console.error('刪除規則失敗:', err))
+  }
+
+  // CMS 主分類樹 CRUD
+  const addPrimaryCategory = (payload) => {
+    categoryTree.value.push(payload)
+    apiRequest('/api/marketing-cms', {
+      method: 'POST',
+      body: JSON.stringify({ resource: 'category', ...payload })
+    }).then(() => fetchMarketingConfig()).catch(err => console.error('新增分類失敗:', err))
+  }
+
+  const updatePrimaryCategory = (idx, payload) => {
+    const existing = categoryTree.value[idx]
+    categoryTree.value[idx] = { ...existing, ...payload }
+    apiRequest('/api/marketing-cms', {
+      method: 'PUT',
+      body: JSON.stringify({ resource: 'category', id: existing?.id, ...payload })
+    }).then(() => fetchMarketingConfig()).catch(err => console.error('更新分類失敗:', err))
+  }
+
+  const deletePrimaryCategory = (idx) => {
+    const target = categoryTree.value[idx]
+    categoryTree.value.splice(idx, 1)
+    if (target?.id) {
+      apiRequest(`/api/marketing-cms?resource=category&id=${target.id}`, {
+        method: 'DELETE'
+      }).catch(err => console.error('刪除分類失敗:', err))
+    }
+  }
+
+  // CMS Banner CRUD
+  const addBanner = (bannerForm) => {
+    const payload = { ...bannerForm, id: Date.now() }
+    banners.value.push(payload)
+    apiRequest('/api/marketing-cms', {
+      method: 'POST',
+      body: JSON.stringify({ resource: 'banner', ...bannerForm })
+    }).then(() => fetchMarketingConfig()).catch(err => console.error('新增輪播失敗:', err))
+  }
+
+  const updateBanner = (id, bannerForm) => {
+    const idx = banners.value.findIndex(b => b.id === id)
+    if (idx > -1) banners.value[idx] = { ...banners.value[idx], ...bannerForm }
+    apiRequest('/api/marketing-cms', {
+      method: 'PUT',
+      body: JSON.stringify({ resource: 'banner', id, ...bannerForm })
+    }).catch(err => console.error('更新輪播失敗:', err))
+  }
+
+  const deleteBanner = (id) => {
+    banners.value = banners.value.filter(b => b.id !== id)
+    apiRequest(`/api/marketing-cms?resource=banner&id=${id}`, {
+      method: 'DELETE'
+    }).catch(err => console.error('刪除輪播失敗:', err))
   }
 
   const getTierById = (tierId) => {
@@ -259,14 +212,23 @@ export const useMarketingStore = defineStore('marketing', () => {
   return {
     banners,
     categoryTree,
-    getSubItemsByCategory,
     vipTiers,
-    addVipTier,
-    removeVipTier,
     couponTemplates,
     autoDispatchRules,
+    isLoaded,
+    fetchMarketingConfig,
+    getSubItemsByCategory,
+    addVipTier,
+    saveVipTier,
+    removeVipTier,
     addAutoDispatchRule,
     removeAutoDispatchRule,
+    addPrimaryCategory,
+    updatePrimaryCategory,
+    deletePrimaryCategory,
+    addBanner,
+    updateBanner,
+    deleteBanner,
     getTierById,
     findCouponByCode
   }

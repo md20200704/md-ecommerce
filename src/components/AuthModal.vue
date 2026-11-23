@@ -56,12 +56,16 @@
                 placeholder="請輸入密碼"
               />
             </div>
-            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2.5 fw-bold mt-1">
-              立即登入
+            <button
+              type="submit"
+              class="btn btn-primary w-100 rounded-pill py-2.5 fw-bold mt-1"
+              :disabled="isSubmitting"
+            >
+              {{ isSubmitting ? '登入驗證中...' : '立即登入' }}
             </button>
           </form>
 
-          <!-- ★ 註冊表單（包含生日欄位） ★ -->
+          <!-- 註冊表單（包含生日欄位） -->
           <form v-else @submit.prevent="handleRegister" class="d-flex flex-column gap-2.5 small">
             <div>
               <label class="form-label text-secondary mb-1">真實姓名 *</label>
@@ -83,8 +87,12 @@
               <label class="form-label text-secondary mb-1">設定密碼 *</label>
               <input v-model="registerForm.password" required type="password" class="form-control form-control-sm font-monospace" placeholder="至少 6 位英數字" />
             </div>
-            <button type="submit" class="btn btn-primary w-100 rounded-pill py-2.5 fw-bold mt-2">
-              完成註冊並領取新客禮
+            <button
+              type="submit"
+              class="btn btn-primary w-100 rounded-pill py-2.5 fw-bold mt-2"
+              :disabled="isSubmitting"
+            >
+              {{ isSubmitting ? '建立帳號中...' : '完成註冊並領取新客禮' }}
             </button>
           </form>
 
@@ -106,6 +114,7 @@ const emit = defineEmits(['close'])
 const authStore = useAuthStore()
 
 const mode = ref('login')
+const isSubmitting = ref(false)
 
 const loginForm = reactive({
   account: 'user@md-korea.com',
@@ -120,29 +129,33 @@ const registerForm = reactive({
   password: ''
 })
 
-const handleLogin = () => {
-  const success = authStore.login({
+const handleLogin = async () => {
+  isSubmitting.value = true
+  const success = await authStore.login({
     email: loginForm.account.includes('@') ? loginForm.account : '',
-    account: loginForm.account
+    account: loginForm.account,
+    password: loginForm.password
   })
-  if (success) {
-    emit('close')
-  }
+  isSubmitting.value = false
+  if (success) emit('close')
 }
 
-const handleRegister = () => {
+const handleRegister = async () => {
   if (!registerForm.birthday) {
     alert('請選擇您的生日日期以享有生日禮遇！')
     return
   }
 
-  const success = authStore.login({
+  isSubmitting.value = true
+  const success = await authStore.login({
     isRegister: true,
     name: registerForm.name,
     phone: registerForm.phone,
     email: registerForm.email,
-    birthday: registerForm.birthday
+    birthday: registerForm.birthday,
+    password: registerForm.password
   })
+  isSubmitting.value = false
 
   if (success) {
     alert(`歡迎加入 MD.SELECT，${registerForm.name}！\n已記錄您的生日（${registerForm.birthday}），祝您購物愉快！`)

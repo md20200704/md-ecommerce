@@ -1,65 +1,31 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useMarketingStore } from './marketingStore'
+import { apiRequest, getAuthToken, setAuthToken } from '../services/apiClient'
 
 export const useAuthStore = defineStore('auth', () => {
   const marketingStore = useMarketingStore()
 
-  // 1. 會員個人資料狀態
   const user = ref({
-    isLoggedIn: true,
-    name: '陳哲偉',
-    phone: '0912345678',
-    email: 'user@md-korea.com',
-    birthday: '1997-03-18',
-    totalSpent: 14850,
-    vipTierId: 'GOLD',
-    points: 1250,
-    wishlist: [1, 2],
+    id: '',
+    isLoggedIn: false,
+    name: '',
+    phone: '',
+    email: '',
+    birthday: '',
+    totalSpent: 0,
+    vipTierId: 'GENERAL',
+    points: 0,
+    wishlist: [],
     restockRequests: [],
     riskStatus: 'NORMAL',
     blockReason: '',
-    myCoupons: [
-      {
-        instanceId: 'UCPN-101',
-        code: 'SEOUL100',
-        title: '首爾新客見面禮',
-        type: 'FIXED',
-        value: 100,
-        maxDiscount: 0,
-        minSpend: 500,
-        expiryDate: '2026-12-31',
-        isUsed: false,
-        source: '輸入優惠碼領取'
-      },
-      {
-        instanceId: 'UCPN-102',
-        code: 'WINTER88',
-        title: '冬季新品 88 折券',
-        type: 'PERCENT',
-        value: 0.88,
-        maxDiscount: 500,
-        minSpend: 1500,
-        expiryDate: '2026-12-31',
-        isUsed: false,
-        source: '冬季活動禮遇'
-      }
-    ],
-    savedAddresses: [
-      {
-        id: 1,
-        type: 'HOME',
-        recipientName: '陳哲偉',
-        phone: '0912345678',
-        city: '台北市',
-        district: '中正區',
-        detail: '忠孝西路一段 100 號 8 樓',
-        isDefault: true
-      }
-    ]
+    myCoupons: [],
+    savedAddresses: []
   })
 
-  const isAdmin = ref(true)
+  const isAdmin = ref(false)
+  const memberList = ref([])
 
   const isLoggedIn = computed({
     get: () => Boolean(user.value && user.value.isLoggedIn),
@@ -86,341 +52,135 @@ export const useAuthStore = defineStore('auth', () => {
     return (user.value?.myCoupons || []).filter(c => !c.isUsed)
   })
 
-  // 2. 後台全體會員名冊
-  const memberList = ref([
-    {
-      id: 'MB-1001',
-      name: '陳哲偉',
-      phone: '0912345678',
-      email: 'user@md-korea.com',
-      birthday: '1997-03-18',
-      vipTierId: 'GOLD',
-      totalSpent: 14850,
-      orderCount: 8,
-      abandonCount: 0,
-      riskStatus: 'NORMAL',
-      notes: '核心常客，偏好韓國東大門外套',
-      updatedAt: '2026-11-01'
-    },
-    {
-      id: 'MB-1002',
-      name: '黃小芬',
-      phone: '0922111333',
-      email: 'fen@gmail.com',
-      birthday: '1995-11-24',
-      vipTierId: 'SILVER',
-      totalSpent: 6200,
-      orderCount: 5,
-      abandonCount: 3,
-      riskStatus: 'RESTRICT_COD',
-      notes: '7-11 逾期未取 3 次導致退貨逆物流，已關閉超取到付',
-      updatedAt: '2026-11-08'
-    },
-    {
-      id: 'MB-1003',
-      name: '張惡霸',
-      phone: '0988777666',
-      email: 'badguy@fake.com',
-      birthday: '1990-05-12',
-      vipTierId: 'GENERAL',
-      totalSpent: 0,
-      orderCount: 2,
-      abandonCount: 2,
-      riskStatus: 'BANNED',
-      notes: '多次惡意下單後退貨並於客服辱罵，全面封鎖登入與購買',
-      updatedAt: '2026-11-05'
-    },
-    {
-      id: 'MB-1004',
-      name: '李刷卡',
-      phone: '0933444555',
-      email: 'cardtest@yahoo.com.tw',
-      birthday: '1998-11-18',
-      vipTierId: 'DIAMOND',
-      totalSpent: 35800,
-      orderCount: 15,
-      abandonCount: 0,
-      riskStatus: 'BLOCK_ORDER',
-      notes: '疑似盜刷爭議款未清，待金融機構照會前暫停下單',
-      updatedAt: '2026-11-09'
+  const applyUserPayload = (profile) => {
+    if (!profile) return
+    user.value = {
+      ...user.value,
+      ...profile,
+      isLoggedIn: true
     }
-  ])
-
-  const triggerVipUpgradeCoupons = (memberRecord, newTierId) => {
-    if (!memberRecord || memberRecord.riskStatus === 'BANNED') return []
-
-    const upgradeRules = (marketingStore.autoDispatchRules || []).filter(
-      r => r.isActive && r.scheduleType === 'VIP_UPGRADE'
-    )
-
-    const dispatchedCoupons = []
-
-    upgradeRules.forEach(rule => {
-      const isMatch =
-        rule.targetGroup === 'ANY_UPGRADE' ||
-        rule.targetGroup === `TIER:${newTierId}`
-
-      if (isMatch) {
-        const template = marketingStore.findCouponByCode(rule.couponCode)
-        if (template) {
-          dispatchedCoupons.push(template)
-          if (
-            user.value?.isLoggedIn &&
-            (user.value.email === memberRecord.email || user.value.phone === memberRecord.phone)
-          ) {
-            user.value.myCoupons.unshift({
-              instanceId: 'UCPN-' + Date.now() + Math.floor(Math.random() * 1000),
-              code: template.code,
-              title: template.title,
-              type: template.type,
-              value: template.value,
-              maxDiscount: Number(template.maxDiscount) || 0,
-              minSpend: template.minSpend,
-              expiryDate: template.expiryDate,
-              isUsed: false,
-              source: `VIP 晉升自動發送 (${rule.name})`
-            })
-          }
-        }
-      }
-    })
-
-    return dispatchedCoupons
+    isAdmin.value = Boolean(profile.isAdmin || profile.role === 'ADMIN')
   }
 
-  // ★ 當訂單點擊「完成訂單」時，計入「折抵後實際支付金額」與計算紅利點數回饋
-  const settleCompletedOrderRewards = (order) => {
-    if (!order || order.rewardsSettled) {
-      return { settled: false, upgraded: false, paidAmount: 0, earnedPoints: 0 }
-    }
-
-    // 計算折抵後實際支付金額（優先取 totalAmount / amount，若無則用 小計 - 優惠券 - 點數 + 運費）
-    const itemsSum = (order.items || []).reduce(
-      (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 1),
-      0
-    )
-    const discount = Number(order.couponDiscount || 0) + Number(order.pointsUsed || 0)
-    const ship = Number(order.shippingFee || 0)
-    const calculatedPaid = Math.max(0, itemsSum - discount) + ship
-
-    const paidAmount = Number(order.totalAmount || order.amount || order.total || calculatedPaid || 0)
-    order.totalAmount = paidAmount
-
-    const memberRecord = memberList.value.find(
-      m =>
-        (order.email && m.email === order.email) ||
-        (order.phone && m.phone === order.phone) ||
-        (order.recipientName && m.name === order.recipientName) ||
-        (order.customerName && m.name === order.customerName)
-    )
-
-    // 依會員當前 VIP 等級點數回饋率計算本次獲得紅利點數（以折抵後實付金額計算）
-    const activeTierId = memberRecord?.vipTierId || user.value?.vipTierId || 'GENERAL'
-    const activeTierObj = marketingStore.getTierById(activeTierId) || { pointsEarnRate: 1 }
-    const earnRate = Number(activeTierObj.pointsEarnRate || 1)
-    const earnedPoints = Number(order.earnedPoints) > 0
-      ? Number(order.earnedPoints)
-      : Math.max(1, Math.floor((paidAmount * earnRate) / 100))
-
-    order.earnedPoints = earnedPoints
-
-    let newTotalSpent = 0
-    let oldTierId = activeTierId
-
-    if (memberRecord) {
-      oldTierId = memberRecord.vipTierId || 'GENERAL'
-      memberRecord.totalSpent = (Number(memberRecord.totalSpent) || 0) + paidAmount
-      memberRecord.orderCount = (Number(memberRecord.orderCount) || 0) + 1
-      memberRecord.updatedAt = new Date().toISOString().slice(0, 10)
-      newTotalSpent = memberRecord.totalSpent
-    }
-
-    const isCurrentUser =
-      user.value?.isLoggedIn &&
-      ((order.email && user.value.email === order.email) ||
-        (order.phone && user.value.phone === order.phone) ||
-        (order.recipientName && user.value.name === order.recipientName) ||
-        (order.customerName && user.value.name === order.customerName))
-
-    if (isCurrentUser) {
-      oldTierId = user.value.vipTierId || oldTierId
-      user.value.totalSpent = memberRecord
-        ? memberRecord.totalSpent
-        : (Number(user.value.totalSpent) || 0) + paidAmount
-      user.value.points = (Number(user.value.points) || 0) + earnedPoints
-      newTotalSpent = user.value.totalSpent
-    }
-
-    order.rewardsSettled = true
-
-    const sortedTiers = [...(marketingStore.vipTiers || [])].sort((a, b) => a.minSpend - b.minSpend)
-    const oldTierIndex = sortedTiers.findIndex(t => t.id === oldTierId)
-
-    let qualifiedTier = sortedTiers[0]
-    for (const tier of sortedTiers) {
-      if (newTotalSpent >= tier.minSpend) {
-        qualifiedTier = tier
+  // 啟動 App 時還原 JWT 登入狀態
+  const initSession = async () => {
+    if (!getAuthToken()) return false
+    try {
+      const res = await apiRequest('/api/auth')
+      if (res.success && res.user) {
+        applyUserPayload(res.user)
+        if (isAdmin.value) fetchMemberList()
+        return true
       }
+    } catch {
+      setAuthToken('')
+      user.value.isLoggedIn = false
+      isAdmin.value = false
     }
+    return false
+  }
 
-    const newTierIndex = sortedTiers.findIndex(t => t.id === qualifiedTier.id)
-
-    if (newTierIndex > oldTierIndex) {
-      if (memberRecord) memberRecord.vipTierId = qualifiedTier.id
-      if (isCurrentUser) user.value.vipTierId = qualifiedTier.id
-
-      const issuedCoupons = triggerVipUpgradeCoupons(memberRecord || user.value, qualifiedTier.id)
-      return {
-        settled: true,
-        paidAmount,
-        earnedPoints,
-        upgraded: true,
-        newTier: qualifiedTier,
-        issuedCoupons
-      }
-    }
-
-    return {
-      settled: true,
-      paidAmount,
-      earnedPoints,
-      upgraded: false
+  const fetchMemberList = async () => {
+    if (!isAdmin.value) return
+    try {
+      const res = await apiRequest('/api/auth?action=members')
+      if (res.success) memberList.value = res.members || []
+    } catch (err) {
+      console.warn('[authStore] 無法載入會員名冊:', err.message)
     }
   }
 
-  const login = (loginData = {}) => {
-    const matched = memberList.value.find(
-      m => m.email === loginData.email || m.phone === loginData.account || m.phone === loginData.phone
-    )
-
-    if (matched && matched.riskStatus === 'BANNED') {
-      alert('【帳號已被封鎖】此帳號因重大違規已被系統全面禁止登入，如有疑問請洽客服。')
+  const login = async (loginData = {}) => {
+    try {
+      const action = loginData.isRegister ? 'register' : 'login'
+      const res = await apiRequest('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action, ...loginData })
+      })
+      if (res.success && res.token) {
+        setAuthToken(res.token)
+        applyUserPayload(res.user)
+        if (isAdmin.value) fetchMemberList()
+        return true
+      }
+      return false
+    } catch (err) {
+      alert(err.message || '登入失敗，請確認帳號與密碼')
       return false
     }
-
-    if (loginData.isRegister && !matched) {
-      const nextId = 'MB-' + (1000 + memberList.value.length + 1)
-      memberList.value.unshift({
-        id: nextId,
-        name: loginData.name || '新會員',
-        phone: loginData.phone || '',
-        email: loginData.email || '',
-        birthday: loginData.birthday || '',
-        vipTierId: marketingStore.vipTiers[0]?.id || 'GENERAL',
-        totalSpent: 0,
-        orderCount: 0,
-        abandonCount: 0,
-        riskStatus: 'NORMAL',
-        notes: '前台自行註冊新會員',
-        updatedAt: new Date().toISOString().slice(0, 10)
-      })
-    }
-
-    user.value = {
-      isLoggedIn: true,
-      name: loginData.name || (matched ? matched.name : '測試會員'),
-      phone: loginData.phone || (matched ? matched.phone : '0912345678'),
-      email: loginData.email || (matched ? matched.email : 'user@md-korea.com'),
-      birthday: loginData.birthday || (matched ? matched.birthday : ''),
-      totalSpent: matched?.totalSpent ?? 0,
-      vipTierId: matched?.vipTierId || marketingStore.vipTiers[0]?.id || 'GENERAL',
-      points: user.value?.points ?? 100,
-      wishlist: user.value?.wishlist ?? [],
-      restockRequests: user.value?.restockRequests ?? [],
-      riskStatus: matched ? matched.riskStatus : 'NORMAL',
-      blockReason: matched ? matched.notes : '',
-      myCoupons: user.value?.myCoupons ?? [],
-      savedAddresses: user.value?.savedAddresses ?? []
-    }
-    return true
   }
 
   const logout = () => {
-    user.value.isLoggedIn = false
+    setAuthToken('')
+    isAdmin.value = false
+    user.value = {
+      id: '',
+      isLoggedIn: false,
+      name: '',
+      phone: '',
+      email: '',
+      birthday: '',
+      totalSpent: 0,
+      vipTierId: 'GENERAL',
+      points: 0,
+      wishlist: [],
+      restockRequests: [],
+      riskStatus: 'NORMAL',
+      blockReason: '',
+      myCoupons: [],
+      savedAddresses: []
+    }
   }
 
-  const updateProfile = (profileData = {}) => {
-    if (!user.value) return
+  const updateProfile = async (profileData = {}) => {
     Object.assign(user.value, profileData)
-    const target = memberList.value.find(m => m.email === user.value.email || m.phone === user.value.phone)
-    if (target) {
-      if (profileData.name !== undefined) target.name = profileData.name
-      if (profileData.phone !== undefined) target.phone = profileData.phone
-      if (profileData.birthday !== undefined) target.birthday = profileData.birthday
-      target.updatedAt = new Date().toISOString().slice(0, 10)
+    try {
+      const res = await apiRequest('/api/auth', {
+        method: 'PUT',
+        body: JSON.stringify(profileData)
+      })
+      if (res.success && res.user) applyUserPayload(res.user)
+    } catch (err) {
+      console.error('更新個人資料失敗:', err)
     }
   }
 
-  const adminUpdateMemberInfo = (memberId, payload) => {
+  const adminUpdateMemberInfo = async (memberId, payload) => {
     const target = memberList.value.find(m => m.id === memberId)
-    if (!target) return { success: false, message: '找不到該會員' }
-
-    const oldTierId = target.vipTierId
-    if (payload.name !== undefined) target.name = payload.name
-    if (payload.phone !== undefined) target.phone = payload.phone
-    if (payload.birthday !== undefined) target.birthday = payload.birthday
-    if (payload.vipTierId !== undefined) target.vipTierId = payload.vipTierId
-    target.updatedAt = new Date().toISOString().slice(0, 10)
-
-    if (user.value && (user.value.email === target.email || user.value.phone === target.phone)) {
-      user.value.name = target.name
-      user.value.phone = target.phone
-      user.value.birthday = target.birthday
-      user.value.vipTierId = target.vipTierId
+    if (target) Object.assign(target, payload)
+    try {
+      await apiRequest('/api/auth', {
+        method: 'PUT',
+        body: JSON.stringify({ action: 'admin-update-member', memberId, ...payload })
+      })
+      await fetchMemberList()
+      return { success: true, message: `已更新會員資料並寫入資料庫` }
+    } catch (err) {
+      return { success: false, message: err.message }
     }
-
-    let upgradeNote = ''
-    if (payload.vipTierId && payload.vipTierId !== oldTierId) {
-      const tiers = marketingStore.vipTiers || []
-      const oldIdx = tiers.findIndex(t => t.id === oldTierId)
-      const newIdx = tiers.findIndex(t => t.id === payload.vipTierId)
-      if (newIdx > oldIdx) {
-        const issued = triggerVipUpgradeCoupons(target, payload.vipTierId)
-        if (issued.length > 0) {
-          upgradeNote = `，並已自動發送升級禮券【${issued.map(c => c.title).join('、')}】！`
-        }
-      }
-    }
-
-    return { success: true, message: `已更新會員【${target.name}】資料${upgradeNote}` }
   }
 
-  const claimCouponByCode = (code, sourceLabel = '輸入優惠碼領取') => {
+  const updateMemberTier = async (memberId, newTierId) => {
+    return adminUpdateMemberInfo(memberId, { vipTierId: newTierId })
+  }
+
+  const updateMemberRisk = async (memberId, { riskStatus, notes }) => {
+    return adminUpdateMemberInfo(memberId, { riskStatus, notes })
+  }
+
+  const claimCouponByCode = async (code, sourceLabel = '輸入優惠碼領取') => {
     if (!user.value?.isLoggedIn) {
       return { success: false, message: '請先登入會員帳號再領取優惠券！' }
     }
-    if (user.value.riskStatus === 'RESTRICT_PROMO') {
-      return { success: false, message: '您的帳號目前優惠功能受限，無法領取優惠券。' }
-    }
-
-    const template = marketingStore.findCouponByCode(code)
-    if (!template) {
-      return { success: false, message: '無效或已過期的優惠碼，請確認輸入是否正確！' }
-    }
-
-    const alreadyHas = user.value.myCoupons.some(c => c.code === template.code && !c.isUsed)
-    if (alreadyHas) {
-      return { success: false, message: `您的優惠券錢包內已有【${template.title}】，結帳時可直接選用！` }
-    }
-
-    const newCouponInstance = {
-      instanceId: 'UCPN-' + Date.now() + Math.floor(Math.random() * 100),
-      code: template.code,
-      title: template.title,
-      type: template.type,
-      value: template.value,
-      maxDiscount: Number(template.maxDiscount) || 0,
-      minSpend: template.minSpend,
-      expiryDate: template.expiryDate,
-      isUsed: false,
-      source: sourceLabel
-    }
-
-    user.value.myCoupons.unshift(newCouponInstance)
-    return {
-      success: true,
-      message: `領取成功！【${template.title}】已存入您的優惠券帳戶`,
-      coupon: newCouponInstance
+    try {
+      const res = await apiRequest('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'claim-coupon', code, source: sourceLabel })
+      })
+      if (res.success && res.user) applyUserPayload(res.user)
+      return { success: res.success, message: res.message }
+    } catch (err) {
+      return { success: false, message: err.message }
     }
   }
 
@@ -429,130 +189,82 @@ export const useAuthStore = defineStore('auth', () => {
     if (cpn) cpn.isUsed = true
   }
 
-  const dispatchCouponToMembers = ({ couponCode, targetGroup, sourceName = '系統活動派發' }) => {
-    const template = marketingStore.findCouponByCode(couponCode)
-    if (!template) return { success: false, message: '找不到對應的有效優惠券模板！' }
-
-    const currentMonth = new Date().getMonth() + 1
-    let targetMembers = []
-
-    if (targetGroup === 'BIRTHDAY_MONTH') {
-      targetMembers = memberList.value.filter(m => {
-        if (!m.birthday) return false
-        const bMonth = Number(m.birthday.split('-')[1])
-        return bMonth === currentMonth && m.riskStatus !== 'BANNED'
+  const dispatchCouponToMembers = async ({ couponCode, targetGroup, sourceName = '系統活動派發' }) => {
+    try {
+      const res = await apiRequest('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'dispatch-coupons', couponCode, targetGroup, sourceName })
       })
-    } else if (targetGroup === 'ALL_VIP') {
-      targetMembers = memberList.value.filter(
-        m => (m.vipTierId && m.vipTierId !== 'GENERAL') && m.riskStatus !== 'BANNED'
-      )
-    } else if (targetGroup === 'ALL_ACTIVE' || targetGroup === 'ANY_UPGRADE') {
-      targetMembers = memberList.value.filter(m => m.riskStatus !== 'BANNED')
-    } else if (targetGroup && targetGroup.startsWith('TIER:')) {
-      const targetTierId = targetGroup.replace('TIER:', '')
-      targetMembers = memberList.value.filter(
-        m => (m.vipTierId || 'GENERAL') === targetTierId && m.riskStatus !== 'BANNED'
-      )
+      await initSession()
+      return res
+    } catch (err) {
+      return { success: false, message: err.message }
     }
-
-    const isCurrentUserIncluded = targetMembers.some(
-      m => m.email === user.value?.email || m.phone === user.value?.phone
-    )
-    if (isCurrentUserIncluded && user.value?.isLoggedIn) {
-      user.value.myCoupons.unshift({
-        instanceId: 'UCPN-' + Date.now(),
-        code: template.code,
-        title: template.title,
-        type: template.type,
-        value: template.value,
-        maxDiscount: Number(template.maxDiscount) || 0,
-        minSpend: template.minSpend,
-        expiryDate: template.expiryDate,
-        isUsed: false,
-        source: sourceName
-      })
-    }
-
-    return {
-      success: true,
-      count: targetMembers.length,
-      message: `已成功執行規則，派發【${template.title} (${template.code})】給符合條件的 ${targetMembers.length} 位會員！`
-    }
-  }
-
-  const updateMemberTier = (memberId, newTierId) => {
-    const target = memberList.value.find(m => m.id === memberId)
-    if (!target) return { success: false }
-
-    const tiers = marketingStore.vipTiers || []
-    const oldIdx = tiers.findIndex(t => t.id === target.vipTierId)
-    const newIdx = tiers.findIndex(t => t.id === newTierId)
-
-    target.vipTierId = newTierId
-    target.updatedAt = new Date().toISOString().slice(0, 10)
-    if (user.value && user.value.email === target.email) {
-      user.value.vipTierId = newTierId
-    }
-
-    let issuedCoupons = []
-    if (newIdx > oldIdx) {
-      issuedCoupons = triggerVipUpgradeCoupons(target, newTierId)
-    }
-
-    return { success: true, issuedCoupons }
   }
 
   const isInWishlist = (productId) => Boolean(user.value?.wishlist?.includes(Number(productId)))
 
   const toggleWishlist = (productId) => {
-    if (!user.value.wishlist) user.value.wishlist = []
+    if (!user.value.isLoggedIn) {
+      return { added: false, message: '請先登入會員以使用收藏功能' }
+    }
     const id = Number(productId)
     const index = user.value.wishlist.indexOf(id)
-    if (index > -1) {
-      user.value.wishlist.splice(index, 1)
-      return { added: false, message: '已從收藏清單移除' }
-    } else {
-      user.value.wishlist.push(id)
-      return { added: true, message: '已加入愛心收藏清單！' }
+    const added = index === -1
+    if (added) user.value.wishlist.push(id)
+    else user.value.wishlist.splice(index, 1)
+
+    apiRequest('/api/auth', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'toggle-wishlist', productId: id })
+    }).catch(err => console.error('同步收藏清單失敗:', err))
+
+    return { added, message: added ? '已加入愛心收藏清單！' : '已從收藏清單移除' }
+  }
+
+  const registerRestockAlert = async (product, sku, form) => {
+    try {
+      const res = await apiRequest('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'restock-alert',
+          productId: product.id,
+          skuId: sku?.skuId || null,
+          email: form.email,
+          phone: form.phone
+        })
+      })
+      return res
+    } catch (err) {
+      return { success: false, message: err.message }
     }
   }
 
-  const addAddress = (address) => {
-    if (!user.value.savedAddresses) user.value.savedAddresses = []
-    user.value.savedAddresses.push({ id: Date.now(), ...address })
+  const addAddress = async (address) => {
+    try {
+      const res = await apiRequest('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'add-address', ...address })
+      })
+      if (res.success) await initSession()
+    } catch (err) {
+      console.error('新增地址失敗:', err)
+    }
   }
 
-  const removeAddress = (addressId) => {
-    if (!user.value.savedAddresses) return
+  const removeAddress = async (addressId) => {
     user.value.savedAddresses = user.value.savedAddresses.filter(a => a.id !== addressId)
-  }
-
-  const updateMemberRisk = (memberId, { riskStatus, notes }) => {
-    const target = memberList.value.find(m => m.id === memberId)
-    if (target) {
-      target.riskStatus = riskStatus
-      if (notes !== undefined) target.notes = notes
-      target.updatedAt = new Date().toISOString().slice(0, 10)
-
-      if (user.value && (user.value.email === target.email || user.value.phone === target.phone)) {
-        user.value.riskStatus = riskStatus
-        user.value.blockReason = notes || ''
-      }
-      return { success: true, message: `會員【${target.name}】管制狀態已更新為【${riskStatus}】` }
-    }
-    return { success: false, message: '找不到該會員' }
+    apiRequest(`/api/auth?action=remove-address&id=${addressId}`, {
+      method: 'DELETE'
+    }).catch(err => console.error('刪除地址失敗:', err))
   }
 
   const checkCheckoutEligibility = (paymentMethod) => {
     const status = user.value?.riskStatus || 'NORMAL'
-    if (status === 'BANNED') {
-      return { allowed: false, reason: '您的帳號已被系統安全凍結，無法使用結帳功能，請聯繫官方客服。' }
-    }
-    if (status === 'BLOCK_ORDER') {
-      return { allowed: false, reason: '很抱歉，此帳號目前暫停下單權限，請先聯繫客服完成身分照會。' }
-    }
+    if (status === 'BANNED') return { allowed: false, reason: '您的帳號已被系統安全凍結，無法使用結帳功能。' }
+    if (status === 'BLOCK_ORDER') return { allowed: false, reason: '此帳號目前暫停下單權限，請聯繫客服。' }
     if (status === 'RESTRICT_COD' && (paymentMethod === 'COD' || paymentMethod === 'CVS_COD')) {
-      return { allowed: false, reason: '因您先前有多次包裹未取紀錄，本帳號暫停「貨到付款 / 超取付款」，請改用線上預先支付。' }
+      return { allowed: false, reason: '本帳號暫停貨到付款，請改用 LINE Pay 線上支付。' }
     }
     return { allowed: true }
   }
@@ -566,8 +278,8 @@ export const useAuthStore = defineStore('auth', () => {
     currentVipTier,
     availableUserCoupons,
     memberList,
-    triggerVipUpgradeCoupons,
-    settleCompletedOrderRewards,
+    initSession,
+    fetchMemberList,
     claimCouponByCode,
     markCouponAsUsed,
     dispatchCouponToMembers,
@@ -578,6 +290,7 @@ export const useAuthStore = defineStore('auth', () => {
     updateMemberTier,
     isInWishlist,
     toggleWishlist,
+    registerRestockAlert,
     addAddress,
     removeAddress,
     updateMemberRisk,

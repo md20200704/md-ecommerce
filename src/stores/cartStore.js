@@ -1,44 +1,40 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useProductStore } from './productStore'
+import { apiRequest, getAuthToken } from '../services/apiClient'
 
 export const useCartStore = defineStore('cartStore', () => {
   const productStore = useProductStore()
 
-  // 預設購物袋初始商品直接對應後台第 1 件商品（首爾晨霧微光西裝長大衣 NT$ 3,280）
-  const items = ref([
-    {
-      id: 1,
-      cartItemId: '1-晨霧燕麥-S',
-      name: '首爾晨霧微光西裝長大衣',
-      price: 3280,
-      color: '晨霧燕麥',
-      size: 'S',
-      quantity: 1,
-      image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80',
-      selected: true
-    }
-  ])
-
+  const items = ref([])
   const isOpen = ref(false)
 
   const openDrawer = () => { isOpen.value = true }
   const closeDrawer = () => { isOpen.value = false }
 
-  // 取得該商品在後台的最新即時價格與名稱（若後台改價，購物車與結帳頁自動同步最新價格）
+  const fetchCart = async () => {
+    if (!getAuthToken()) return
+    try {
+      const res = await apiRequest('/api/cart')
+      if (res.success && Array.isArray(res.items)) {
+        items.value = res.items
+      }
+    } catch (err) {
+      console.warn('[cartStore] 同步購物袋失敗：', err.message)
+    }
+  }
+
   const getLiveUnitPrice = (item) => {
     const liveProd = (productStore.products || []).find(p => Number(p.id) === Number(item.id))
-    if (liveProd) {
-      return Number(liveProd.price ?? liveProd.basePrice ?? item.price ?? 0)
-    }
+    if (liveProd) return Number(liveProd.price ?? liveProd.basePrice ?? item.price ?? 0)
     return Number(item.price || 0)
   }
 
-  // 加入購物車（預設勾選）
   const addItem = (product, selectedColor, selectedSize, qty = 1) => {
     const color = typeof selectedColor === 'object' ? selectedColor.color : selectedColor
     const size = typeof selectedColor === 'object' ? selectedColor.size : selectedSize
     const count = typeof selectedColor === 'object' ? (Number(selectedSize) || 1) : (Number(qty) || 1)
+    const skuObj = (product.skus || []).find(s => s.color === color && s.size === size)
 
     const cartItemId = `${product.id}-${color}-${size}`
     const livePrice = Number(product.price ?? product.basePrice ?? 0)
@@ -53,6 +49,7 @@ export const useCartStore = defineStore('cartStore', () => {
       items.value.push({
         id: product.id,
         cartItemId,
+        skuId: skuObj?.skuId || null,
         name: product.name,
         price: livePrice,
         color,
@@ -62,67 +59,78 @@ export const useCartStore = defineStore('cartStore', () => {
         selected: true
       })
     }
+
+    if (getAuthToken()) {
+      apiRequest('/api/cart', {
+        method: 'POST',
+        body: JSON.stringify({
+          productId: product.id,
+          skuId: skuObj?.skuId || null,
+          color,
+          size,
+          quantity: count
+        })
+      }).catch(err => console.error('加入購物袋同步失敗:', err))
+    }
+
     openDrawer()
     return { success: true, message: '已加入購物袋' }
   }
 
-  // 相容舊版呼叫名稱 addToCart(product, skuObj, quantity)
-  const addToCart = (product, skuOrColor, qtyOrSize, maybeQty) => {
-    return addItem(product, skuOrColor, qtyOrSize, maybeQty)
-  }
+  const addToCart = (product, skuOrColor, qtyOrSize, maybeQty) => addItem(product, skuOrColor, qtyOrSize, maybeQty)
 
   const removeItem = (cartItemId) => {
     const idx = items.value.findIndex(i => i.cartItemId === cartItemId)
     if (idx > -1) items.value.splice(idx, 1)
+    if (getAuthToken()) {
+      apiRequest(`/api/cart?cartItemId=${encodeURIComponent(cartItemId)}`, { method: 'DELETE' })
+        .catch(err => console.error('移除購物袋同步失敗:', err))
+    }
   }
 
   const toggleItemSelect = (cartItemId) => {
     const item = items.value.find(i => i.cartItemId === cartItemId)
-    if (item) item.selected = !item.selected
+    if (item) {
+      item.selected = !item.selected
+      if (getAuthToken()) {
+        apiRequest('/api/cart', {
+          method: 'PUT',
+          body: JSON.stringify({ cartItemId, selected: item.selected })
+        }).catch(() => {})
+      }
+    }
   }
 
   const toggleSelectAll = (status) => {
     items.value.forEach(i => { i.selected = status })
+    if (getAuthToken()) {
+      apiRequest('/api/cart', {
+        method: 'PUT',
+        body: JSON.stringify({ selectAll: status })
+      }).catch(() => {})
+    }
   }
 
-  const isAllSelected = computed(() => {
-    if (items.value.length === 0) return false
-    return items.value.every(i => i.selected)
-  })
-
-  // 僅計算「有被勾選」的商品總件數
-  const totalCount = computed(() => {
-    return items.value
-      .filter(i => i.selected)
-      .reduce((sum, i) => sum + i.quantity, 0)
-  })
-
-  // 僅計算「有被勾選」的商品總金額（即時同步後台最新售價）
-  const totalPrice = computed(() => {
-    return items.value
-      .filter(i => i.selected)
-      .reduce((sum, i) => sum + (getLiveUnitPrice(i) * i.quantity), 0)
-  })
-
-  // 取得準備結帳的商品清單（自動帶入後台最新售價）
-  const selectedItems = computed(() => {
-    return items.value
-      .filter(i => i.selected)
-      .map(i => {
-        const liveProd = (productStore.products || []).find(p => Number(p.id) === Number(i.id))
-        if (liveProd) {
-          i.price = Number(liveProd.price ?? liveProd.basePrice ?? i.price ?? 0)
-          i.name = liveProd.name || i.name
-        }
-        return i
-      })
-  })
+  const isAllSelected = computed(() => items.value.length > 0 && items.value.every(i => i.selected))
+  const totalCount = computed(() => items.value.filter(i => i.selected).reduce((sum, i) => sum + i.quantity, 0))
+  const totalPrice = computed(() => items.value.filter(i => i.selected).reduce((sum, i) => sum + getLiveUnitPrice(i) * i.quantity, 0))
+  const selectedItems = computed(() =>
+    items.value.filter(i => i.selected).map(i => {
+      const liveProd = (productStore.products || []).find(p => Number(p.id) === Number(i.id))
+      if (liveProd) {
+        i.price = Number(liveProd.price ?? liveProd.basePrice ?? i.price ?? 0)
+        i.name = liveProd.name || i.name
+      }
+      return i
+    })
+  )
 
   return {
     items,
     isOpen,
     openDrawer,
     closeDrawer,
+    fetchCart,
     getLiveUnitPrice,
     addItem,
     addToCart,

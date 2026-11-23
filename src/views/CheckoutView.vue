@@ -224,10 +224,11 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
+import { getAuthToken } from '../services/apiClient'
 
 const route = useRoute()
 const cartStore = useCartStore()
@@ -249,6 +250,24 @@ const form = reactive({
   paymentMethod: 'LINE Pay'
 })
 
+// 當非同步還原登入狀態完成時，自動補上收件人資訊與預設地址
+watch(
+  () => authStore.user,
+  (u) => {
+    if (!u) return
+    if (!form.recipientName && u.name) form.recipientName = u.name
+    if (!form.phone && u.phone) form.phone = u.phone
+    if (!form.email && u.email) form.email = u.email
+    if (Array.isArray(u.savedAddresses) && u.savedAddresses.length > 0) {
+      const defAddr = u.savedAddresses.find(a => a.isDefault) || u.savedAddresses[0]
+      if (defAddr && form.shippingAddress === '台北市中正區忠孝西路一段 100 號 8 樓') {
+        form.shippingAddress = `${defAddr.city}${defAddr.district}${defAddr.detail}`
+      }
+    }
+  },
+  { immediate: true, deep: true }
+)
+
 const currentUser = computed(() => authStore.user || {})
 const availableCoupons = computed(() => {
   return (authStore.availableUserCoupons || currentUser.value.myCoupons || []).filter(c => !c.isUsed)
@@ -258,7 +277,7 @@ const selectedCouponId = ref('')
 const appliedCoupon = ref(null)
 const inputCouponCode = ref('')
 
-const handleClaimAndApplyCode = () => {
+const handleClaimAndApplyCode = async () => {
   const code = inputCouponCode.value.trim().toUpperCase()
   if (!code) {
     alert('請輸入優惠碼！')
@@ -266,11 +285,11 @@ const handleClaimAndApplyCode = () => {
   }
 
   if (authStore.claimCouponByCode) {
-    const res = authStore.claimCouponByCode(code, '結帳頁面手動輸入領取')
+    const res = await authStore.claimCouponByCode(code, '結帳頁面手動輸入領取')
     alert(res.message)
     if (res.success) {
       inputCouponCode.value = ''
-      const newlyAdded = availableCoupons.value[availableCoupons.value.length - 1]
+      const newlyAdded = availableCoupons.value.find(c => c.code === code) || availableCoupons.value[0]
       if (newlyAdded) {
         selectedCouponId.value = newlyAdded.instanceId
         applyCoupon()
@@ -353,7 +372,6 @@ const submitOrder = async () => {
   const totalDiscount = couponDiscountAmount.value + cleanPointsUsed
   const orderId = 'MD-' + Date.now()
 
-  // 建立符合 LINE Pay v3 嚴格金額檢核的 packages 結構（products 加總 + 運費 + 負數折扣 = amount）
   const lineProducts = checkoutItems.value.map(item => ({
     id: String(item.id),
     name: `${item.name} (${item.color}/${item.size})`,
@@ -388,11 +406,10 @@ const submitOrder = async () => {
     }
   ]
 
-  // 先將待確認訂單資料暫存於 sessionStorage，待 LINE Pay 跳轉回來時完成 Confirm 扣款並寫入訂單
   const pendingOrderDraft = {
     orderId,
     createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-    status: '待出貨',
+    status: '待付款',
     items: JSON.parse(JSON.stringify(checkoutItems.value)),
     totalAmount: Math.round(finalTotalAmount.value),
     subtotal: cartStore.totalPrice,
@@ -411,25 +428,29 @@ const submitOrder = async () => {
   sessionStorage.setItem('md_pending_linepay_order', JSON.stringify(pendingOrderDraft))
 
   try {
+    const token = getAuthToken()
     const res = await fetch('/api/linepay-request', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({
         orderId,
         amount: Math.round(finalTotalAmount.value),
         packages,
-        originUrl: window.location.origin
+        originUrl: window.location.origin,
+        orderDraft: pendingOrderDraft
       })
     })
 
     const data = await res.json()
 
     if (data.success && data.paymentUrl) {
-      // 正式跳轉至 LINE Pay 官方付款畫面！
       window.location.href = data.paymentUrl
     } else {
       isSubmitting.value = false
-      alert(`LINE Pay 請求失敗 (${data.returnCode || 'ERROR'})：${data.message || '請檢查環境變數或金額設定'}`)
+      alert(`LINE Pay 請求失敗 (${data.returnCode || 'ERROR'})：${data.message || '請檢查環境變數或庫存狀態'}`)
     }
   } catch (err) {
     isSubmitting.value = false
