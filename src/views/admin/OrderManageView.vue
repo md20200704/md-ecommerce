@@ -3,15 +3,15 @@
     <!-- 頂部頁頭 -->
     <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 px-1">
       <div>
-        <h1 class="h4 fw-bold text-dark font-serif mb-1">訂單與物流出貨管理</h1>
-        <p class="small text-muted mb-0">即時接收顧客取消訂單申請、更新出貨單號，完成訂單時自動依「折抵後實付金額」結算消費與紅利</p>
+        <h1 class="h4 fw-bold text-dark font-serif mb-1">訂單與超商物流管理</h1>
+        <p class="small text-muted mb-0">管理 LINE Pay 付款訂單、填入超商寄件編號，並更新「已到店／已取件／已退回」物流狀態</p>
       </div>
       <span class="badge bg-white text-dark border px-3.5 py-2 rounded-pill font-monospace small shadow-2xs">
         全站總訂單：{{ allOrders.length }} 筆
       </span>
     </div>
 
-    <!-- 🔔 顧客申請取消訂單即時通知橫幅 -->
+    <!-- 顧客申請取消訂單即時通知橫幅 -->
     <div
       v-if="pendingCancelOrders.length > 0"
       class="alert alert-warning rounded-4 border-warning p-3.5 mb-0 shadow-2xs d-flex flex-column gap-2"
@@ -117,31 +117,28 @@
       </div>
     </div>
 
-    <!-- 2. 進階搜尋與篩選工具列（已優化美化與 RWD 自適應） -->
+    <!-- 2. 進階搜尋與篩選工具列 -->
     <div class="card-korean p-3.5 px-4 bg-white rounded-4 border shadow-xs">
       <div class="row g-3 align-items-center">
-        <!-- 關鍵字搜尋框 -->
         <div class="col-12 col-md-5">
           <label class="form-label text-secondary mb-1" style="font-size: 11px;">關鍵字搜尋</label>
           <input
             v-model="tempKeyword"
             type="text"
             class="form-control form-control-sm rounded-pill px-3.5 py-2"
-            placeholder="搜尋訂單編號、收件人、手機、物流單號..."
+            placeholder="搜尋訂單編號、收件人、手機、寄件編號、門市..."
           />
         </div>
 
-        <!-- 配送方式下拉選單 -->
         <div class="col-12 col-sm-6 col-md-3">
           <label class="form-label text-secondary mb-1" style="font-size: 11px;">配送方式篩選</label>
           <select v-model="tempShippingFilter" class="form-select form-select-sm rounded-pill font-monospace py-2">
             <option value="ALL">全部配送方式</option>
-            <option value="HOME">黑貓宅配到府</option>
             <option value="CVS">7-11 / 全家超取</option>
+            <option value="HOME">黑貓宅配到府</option>
           </select>
         </div>
 
-        <!-- 查詢與重置按鈕區 -->
         <div class="col-12 col-sm-6 col-md-4 d-flex align-items-end gap-2 pt-1 pt-sm-0">
           <button
             type="button"
@@ -206,7 +203,6 @@
             class="minimal-order-header"
             @click="toggleOrderExpand(ord.orderId || ord.id)"
           >
-            <!-- 左區：訂單編號與買家資訊 -->
             <div class="order-head-main">
               <span class="font-monospace fw-bold text-dark" style="font-size: 15.5px; letter-spacing: 0.02em;">
                 #{{ ord.orderId || ord.id }}
@@ -216,7 +212,6 @@
               </span>
             </div>
 
-            <!-- 中區：訂單狀態膠囊 + 總件數 -->
             <div class="order-head-status">
               <span
                 class="status-pill"
@@ -226,16 +221,21 @@
                 <span>{{ ord.status }}</span>
               </span>
 
+              <span
+                v-if="(ord.shippingMethod || ord.shippingType) === 'CVS'"
+                class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-3 py-1.5 font-monospace"
+                style="font-size: 11.5px;"
+              >
+                {{ getShippingStatusLabel(ord.shippingStatus) }}
+              </span>
+
               <span class="order-qty-pill font-monospace">
                 共 {{ getOrderTotalQty(ord) }} 件商品
               </span>
             </div>
 
-            <!-- 右區：實付總額與出貨按鈕在同一行（總額靠左、出貨按鈕靠右） -->
             <div class="order-head-price">
-              
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 w-100">
-                <!-- 左側：實付總額（帶有空格） -->
                 <div class="d-flex align-items-baseline" style="gap: 6px;">
                   <span class="text-muted font-monospace" style="font-size: 11.5px;">實付總額</span>
                   <span class="font-monospace fw-bold text-dark" style="font-size: 17.5px;">
@@ -243,7 +243,6 @@
                   </span>
                 </div>
 
-                <!-- 右側：商家快捷操作按鈕（僅在未展開時計，點擊 @click.stop 不觸發展開） -->
                 <div v-if="!isOrderExpanded(ord.orderId || ord.id)" class="d-flex align-items-center gap-2" @click.stop>
                   <button
                     v-if="['待出貨', '處理中', '已付款'].includes(ord.status)"
@@ -252,7 +251,7 @@
                     style="font-size: 11.5px;"
                     @click.stop="openShipModal(ord)"
                   >
-                    📦 立即出貨
+                    📦 填寄件編號出貨
                   </button>
 
                   <button
@@ -267,7 +266,6 @@
                 </div>
               </div>
 
-              <!-- 第二行（下一行）：展開／收合明細按鈕（靠右放置） -->
               <div class="d-flex align-items-center justify-content-end w-100 mt-1" style="gap: 4px;">
                 <span class="text-primary font-monospace fw-semibold" style="font-size: 11.5px;">
                   {{ isOrderExpanded(ord.orderId || ord.id) ? '收合明細' : '展開明細' }}
@@ -278,20 +276,26 @@
                   :class="{ 'rotate-180': isOrderExpanded(ord.orderId || ord.id) }"
                 />
               </div>
-
             </div>
           </div>
 
           <!-- ==================== 展開後的整筆訂單完整明細區 ==================== -->
           <div v-show="isOrderExpanded(ord.orderId || ord.id)" class="minimal-order-body border-top">
             
-            <!-- 區塊 A：物流與結算狀態列 -->
+            <!-- 區塊 A：金流與物流狀態列 -->
             <div class="order-meta-bar">
               <div class="d-flex flex-wrap align-items-center" style="gap: 12px 20px; font-size: 12.5px;">
-                <span class="font-monospace text-secondary">付款方式：<strong class="text-dark">{{ ord.paymentMethod || 'LINE Pay' }}</strong></span>
-                <span class="font-monospace text-secondary">配送方式：<strong class="text-dark">{{ (ord.shippingMethod || ord.shippingType) === 'CVS' ? '超商純取貨' : '黑貓宅配' }}</strong></span>
                 <span class="font-monospace text-secondary">
-                  物流單號：<strong class="text-dark">{{ ord.trackingNumber || ord.trackingCode || '尚未填寫' }}</strong>
+                  金流：<strong class="text-dark">{{ ord.paymentMethod || 'LINE Pay' }}</strong>
+                  <span class="ms-1 badge" :class="ord.paymentStatus === 'PAID' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis'">
+                    {{ ord.paymentStatus === 'PAID' ? '已付款' : (ord.paymentStatus || '未付款') }}
+                  </span>
+                </span>
+                <span class="font-monospace text-secondary">
+                  配送：<strong class="text-dark">{{ (ord.shippingMethod || ord.shippingType) === 'CVS' ? `超商純取貨 (${ord.logisticsSubType || '超商'})` : '黑貓宅配' }}</strong>
+                </span>
+                <span class="font-monospace text-secondary">
+                  寄件編號：<strong class="text-dark">{{ ord.trackingNumber || ord.trackingCode || '尚未填寫' }}</strong>
                 </span>
               </div>
 
@@ -303,7 +307,7 @@
                   ⏳ 顧客已提出取消申請，請盡速確認
                 </span>
                 <span v-else class="text-muted">
-                  目前訂單狀態：{{ ord.status }}
+                  物流貨態：{{ getShippingStatusLabel(ord.shippingStatus) }}
                 </span>
               </div>
             </div>
@@ -418,25 +422,57 @@
               </div>
             </div>
 
-            <!-- 區塊 D：展開後的明細底部操作按鈕區 -->
+            <!-- 區塊 D：收件門市資訊與路線 B 超商物流狀態操作區 -->
             <div class="order-foot-bar">
               <div class="text-muted font-monospace" style="font-size: 12px;">
                 <div>收件資訊：{{ ord.recipientName }} · {{ ord.shippingAddress || '超商門市取貨' }}</div>
+                <div v-if="ord.storeId || ord.storeName" class="text-dark mt-1">
+                  指定門市：{{ ord.logisticsSubType || '超商' }} {{ ord.storeName }}（店號：{{ ord.storeId }}）
+                </div>
                 <div v-if="ord.cancelReason" class="text-danger mt-1">
                   取消原因：{{ ord.cancelReason }}
                 </div>
               </div>
 
               <div class="order-foot-actions">
+                <!-- 步驟 2 & 3：回填寄件編號並標記寄出 -->
                 <button
-                  v-if="['待出貨', '處理中', '已付款'].includes(ord.status)"
+                  v-if="['待出貨', '處理中', '已付款', '配送中'].includes(ord.status)"
                   type="button"
-                  class="btn btn-dark btn-sm rounded-pill px-4 py-2 font-monospace fw-bold"
-                  style="font-size: 12px;"
+                  class="btn btn-dark btn-sm rounded-pill px-3.5 py-2 font-monospace fw-bold"
+                  style="font-size: 11.5px;"
                   @click="openShipModal(ord)"
                 >
-                  📦 填寫物流單號並出貨
+                  📦 {{ ord.trackingNumber ? '修改寄件編號' : '填寫寄件編號並寄出' }}
                 </button>
+
+                <!-- 步驟 4：超商貨態人工／半自動推進（已到店 / 已取件 / 已退回） -->
+                <template v-if="(ord.shippingMethod || ord.shippingType) === 'CVS' && ['配送中', '待出貨', '已付款'].includes(ord.status)">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm rounded-pill px-3 py-2 font-monospace"
+                    style="font-size: 11.5px;"
+                    @click="handleUpdateShippingStatus(ord, 'ARRIVED')"
+                  >
+                    🏪 標記已到店
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-success btn-sm rounded-pill px-3 py-2 font-monospace fw-bold"
+                    style="font-size: 11.5px;"
+                    @click="handleUpdateShippingStatus(ord, 'PICKED_UP')"
+                  >
+                    ✓ 標記已取件 (結算)
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm rounded-pill px-3 py-2 font-monospace"
+                    style="font-size: 11.5px;"
+                    @click="handleUpdateShippingStatus(ord, 'RETURNED')"
+                  >
+                    ↩ 標記已退回
+                  </button>
+                </template>
 
                 <button
                   v-if="ord.status === '申請取消中'"
@@ -449,7 +485,7 @@
                 </button>
 
                 <button
-                  v-if="ord.status === '配送中'"
+                  v-if="ord.status === '配送中' && (ord.shippingMethod || ord.shippingType) !== 'CVS'"
                   type="button"
                   class="btn btn-outline-dark btn-sm rounded-pill px-4 py-2 font-monospace"
                   style="font-size: 12px;"
@@ -469,25 +505,28 @@
       </div>
     </div>
 
-    <!-- 填寫物流單號與出貨 Modal -->
+    <!-- 填寫寄件編號與出貨 Modal -->
     <div v-if="shipModalState.isOpen" class="position-fixed top-0 start-0 w-100 h-100 modal-backdrop-custom d-flex align-items-center justify-content-center p-3" style="z-index: 1060;">
       <div class="bg-white rounded-4 p-4 shadow-lg w-100" style="max-width: 440px;">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h3 class="fs-6 fw-bold text-dark mb-0 font-serif">📦 填寫物流單號並出貨</h3>
+          <h3 class="fs-6 fw-bold text-dark mb-0 font-serif">📦 填寫寄件編號並寄出</h3>
           <button type="button" class="btn-close shadow-none" @click="shipModalState.isOpen = false"></button>
         </div>
 
-        <div class="small text-muted mb-3 font-monospace">
+        <div class="small text-muted mb-2 font-monospace">
           訂單編號：#{{ shipModalState.order?.orderId || shipModalState.order?.id }}
+        </div>
+        <div v-if="shipModalState.order?.storeName" class="small text-dark mb-3 font-monospace bg-light p-2 rounded-3 border">
+          取貨門市：{{ shipModalState.order.logisticsSubType || '超商' }} {{ shipModalState.order.storeName }}（{{ shipModalState.order.storeId }}）
         </div>
 
         <div class="mb-3">
-          <label class="form-label text-secondary small mb-1">物流單號 / 寄件編號 *</label>
+          <label class="form-label text-secondary small mb-1">超商寄件編號 / 托運單號 *</label>
           <input
             v-model="shipModalState.trackingNumber"
             type="text"
             class="form-control form-control-sm font-monospace py-2"
-            placeholder="例如：71188293910 或 TPE20261118"
+            placeholder="請貼上超商機台或寄件系統產生的寄件編號"
           />
         </div>
 
@@ -496,7 +535,7 @@
             取消
           </button>
           <button type="button" class="btn btn-dark btn-sm rounded-pill px-4 font-monospace fw-bold" @click="submitShipOrder">
-            確認出貨並發送通知
+            儲存單號並標記已寄出
           </button>
         </div>
       </div>
@@ -522,12 +561,8 @@ const pendingCancelOrders = computed(() => {
 })
 
 const selectedStatusNode = ref('ALL')
-
-// 暫存篩選條件（輸入時不即時篩選）
 const tempKeyword = ref('')
 const tempShippingFilter = ref('ALL')
-
-// 套用後的篩選條件（點擊「查詢」後才生效）
 const appliedKeyword = ref('')
 const appliedShippingFilter = ref('ALL')
 
@@ -579,9 +614,9 @@ const getOrderTotalQty = (ord) => {
 const orderFlowNodes = [
   { key: 'ALL', label: '全部訂單', sublabel: '所有交易紀錄', icon: Layers },
   { key: 'PACKING', label: '待出貨', sublabel: '未出貨可處理', icon: Package },
-  { key: 'SHIPPING', label: '配送中', sublabel: '轉運與物流中', icon: Truck },
-  { key: 'COMPLETED', label: '已完成', sublabel: '已簽收結算', icon: CheckCircle2 },
-  { key: 'RETURN', label: '取消/退貨', sublabel: '取消申請與售後', icon: RotateCcw }
+  { key: 'SHIPPING', label: '配送中', sublabel: '轉運與已到店', icon: Truck },
+  { key: 'COMPLETED', label: '已完成', sublabel: '已取件結算', icon: CheckCircle2 },
+  { key: 'RETURN', label: '取消/退回', sublabel: '取消與未取退回', icon: RotateCcw }
 ]
 
 const matchOrderNode = (ord, nodeKey) => {
@@ -590,7 +625,7 @@ const matchOrderNode = (ord, nodeKey) => {
   if (nodeKey === 'PACKING') return ['待出貨', '處理中', '已付款'].includes(st)
   if (nodeKey === 'SHIPPING') return st === '配送中'
   if (nodeKey === 'COMPLETED') return st === '已完成'
-  if (nodeKey === 'RETURN') return ['申請取消中', '已取消', '退貨審核中', '已退貨'].includes(st)
+  if (nodeKey === 'RETURN') return ['申請取消中', '已取消', '退貨審核中', '已退貨', '已退回'].includes(st)
   return false
 }
 
@@ -598,27 +633,24 @@ const getOrderCountByNode = (nodeKey) => {
   return allOrders.value.filter(o => matchOrderNode(o, nodeKey)).length
 }
 
-// 根據點擊「查詢」後的條件進行過濾
 const filteredOrders = computed(() => {
   return allOrders.value.filter(ord => {
-    // 1. 節點狀態篩選
     if (!matchOrderNode(ord, selectedStatusNode.value)) return false
 
-    // 2. 配送方式篩選
     if (appliedShippingFilter.value !== 'ALL') {
       const shipType = ord.shippingMethod || ord.shippingType || 'HOME'
       if (shipType !== appliedShippingFilter.value) return false
     }
 
-    // 3. 關鍵字搜尋
     if (appliedKeyword.value) {
       const q = appliedKeyword.value.toLowerCase()
       const idStr = String(ord.orderId || ord.id || '').toLowerCase()
       const nameStr = String(ord.recipientName || ord.customerName || '').toLowerCase()
       const phoneStr = String(ord.phone || '').toLowerCase()
       const trackingStr = String(ord.trackingNumber || ord.trackingCode || '').toLowerCase()
+      const storeStr = String(`${ord.storeId || ''} ${ord.storeName || ''}`).toLowerCase()
 
-      if (!idStr.includes(q) && !nameStr.includes(q) && !phoneStr.includes(q) && !trackingStr.includes(q)) {
+      if (!idStr.includes(q) && !nameStr.includes(q) && !phoneStr.includes(q) && !trackingStr.includes(q) && !storeStr.includes(q)) {
         return false
       }
     }
@@ -631,6 +663,18 @@ const currentFilterNodeLabel = computed(() => {
   const found = orderFlowNodes.find(n => n.key === selectedStatusNode.value)
   return found ? found.label : '全部訂單'
 })
+
+const getShippingStatusLabel = (shipStatus) => {
+  const map = {
+    UNCREATED: '尚未建單',
+    CREATED: '已建寄件單',
+    SHIPPED: '已寄出配送中',
+    ARRIVED: '已到店待取件',
+    PICKED_UP: '買家已取件',
+    RETURNED: '逾期已退回'
+  }
+  return map[shipStatus] || '尚未建單'
+}
 
 const getCleanStatusClass = (status) => {
   if (['待出貨', '處理中'].includes(status)) return 'pill-pending'
@@ -684,21 +728,19 @@ const handleApproveCancel = async (ord) => {
       res?.success !== false ? 'success' : 'error',
       res?.success !== false ? '已核准取消訂單' : '操作失敗'
     )
-  } else {
-    ord.status = '已取消'
-    showToast(`訂單 #${orderId} 已確認取消，庫存已回補！`, 'success', '已核准取消訂單')
   }
 }
 
-const handleRejectCancel = (ord) => {
+const handleRejectCancel = async (ord) => {
   const orderId = ord.orderId || ord.id
-  ord.status = '待出貨'
-  delete ord.cancelReason
-  showToast(
-    `已駁回訂單 #${orderId} 的取消申請，訂單恢復為待出貨狀態。`,
-    'info',
-    '已駁回取消申請'
-  )
+  if (adminStore.rejectCancelOrder) {
+    const res = await adminStore.rejectCancelOrder(orderId)
+    showToast(
+      res?.message || `已駁回訂單 #${orderId} 的取消申請。`,
+      res?.success !== false ? 'info' : 'error',
+      '已駁回取消申請'
+    )
+  }
 }
 
 const shipModalState = reactive({
@@ -709,39 +751,39 @@ const shipModalState = reactive({
 
 const openShipModal = (ord) => {
   shipModalState.order = ord
-  shipModalState.trackingNumber = ord.trackingNumber || ord.trackingCode || '711' + Math.floor(100000000 + Math.random() * 900000000)
+  shipModalState.trackingNumber = ord.trackingNumber || ord.trackingCode || ''
   shipModalState.isOpen = true
 }
 
-const submitShipOrder = () => {
+const submitShipOrder = async () => {
   const ord = shipModalState.order
   if (!ord) return
   const orderId = ord.orderId || ord.id
-  const tracking = shipModalState.trackingNumber.trim() || 'EX' + Date.now()
-
-  if (adminStore.updateOrderStatus) {
-    adminStore.updateOrderStatus(orderId, '配送中', tracking)
-  } else {
-    ord.status = '配送中'
-    ord.trackingNumber = tracking
+  const tracking = shipModalState.trackingNumber.trim()
+  if (!tracking) {
+    showToast('請輸入超商寄件編號或物流單號！', 'warning', '請填寫單號')
+    return
   }
 
-  if (adminStore.addAuditLog) {
-    adminStore.addAuditLog('商家更新訂單出貨', `訂單 #${orderId} 已出貨，物流單號：${tracking}`)
-  }
-
-  showToast(
-  `訂單 #${orderId} 已成功標記為「配送中」！物流單號：${tracking}`,
-  'success',
-  '已更新出貨狀態'
-)
+  await adminStore.updateOrderStatus(orderId, '配送中', tracking)
+  showToast(`訂單 #${orderId} 已儲存寄件編號（${tracking}）並標記為「配送中」！`, 'success', '已更新出貨狀態')
   shipModalState.isOpen = false
 }
 
-const markAsCompleted = (ord) => {
+const handleUpdateShippingStatus = async (ord, shippingStatus) => {
   const orderId = ord.orderId || ord.id
-  ord.status = '已完成'
-  showToast(`訂單 #${orderId} 已手動標記為已完成！`, 'success', '訂單已完成')
+  const res = await adminStore.updateShippingStatus(orderId, shippingStatus, ord.trackingNumber || '')
+  showToast(
+    res?.message || `訂單 #${orderId} 物流狀態已更新`,
+    res?.success !== false ? 'success' : 'error',
+    '超商物流狀態更新'
+  )
+}
+
+const markAsCompleted = async (ord) => {
+  const orderId = ord.orderId || ord.id
+  await adminStore.completeOrder(orderId)
+  showToast(`訂單 #${orderId} 已標記為已完成並結算點數！`, 'success', '訂單已完成')
 }
 </script>
 
@@ -806,25 +848,6 @@ const markAsCompleted = (ord) => {
   transform: scale(1.08);
 }
 
-.flow-node-label {
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #787167;
-  white-space: nowrap;
-}
-
-.flow-node-btn.is-selected .flow-node-label {
-  color: #2d2621;
-}
-
-.flow-node-sub {
-  font-size: 10px;
-  color: #9c9289;
-  margin-top: 2px;
-}
-
-/* 訂單卡片排版 */
 .minimal-order-card {
   border-color: #e8e2da !important;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -866,7 +889,7 @@ const markAsCompleted = (ord) => {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 14px !important;
+  gap: 12px !important;
   justify-self: end;
   justify-content: flex-end;
 }
@@ -874,7 +897,7 @@ const markAsCompleted = (ord) => {
 @media (min-width: 768px) {
   .order-head-status {
     justify-self: auto;
-    gap: 16px !important;
+    gap: 14px !important;
   }
 }
 
@@ -1103,13 +1126,14 @@ const markAsCompleted = (ord) => {
 .order-foot-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
 @media (min-width: 576px) {
   .order-foot-actions {
     width: auto;
+    justify-content: flex-end;
   }
 }
 

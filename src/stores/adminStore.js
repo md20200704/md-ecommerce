@@ -98,9 +98,22 @@ export const useAdminStore = defineStore('admin', () => {
         method: 'PUT',
         body: JSON.stringify({ action: 'ship', orderId, trackingNumber })
       })
-      await fetchOrders()
+      await Promise.all([fetchOrders(), fetchLogs()])
     } else if (status === '已完成') {
       await completeOrder(orderId)
+    }
+  }
+
+  const updateShippingStatus = async (orderId, shippingStatus, trackingNumber = '') => {
+    try {
+      const res = await apiRequest('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'update-shipping-status', orderId, shippingStatus, trackingNumber })
+      })
+      await Promise.all([fetchOrders(), authStore.initSession(), fetchLogs()])
+      return res
+    } catch (err) {
+      return { success: false, message: err.message }
     }
   }
 
@@ -109,7 +122,7 @@ export const useAdminStore = defineStore('admin', () => {
       method: 'POST',
       body: JSON.stringify({ action: 'complete', orderId })
     })
-    await Promise.all([fetchOrders(), authStore.initSession()])
+    await Promise.all([fetchOrders(), authStore.initSession(), fetchLogs()])
     return res
   }
 
@@ -147,6 +160,7 @@ export const useAdminStore = defineStore('admin', () => {
     approveCancelOrder,
     rejectCancelOrder,
     updateOrderStatus,
+    updateShippingStatus,
     completeOrder,
     submitReturnRequest,
     addAuditLog

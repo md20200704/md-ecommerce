@@ -42,6 +42,11 @@ export default async function handler(req, res) {
           }
         }
 
+        const isCvs = (orderDraft.shippingMethod || 'HOME') === 'CVS'
+        if (isCvs && (!String(orderDraft.storeId || '').trim() || !String(orderDraft.storeName || '').trim())) {
+          throw new Error('選擇超商純取貨時，請完整填寫超商門市代號與門市名稱')
+        }
+
         // 以資料庫最新商品售價與成本為準
         let subtotal = 0
         const verifiedItems = []
@@ -79,15 +84,22 @@ export default async function handler(req, res) {
 
         const couponDiscount = Math.max(0, Math.round(Number(orderDraft.couponDiscount || 0)))
         const pointsUsed = Math.max(0, Math.round(Number(orderDraft.pointsUsed || 0)))
-        const shippingFee = orderDraft.shippingMethod === 'CVS' ? 60 : 100
+        const shippingFee = isCvs ? 60 : 100
         const totalAmount = Math.max(0, subtotal - couponDiscount - pointsUsed) + shippingFee
+
+        const cvsBrandLabel = orderDraft.logisticsSubType === 'FAMILY' ? '全家' : '7-11'
+        const formattedAddress = isCvs
+          ? `[${cvsBrandLabel}] ${String(orderDraft.storeName).trim()} (${String(orderDraft.storeId).trim()})${orderDraft.storeAddress ? ` - ${String(orderDraft.storeAddress).trim()}` : ''}`
+          : orderDraft.shippingAddress
 
         await client.query(
           `INSERT INTO orders
            (order_id, user_id, customer_name, recipient_name, phone, email, status,
             subtotal, user_coupon_id, coupon_discount, points_used, shipping_fee, total_amount,
-            payment_method, payment_status, shipping_method, shipping_address)
-           VALUES ($1, $2, $3, $4, $5, $6, '待付款', $7, $8, $9, $10, $11, $12, 'LINE Pay', 'UNPAID', $13, $14)`,
+            payment_method, payment_status, shipping_method, shipping_address,
+            logistics_subtype, store_id, store_name, store_address, shipping_status)
+           VALUES ($1, $2, $3, $4, $5, $6, '待付款', $7, $8, $9, $10, $11, $12, 'LINE Pay', 'UNPAID', $13, $14,
+                   $15, $16, $17, $18, 'UNCREATED')`,
           [
             finalOrderId,
             authUser?.id || null,
@@ -101,8 +113,12 @@ export default async function handler(req, res) {
             pointsUsed,
             shippingFee,
             totalAmount,
-            orderDraft.shippingMethod || 'HOME',
-            orderDraft.shippingAddress
+            isCvs ? 'CVS' : 'HOME',
+            formattedAddress,
+            isCvs ? (orderDraft.logisticsSubType || '7-11') : null,
+            isCvs ? String(orderDraft.storeId).trim() : null,
+            isCvs ? String(orderDraft.storeName).trim() : null,
+            isCvs ? String(orderDraft.storeAddress || '').trim() : null
           ]
         )
 
@@ -170,7 +186,6 @@ export default async function handler(req, res) {
     const data = await lineRes.json()
 
     if (data.returnCode === '0000' && data.info?.paymentUrl?.web) {
-      // 若資料庫已有該訂單，寫入 LINE Pay 交易追蹤紀錄
       if (orderDraft) {
         await withTransaction(async (client) => {
           await client.query(

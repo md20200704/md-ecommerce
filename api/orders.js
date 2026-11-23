@@ -1,4 +1,4 @@
-import { query, withTransaction, verifyAuth, getClientIp, writeAuditLog } from './_lib/db.js'
+import { pool, query, withTransaction, verifyAuth, getClientIp, writeAuditLog } from './_lib/db.js'
 
 export default async function handler(req, res) {
   try {
@@ -99,6 +99,11 @@ export default async function handler(req, res) {
         paymentMethod: o.payment_method,
         paymentStatus: o.payment_status,
         shippingMethod: o.shipping_method,
+        logisticsSubType: o.logistics_subtype || '',
+        storeId: o.store_id || '',
+        storeName: o.store_name || '',
+        storeAddress: o.store_address || '',
+        shippingStatus: o.shipping_status || 'UNCREATED',
         shippingAddress: o.shipping_address,
         trackingNumber: o.tracking_number || '',
         cancelReason: o.cancel_reason || '',
@@ -110,7 +115,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, orders })
     }
 
-    // POST / PUT：訂單狀態流轉（申請取消、核准/駁回取消、出貨、完成結算、申請退貨）
+    // POST / PUT：訂單狀態流轉（申請取消、核准/駁回取消、出貨、更新超商物流貨態、完成結算、申請退貨）
     if (req.method === 'POST' || req.method === 'PUT') {
       const { orderId } = req.body
 
@@ -143,7 +148,6 @@ export default async function handler(req, res) {
 
           await client.query(`UPDATE orders SET status = '已取消', cancelled_at = NOW() WHERE order_id = $1`, [orderId])
 
-          // 1. 回補 SKU 庫存並恢復商品上架
           const itemsRes = await client.query(`SELECT * FROM order_items WHERE order_id = $1`, [orderId])
           for (const item of itemsRes.rows) {
             if (item.sku_id) {
@@ -167,7 +171,6 @@ export default async function handler(req, res) {
             }
           }
 
-          // 2. 退還折抵紅利點數
           const pts = Number(ord.points_used || 0)
           if (pts > 0 && ord.user_id) {
             await client.query(`UPDATE users SET points = points + $2 WHERE id = $1`, [ord.user_id, pts])
@@ -204,16 +207,121 @@ export default async function handler(req, res) {
         if (authUser.role !== 'ADMIN') return res.status(403).json({ success: false, message: '無權限' })
         const { trackingNumber } = req.body
         await query(
-          `UPDATE orders SET status = '配送中', tracking_number = $2 WHERE order_id = $1`,
+          `UPDATE orders
+           SET status = '配送中',
+               shipping_status = 'SHIPPED',
+               tracking_number = $2,
+               logistics_updated_at = NOW()
+           WHERE order_id = $1`,
           [orderId, trackingNumber]
         )
         await writeAuditLog(pool, {
           operator: authUser.name,
           ip: getClientIp(req),
           action: '商家更新訂單出貨',
-          detail: `訂單 #${orderId} 已出貨，物流單號：${trackingNumber}`
+          detail: `訂單 #${orderId} 已寄出並標記為配送中，寄件編號：${trackingNumber}`
         })
-        return res.status(200).json({ success: true, message: '已標記為配送中' })
+        return res.status(200).json({ success: true, message: '已標記為配送中並儲存寄件編號' })
+      }
+
+      // 路線 B：人工更新超商貨態（ARRIVED 已到店 / PICKED_UP 已取件 / RETURNED 已退回）
+      if (action === 'update-shipping-status') {
+        if (authUser.role !== 'ADMIN') return res.status(403).json({ success: false, message: '無權限' })
+        const { shippingStatus, trackingNumber } = req.body
+        const allowed = ['CREATED', 'SHIPPED', 'ARRIVED', 'PICKED_UP', 'RETURNED']
+        if (!allowed.includes(shippingStatus)) {
+          return res.status(400).json({ success: false, message: '不支援的物流狀態' })
+        }
+
+        const statusLabels = {
+          CREATED: '已建立寄件單',
+          SHIPPED: '已寄出（配送中）',
+          ARRIVED: '已到店（待取件）',
+          PICKED_UP: '已取件（已完成）',
+          RETURNED: '已退回（逾期未取）'
+        }
+
+        const outcome = await withTransaction(async (client) => {
+          const ordRes = await client.query(`SELECT * FROM orders WHERE order_id = $1 FOR UPDATE`, [orderId])
+          const ord = ordRes.rows[0]
+          if (!ord) throw new Error('找不到該筆訂單')
+
+          const finalTracking = trackingNumber ? String(trackingNumber).trim() : (ord.tracking_number || '')
+          let nextOrderStatus = ord.status
+          if (shippingStatus === 'SHIPPED' || shippingStatus === 'ARRIVED') nextOrderStatus = '配送中'
+          if (shippingStatus === 'PICKED_UP') nextOrderStatus = '已完成'
+          if (shippingStatus === 'RETURNED') nextOrderStatus = '已退回'
+
+          await client.query(
+            `UPDATE orders
+             SET shipping_status = $2,
+                 status = $3,
+                 tracking_number = $4,
+                 logistics_updated_at = NOW()
+             WHERE order_id = $1`,
+            [orderId, shippingStatus, nextOrderStatus, finalTracking]
+          )
+
+          let earnedPoints = Number(ord.earned_points || 0)
+
+          // 已取件：自動結算 VIP 累積消費與紅利點數
+          if (shippingStatus === 'PICKED_UP' && !ord.rewards_settled && ord.user_id) {
+            const userRes = await client.query(`SELECT * FROM users WHERE id = $1 FOR UPDATE`, [ord.user_id])
+            const u = userRes.rows[0]
+            if (u) {
+              const tiersRes = await client.query(`SELECT * FROM vip_tiers ORDER BY min_spend ASC`)
+              const tiers = tiersRes.rows
+              const currentTier = tiers.find(t => t.id === u.vip_tier_id) || tiers[0]
+              earnedPoints = Math.max(1, Math.floor((Number(ord.total_amount) * Number(currentTier?.points_earn_rate || 1)) / 100))
+              const newTotalSpent = Number(u.total_spent) + Number(ord.total_amount)
+
+              let qualifiedTier = tiers[0]
+              for (const t of tiers) {
+                if (newTotalSpent >= Number(t.min_spend)) qualifiedTier = t
+              }
+              const oldIdx = tiers.findIndex(t => t.id === u.vip_tier_id)
+              const newIdx = tiers.findIndex(t => t.id === qualifiedTier?.id)
+              const nextTierId = newIdx > oldIdx ? qualifiedTier.id : u.vip_tier_id
+
+              await client.query(
+                `UPDATE users SET total_spent = $2, points = points + $3, order_count = order_count + 1, vip_tier_id = $4 WHERE id = $1`,
+                [u.id, newTotalSpent, earnedPoints, nextTierId]
+              )
+              await client.query(
+                `UPDATE orders SET earned_points = $2, rewards_settled = TRUE WHERE order_id = $1`,
+                [orderId, earnedPoints]
+              )
+            }
+          }
+
+          // 已退回：累計未取貨次數（達 2 次自動標記風控管制）
+          if (shippingStatus === 'RETURNED' && ord.user_id) {
+            await client.query(
+              `UPDATE users
+               SET abandon_count = COALESCE(abandon_count, 0) + 1,
+                   risk_status = CASE
+                     WHEN COALESCE(abandon_count, 0) + 1 >= 2 AND risk_status = 'NORMAL' THEN 'BLOCK_ORDER'
+                     ELSE risk_status
+                   END
+               WHERE id = $1`,
+              [ord.user_id]
+            )
+          }
+
+          await writeAuditLog(client, {
+            operator: authUser.name,
+            ip: getClientIp(req),
+            action: `更新物流狀態：${statusLabels[shippingStatus]}`,
+            detail: `訂單 #${orderId}${finalTracking ? `（寄件編號：${finalTracking}）` : ''} 狀態更新為「${statusLabels[shippingStatus]}」`
+          })
+
+          return { label: statusLabels[shippingStatus], earnedPoints }
+        })
+
+        return res.status(200).json({
+          success: true,
+          message: `訂單 #${orderId} 已更新為「${outcome.label}」`
+        })
       }
 
       if (action === 'complete') {
@@ -252,7 +360,12 @@ export default async function handler(req, res) {
           }
 
           await client.query(
-            `UPDATE orders SET status = '已完成', earned_points = $2, rewards_settled = TRUE WHERE order_id = $1`,
+            `UPDATE orders
+             SET status = '已完成',
+                 shipping_status = CASE WHEN shipping_method = 'CVS' THEN 'PICKED_UP' ELSE shipping_status END,
+                 earned_points = $2,
+                 rewards_settled = TRUE
+             WHERE order_id = $1`,
             [orderId, earnedPoints]
           )
 

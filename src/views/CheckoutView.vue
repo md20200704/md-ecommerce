@@ -15,6 +15,13 @@
       ⚠️ 您已取消本次 LINE Pay 付款流程，購物袋商品已為您保留，可重新確認後再次結帳。
     </div>
 
+    <div
+      v-if="route.query.cvsError === '1'"
+      class="alert alert-warning rounded-4 border-warning-subtle p-3 mb-4 small font-monospace"
+    >
+      ⚠️ 尚未取得 7-11 門市資料，請重新開啟電子地圖選擇取貨門市。
+    </div>
+
     <!-- 風控黑名單攔截警示 -->
     <div
       v-if="currentUser?.riskStatus === 'BLOCK_ORDER'"
@@ -32,12 +39,12 @@
           <form @submit.prevent="submitOrder" class="row g-3 small">
             <div class="col-12 col-sm-6">
               <label class="form-label text-secondary mb-1">收件人姓名 *</label>
-              <input v-model="form.recipientName" required type="text" class="form-control form-control-sm" placeholder="請輸入真實姓名" />
+              <input v-model="form.recipientName" required type="text" class="form-control form-control-sm" placeholder="請輸入真實姓名（超取需核對證件）" />
             </div>
 
             <div class="col-12 col-sm-6">
               <label class="form-label text-secondary mb-1">聯絡手機 *</label>
-              <input v-model="form.phone" required type="tel" class="form-control form-control-sm font-monospace" placeholder="0912345678" />
+              <input v-model="form.phone" required type="tel" class="form-control form-control-sm font-monospace" placeholder="0912345678（接收簡訊通知）" />
             </div>
 
             <div class="col-12">
@@ -48,14 +55,86 @@
             <div class="col-12">
               <label class="form-label text-secondary mb-1">配送方式 *</label>
               <select v-model="form.shippingMethod" class="form-select form-select-sm">
+                <option value="CVS">7-ELEVEN 超商純取貨 (運費 NT$ 60)</option>
                 <option value="HOME">黑貓宅急便宅配到府 (運費 NT$ 100)</option>
-                <option value="CVS">7-11 / 全家超商純取貨 (運費 NT$ 60)</option>
               </select>
             </div>
 
-            <div class="col-12">
-              <label class="form-label text-secondary mb-1">收件地址 / 指定超商門市 *</label>
-              <input v-model="form.shippingAddress" required type="text" class="form-control form-control-sm" placeholder="請輸入完整街道地址或超商門市名稱" />
+            <!-- 7-ELEVEN 官方電子地圖自動帶入 -->
+            <div v-if="form.shippingMethod === 'CVS'" class="col-12">
+              <div class="p-3 rounded-4 border bg-light d-flex flex-column gap-3">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                  <div>
+                    <div class="fw-bold text-dark font-monospace" style="font-size: 12px;">
+                      🏪 7-ELEVEN 官方電子地圖選店 *
+                    </div>
+                    <div class="text-muted" style="font-size: 11px;">
+                      點擊開啟 7-11 地圖，選取門市後將自動跳回並帶入店號、店名與地址
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm rounded-pill px-3.5 py-2 font-monospace fw-bold"
+                    @click="open711OfficialMap"
+                  >
+                    🗺️ {{ form.storeId ? '重新選擇 7-11 門市' : '開啟 7-11 電子地圖選店' }}
+                  </button>
+                </div>
+
+                <!-- 已帶入的 7-11 門市結果卡片與欄位 -->
+                <div class="p-3 rounded-3 border bg-white d-flex flex-column gap-2">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="font-monospace fw-bold" :class="form.storeId ? 'text-success' : 'text-secondary'" style="font-size: 11.5px;">
+                      {{ form.storeId ? `✓ 已帶入 7-11 門市：${form.storeName} (${form.storeId})` : '尚未選取門市（點擊上方按鈕選店後自動填入）' }}
+                    </span>
+                    <button
+                      v-if="form.storeId || form.storeName"
+                      type="button"
+                      class="btn btn-link btn-sm text-muted p-0 text-decoration-none font-monospace"
+                      style="font-size: 11px;"
+                      @click="clearSelectedStore"
+                    >
+                      清除重選
+                    </button>
+                  </div>
+
+                  <div class="row g-2">
+                    <div class="col-12 col-sm-4">
+                      <label class="form-label text-secondary mb-0.5" style="font-size: 11px;">門市代號 *</label>
+                      <input
+                        v-model="form.storeId"
+                        type="text"
+                        class="form-control form-control-sm font-monospace"
+                        placeholder="選店自動帶入"
+                      />
+                    </div>
+                    <div class="col-12 col-sm-8">
+                      <label class="form-label text-secondary mb-0.5" style="font-size: 11px;">門市名稱 *</label>
+                      <input
+                        v-model="form.storeName"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="選店自動帶入"
+                      />
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label text-secondary mb-0.5" style="font-size: 11px;">門市地址</label>
+                      <input
+                        v-model="form.storeAddress"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="選店自動帶入地址"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 宅配到府地址輸入 -->
+            <div v-else class="col-12">
+              <label class="form-label text-secondary mb-1">宅配收件地址 *</label>
+              <input v-model="form.shippingAddress" required type="text" class="form-control form-control-sm" placeholder="請輸入完整縣市、區、街道地址" />
             </div>
 
             <div class="col-12 pt-2 border-top">
@@ -63,7 +142,7 @@
               <div class="p-2.5 px-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
                 <span class="font-monospace fw-bold text-dark">LINE Pay 線上支付 (API v3)</span>
                 <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" style="font-size: 10px;">
-                  支援沙盒真實跳轉測試
+                  支援沙盒與正式交易跳轉
                 </span>
               </div>
             </div>
@@ -197,7 +276,7 @@
               <span>- NT$ {{ pointsToUse.toLocaleString() }}</span>
             </div>
             <div class="d-flex justify-content-between">
-              <span class="text-muted">物流運費</span>
+              <span class="text-muted">物流運費 ({{ form.shippingMethod === 'CVS' ? '7-11 純取貨' : '黑貓宅配' }})</span>
               <span class="text-dark">NT$ {{ shippingFee }}</span>
             </div>
             <div class="d-flex justify-content-between fs-6 fw-bold text-dark pt-2 border-top">
@@ -224,14 +303,17 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { reactive, ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { getAuthToken } from '../services/apiClient'
 import { showToast } from '../composables/useToast'
 
+const CHECKOUT_DRAFT_KEY = 'md_checkout_form_draft_v1'
+
 const route = useRoute()
+const router = useRouter()
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 
@@ -246,12 +328,92 @@ const form = reactive({
   recipientName: authStore.user?.name || '',
   phone: authStore.user?.phone || '',
   email: authStore.user?.email || '',
-  shippingMethod: 'HOME',
+  shippingMethod: 'CVS',
+  logisticsSubType: '7-11',
+  storeId: '',
+  storeName: '',
+  storeAddress: '',
   shippingAddress: '台北市中正區忠孝西路一段 100 號 8 樓',
   paymentMethod: 'LINE Pay'
 })
 
-// 當非同步還原登入狀態完成時，自動補上收件人資訊與預設地址
+const selectedCouponId = ref('')
+const appliedCoupon = ref(null)
+const inputCouponCode = ref('')
+const currentUser = computed(() => authStore.user || {})
+const availableCoupons = computed(() => {
+  return (authStore.availableUserCoupons || currentUser.value.myCoupons || []).filter(c => !c.isUsed)
+})
+const currentUserPoints = computed(() => Number(currentUser.value.points || 0))
+const pointsToUse = ref(0)
+
+const saveCheckoutDraft = () => {
+  try {
+    sessionStorage.setItem(
+      CHECKOUT_DRAFT_KEY,
+      JSON.stringify({
+        recipientName: form.recipientName,
+        phone: form.phone,
+        email: form.email,
+        shippingMethod: form.shippingMethod,
+        storeId: form.storeId,
+        storeName: form.storeName,
+        storeAddress: form.storeAddress,
+        shippingAddress: form.shippingAddress,
+        selectedCouponId: selectedCouponId.value,
+        pointsToUse: pointsToUse.value
+      })
+    )
+  } catch {
+    // ignore storage error
+  }
+}
+
+const open711OfficialMap = () => {
+  saveCheckoutDraft()
+  const callbackUrl = `${window.location.origin}/api/cvs-map-callback`
+  const mapUrl = `https://emap.presco.com.tw/c2cemap.ashx?eshopid=870&&servicetype=1&url=${encodeURIComponent(callbackUrl)}`
+  window.location.href = mapUrl
+}
+
+onMounted(() => {
+  try {
+    const rawDraft = sessionStorage.getItem(CHECKOUT_DRAFT_KEY)
+    if (rawDraft) {
+      const draft = JSON.parse(rawDraft)
+      if (draft.recipientName) form.recipientName = draft.recipientName
+      if (draft.phone) form.phone = draft.phone
+      if (draft.email) form.email = draft.email
+      if (draft.shippingMethod) form.shippingMethod = draft.shippingMethod
+      if (draft.storeId) form.storeId = draft.storeId
+      if (draft.storeName) form.storeName = draft.storeName
+      if (draft.storeAddress) form.storeAddress = draft.storeAddress
+      if (draft.shippingAddress) form.shippingAddress = draft.shippingAddress
+      if (draft.selectedCouponId) selectedCouponId.value = draft.selectedCouponId
+      if (Number.isFinite(Number(draft.pointsToUse))) pointsToUse.value = Number(draft.pointsToUse)
+    }
+  } catch {
+    // ignore
+  }
+
+  if (route.query.cvsSelected === '1' && route.query.storeId) {
+    form.shippingMethod = 'CVS'
+    form.logisticsSubType = '7-11'
+    form.storeId = String(route.query.storeId || '')
+    form.storeName = String(route.query.storeName || '')
+    form.storeAddress = String(route.query.storeAddress || '')
+    saveCheckoutDraft()
+    showToast(`已自動帶入 7-11 門市：${form.storeName} (${form.storeId})`, 'success', '7-11 門市已選取')
+    router.replace({ path: '/checkout' })
+  }
+})
+
+const clearSelectedStore = () => {
+  form.storeId = ''
+  form.storeName = ''
+  form.storeAddress = ''
+}
+
 watch(
   () => authStore.user,
   (u) => {
@@ -268,15 +430,6 @@ watch(
   },
   { immediate: true, deep: true }
 )
-
-const currentUser = computed(() => authStore.user || {})
-const availableCoupons = computed(() => {
-  return (authStore.availableUserCoupons || currentUser.value.myCoupons || []).filter(c => !c.isUsed)
-})
-
-const selectedCouponId = ref('')
-const appliedCoupon = ref(null)
-const inputCouponCode = ref('')
 
 const handleClaimAndApplyCode = async () => {
   const code = inputCouponCode.value.trim().toUpperCase()
@@ -338,9 +491,6 @@ const couponDiscountAmount = computed(() => {
   return 0
 })
 
-const currentUserPoints = computed(() => Number(currentUser.value.points || 0))
-const pointsToUse = ref(0)
-
 const maxUsablePoints = computed(() => {
   const subtotalAfterCoupon = Math.max(0, cartStore.totalPrice - couponDiscountAmount.value)
   const halfAmount = Math.floor(subtotalAfterCoupon * 0.5)
@@ -369,8 +519,16 @@ const submitOrder = async () => {
     showToast('購物車中沒有勾選任何結帳商品！', 'warning', '尚未勾選商品')
     return
   }
-  if (!form.recipientName || !form.phone || !form.shippingAddress) {
-    showToast('請完整填寫收件人姓名、手機與配送地址！', 'warning', '資料未完整')
+  if (!form.recipientName || !form.phone) {
+    showToast('請完整填寫收件人姓名與聯絡手機！', 'warning', '資料未完整')
+    return
+  }
+  if (form.shippingMethod === 'CVS' && (!form.storeId.trim() || !form.storeName.trim())) {
+    showToast('請先開啟 7-11 電子地圖選擇取貨門市！', 'warning', '尚未選擇 7-11 門市')
+    return
+  }
+  if (form.shippingMethod === 'HOME' && !form.shippingAddress.trim()) {
+    showToast('請完整填寫宅配收件地址！', 'warning', '資料未完整')
     return
   }
 
@@ -390,7 +548,7 @@ const submitOrder = async () => {
   if (shippingFee.value > 0) {
     lineProducts.push({
       id: 'SHIPPING',
-      name: form.shippingMethod === 'HOME' ? '黑貓宅急便運費' : '超商純取貨運費',
+      name: form.shippingMethod === 'HOME' ? '黑貓宅急便運費' : '7-11 純取貨運費',
       quantity: 1,
       price: Math.round(shippingFee.value)
     })
@@ -414,6 +572,11 @@ const submitOrder = async () => {
     }
   ]
 
+  const resolvedAddress =
+    form.shippingMethod === 'CVS'
+      ? `[7-11] ${form.storeName.trim()} (${form.storeId.trim()})${form.storeAddress.trim() ? ` - ${form.storeAddress.trim()}` : ''}`
+      : form.shippingAddress.trim()
+
   const pendingOrderDraft = {
     orderId,
     createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
@@ -426,7 +589,11 @@ const submitOrder = async () => {
     appliedCouponInstanceId: appliedCoupon.value?.instanceId || null,
     shippingFee: shippingFee.value,
     shippingMethod: form.shippingMethod,
-    shippingAddress: form.shippingAddress,
+    logisticsSubType: form.shippingMethod === 'CVS' ? '7-11' : null,
+    storeId: form.shippingMethod === 'CVS' ? form.storeId.trim() : null,
+    storeName: form.shippingMethod === 'CVS' ? form.storeName.trim() : null,
+    storeAddress: form.shippingMethod === 'CVS' ? form.storeAddress.trim() : null,
+    shippingAddress: resolvedAddress,
     paymentMethod: 'LINE Pay',
     recipientName: form.recipientName,
     phone: form.phone,
@@ -455,6 +622,7 @@ const submitOrder = async () => {
     const data = await res.json()
 
     if (data.success && data.paymentUrl) {
+      sessionStorage.removeItem(CHECKOUT_DRAFT_KEY)
       window.location.href = data.paymentUrl
     } else {
       isSubmitting.value = false
