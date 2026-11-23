@@ -1,4 +1,6 @@
 const TOKEN_KEY = 'md_select_jwt_token'
+const SESSION_EXPIRES_KEY = 'md_select_session_expires_at'
+const SESSION_TTL_MS = 15 * 60 * 1000
 const DEFAULT_TIMEOUT_MS = 12000
 
 export const getAuthToken = () => localStorage.getItem(TOKEN_KEY) || ''
@@ -6,6 +8,15 @@ export const getAuthToken = () => localStorage.getItem(TOKEN_KEY) || ''
 export const setAuthToken = (token) => {
   if (token) localStorage.setItem(TOKEN_KEY, token)
   else localStorage.removeItem(TOKEN_KEY)
+}
+
+function extendLocalSessionExpiry() {
+  if (!getAuthToken()) return
+  try {
+    localStorage.setItem(SESSION_EXPIRES_KEY, String(Date.now() + SESSION_TTL_MS))
+  } catch {
+    // 忽略儲存限制
+  }
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
@@ -37,6 +48,8 @@ export async function apiRequest(url, options = {}, retries = null) {
   }
   if (token) {
     headers.Authorization = `Bearer ${token}`
+    // 只要登入中且持續有在與系統互動，就順延 15 分鐘閒置到期時間
+    extendLocalSessionExpiry()
   }
 
   let lastError = null
@@ -47,7 +60,6 @@ export async function apiRequest(url, options = {}, retries = null) {
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
-        // 502 / 503 / 504 若有重試機會可再嘗試一次
         if ([502, 503, 504].includes(response.status) && attempt < maxRetries) {
           await new Promise((r) => setTimeout(r, 250))
           continue

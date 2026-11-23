@@ -58,7 +58,12 @@ const cartStore = useCartStore()
 const adminStore = useAdminStore()
 const chatStore = useChatStore()
 
+let hasSyncedAuthData = false
+
 const syncAuthenticatedData = async () => {
+  if (hasSyncedAuthData) return
+  hasSyncedAuthData = true
+
   await cartStore.fetchCart()
 
   const backgroundTasks = [
@@ -82,11 +87,17 @@ onMounted(async () => {
     showToast(text, isError ? 'error' : isSuccess ? 'success' : 'info')
   }
 
-  await Promise.all([
+  // 若本地已有快取登入態，立即開始背景同步購物車與訂單，不等待商品 API
+  if (authStore.isLoggedIn) {
+    syncAuthenticatedData()
+  }
+
+  const [, , restored] = await Promise.all([
     marketingStore.fetchMarketingConfig(),
-    productStore.fetchProducts()
+    productStore.fetchProducts(),
+    authStore.initSession()
   ])
-  const restored = await authStore.initSession()
+
   if (restored) {
     await syncAuthenticatedData()
   }
@@ -96,6 +107,7 @@ watch(() => authStore.isLoggedIn, async (loggedIn) => {
   if (loggedIn) {
     await syncAuthenticatedData()
   } else {
+    hasSyncedAuthData = false
     cartStore.items = []
     chatStore.resetChatState()
     adminStore.orders = []

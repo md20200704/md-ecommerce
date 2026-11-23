@@ -8,8 +8,30 @@ import { apiRequest, getAuthToken, setAuthToken } from '../services/apiClient'
 import { showToast } from '../composables/useToast'
 
 const SESSION_DURATION_MS = 15 * 60 * 1000
+const TOKEN_REFRESH_INTERVAL_MS = 8 * 60 * 1000
+const ACTIVITY_THROTTLE_MS = 30 * 1000
+
 const SESSION_EXPIRES_KEY = 'md_select_session_expires_at'
+const TOKEN_ISSUED_AT_KEY = 'md_select_token_issued_at'
 const USER_CACHE_KEY = 'md_select_user_cache_v1'
+
+const DEFAULT_USER_STATE = () => ({
+  id: '',
+  isLoggedIn: false,
+  name: '',
+  phone: '',
+  email: '',
+  birthday: '',
+  totalSpent: 0,
+  vipTierId: 'GENERAL',
+  points: 0,
+  wishlist: [],
+  restockRequests: [],
+  riskStatus: 'NORMAL',
+  blockReason: '',
+  myCoupons: [],
+  savedAddresses: []
+})
 
 function setSessionExpiry(ttlMs = SESSION_DURATION_MS) {
   try {
@@ -22,6 +44,7 @@ function setSessionExpiry(ttlMs = SESSION_DURATION_MS) {
 function clearSessionExpiry() {
   try {
     localStorage.removeItem(SESSION_EXPIRES_KEY)
+    localStorage.removeItem(TOKEN_ISSUED_AT_KEY)
   } catch {
     // 忽略儲存限制
   }
@@ -36,6 +59,22 @@ function isSessionExpired() {
     return Date.now() >= expiresAt
   } catch {
     return false
+  }
+}
+
+function setTokenIssuedAt(ts = Date.now()) {
+  try {
+    localStorage.setItem(TOKEN_ISSUED_AT_KEY, String(ts))
+  } catch {
+    // 忽略儲存限制
+  }
+}
+
+function getTokenIssuedAt() {
+  try {
+    return Number(localStorage.getItem(TOKEN_ISSUED_AT_KEY) || 0)
+  } catch {
+    return 0
   }
 }
 
@@ -70,26 +109,31 @@ function clearUserCache() {
 export const useAuthStore = defineStore('auth', () => {
   const marketingStore = useMarketingStore()
 
-  const user = ref({
-    id: '',
-    isLoggedIn: false,
-    name: '',
-    phone: '',
-    email: '',
-    birthday: '',
-    totalSpent: 0,
-    vipTierId: 'GENERAL',
-    points: 0,
-    wishlist: [],
-    restockRequests: [],
-    riskStatus: 'NORMAL',
-    blockReason: '',
-    myCoupons: [],
-    savedAddresses: []
-  })
+  // Store 建立當下即同步讀取本機快取，避免重新整理或路由跳轉時出現「尚未登入」延遲閃爍
+  const initialToken = getAuthToken()
+  const initialExpired = isSessionExpired()
+  const initialCache = initialToken && !initialExpired ? loadUserCache() : null
 
-  const isAdmin = ref(false)
+  if (initialToken && initialExpired) {
+    setAuthToken('')
+    clearSessionExpiry()
+    clearUserCache()
+  }
+
+  const user = ref(
+    initialCache
+      ? { ...DEFAULT_USER_STATE(), ...initialCache, isLoggedIn: true }
+      : DEFAULT_USER_STATE()
+  )
+
+  const isAdmin = ref(Boolean(initialCache && (initialCache.isAdmin || initialCache.role === 'ADMIN')))
   const memberList = ref([])
+  const isSessionInitialized = ref(false)
+  let initPromise = null
+  let isRefreshingToken = false
+  let idleCheckTimer = null
+  let activityBound = false
+  let lastActivityTouchAt = 0
 
   const isLoggedIn = computed({
     get: () => Boolean(user.value && user.value.isLoggedIn),
@@ -134,23 +178,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearUserCache()
     isAdmin.value = false
     memberList.value = []
-    user.value = {
-      id: '',
-      isLoggedIn: false,
-      name: '',
-      phone: '',
-      email: '',
-      birthday: '',
-      totalSpent: 0,
-      vipTierId: 'GENERAL',
-      points: 0,
-      wishlist: [],
-      restockRequests: [],
-      riskStatus: 'NORMAL',
-      blockReason: '',
-      myCoupons: [],
-      savedAddresses: []
-    }
+    user.value = DEFAULT_USER_STATE()
 
     const cartStore = useCartStore()
     const chatStore = useChatStore()
@@ -171,21 +199,105 @@ export const useAuthStore = defineStore('auth', () => {
     adminStore.auditLogs = []
   }
 
-  const initSession = async () => {
+  // 靜默向後端換發新的 15 分鐘 JWT（活躍使用時維持不登出）
+  const refreshSessionToken = async () => {
+    if (!isLoggedIn.value || !getAuthToken() || isRefreshingToken) return
+    isRefreshingToken = true
+    try {
+      const res = await apiRequest('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'refresh' })
+      })
+      if (res?.success && res.token) {
+        setAuthToken(res.token)
+        setTokenIssuedAt(Date.now())
+        setSessionExpiry(SESSION_DURATION_MS)
+      }
+    } catch (err) {
+      const msg = String(err?.message || '')
+      if (/401|尚未登入|登入已逾期|無效|jwt|expired/i.test(msg)) {
+        clearLocalSession()
+      }
+    } finally {
+      isRefreshingToken = false
+    }
+  }
+
+  // 使用者有操作時：順延 15 分鐘閒置計時，並於需要時靜默更新 JWT
+  const recordUserActivity = () => {
+    if (!isLoggedIn.value || !getAuthToken()) return
+    const now = Date.now()
+    if (now - lastActivityTouchAt < ACTIVITY_THROTTLE_MS) return
+    lastActivityTouchAt = now
+
+    if (isSessionExpired()) {
+      clearLocalSession()
+      showToast('您已閒置超過 15 分鐘，系統已自動登出以保護帳號安全。', 'warning', '閒置自動登出')
+      return
+    }
+
+    setSessionExpiry(SESSION_DURATION_MS)
+
+    const issuedAt = getTokenIssuedAt()
+    if (!issuedAt || now - issuedAt >= TOKEN_REFRESH_INTERVAL_MS) {
+      refreshSessionToken()
+    }
+  }
+
+  const startSessionActivityMonitor = () => {
+    if (typeof window === 'undefined') return
+
+    if (!activityBound) {
+      activityBound = true
+      const events = ['mousedown', 'keydown', 'scroll', 'touchstart']
+      events.forEach((evt) => {
+        window.addEventListener(evt, recordUserActivity, { passive: true })
+      })
+      window.addEventListener('storage', (e) => {
+        if (e.key === USER_CACHE_KEY && !e.newValue && isLoggedIn.value) {
+          clearLocalSession()
+        }
+      })
+    }
+
+    if (!idleCheckTimer) {
+      idleCheckTimer = window.setInterval(() => {
+        if (!isLoggedIn.value || !getAuthToken()) return
+        if (isSessionExpired()) {
+          clearLocalSession()
+          showToast('您已閒置超過 15 分鐘，系統已自動登出以保護帳號安全。', 'warning', '閒置自動登出')
+        }
+      }, 15000)
+    }
+  }
+
+  startSessionActivityMonitor()
+
+  const initSession = async (forceRefresh = false) => {
     if (!getAuthToken()) {
       clearLocalSession()
+      isSessionInitialized.value = true
       return false
     }
 
     if (isSessionExpired()) {
       clearLocalSession()
+      isSessionInitialized.value = true
       return false
     }
 
-    // 1. 先以本機快取秒開還原會員狀態，避免重新整理停頓
+    // 若本次網頁生命週期已驗證過且非強制重刷，直接沿用記憶體中的登入狀態，不在頁面切換時重跑
+    if (isSessionInitialized.value && isLoggedIn.value && !forceRefresh) {
+      return true
+    }
+
+    if (initPromise && !forceRefresh) {
+      return initPromise
+    }
+
     const cached = loadUserCache()
     const hasCached = Boolean(cached)
-    if (hasCached) {
+    if (hasCached && !isLoggedIn.value) {
       user.value = {
         ...user.value,
         ...cached,
@@ -194,26 +306,37 @@ export const useAuthStore = defineStore('auth', () => {
       isAdmin.value = Boolean(cached.isAdmin || cached.role === 'ADMIN')
     }
 
-    // 2. 向後端同步最新會員資料（若 Token 已失效則清除登入狀態）
-    try {
-      const res = await apiRequest('/api/auth')
-      if (res.success && res.user) {
-        applyUserPayload(res.user)
-        if (isAdmin.value) fetchMemberList()
-        return true
-      }
-      clearLocalSession()
-      return false
-    } catch (err) {
-      const msg = String(err?.message || '')
-      const isAuthInvalid = /401|尚未登入|登入已逾期|無效|jwt|expired/i.test(msg)
-      if (isAuthInvalid || !hasCached) {
+    initPromise = (async () => {
+      try {
+        const res = await apiRequest('/api/auth')
+        if (res.success && res.user) {
+          applyUserPayload(res.user)
+          setSessionExpiry(SESSION_DURATION_MS)
+          // 頁面重整時順便續期一次 JWT，確保接下來的操作有完整 15 分鐘效期
+          refreshSessionToken()
+          isSessionInitialized.value = true
+          if (isAdmin.value) fetchMemberList()
+          return true
+        }
         clearLocalSession()
+        isSessionInitialized.value = true
         return false
+      } catch (err) {
+        const msg = String(err?.message || '')
+        const isAuthInvalid = /401|尚未登入|登入已逾期|無效|jwt|expired/i.test(msg)
+        if (isAuthInvalid || !hasCached) {
+          clearLocalSession()
+          isSessionInitialized.value = true
+          return false
+        }
+        isSessionInitialized.value = true
+        return true
+      } finally {
+        initPromise = null
       }
-      // 若僅為短暫網路波動且尚在 15 分鐘有效期內，先保留快取登入狀態
-      return true
-    }
+    })()
+
+    return initPromise
   }
 
   const fetchMemberList = async () => {
@@ -234,8 +357,12 @@ export const useAuthStore = defineStore('auth', () => {
         body: JSON.stringify({ action, ...loginData })
       })
       if (res.success && res.token) {
+        const now = Date.now()
         setAuthToken(res.token)
+        setTokenIssuedAt(now)
         setSessionExpiry(SESSION_DURATION_MS)
+        lastActivityTouchAt = now
+        isSessionInitialized.value = true
         applyUserPayload(res.user)
         if (isAdmin.value) fetchMemberList()
         return true
@@ -248,6 +375,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const logout = () => {
+    isSessionInitialized.value = false
     clearLocalSession()
   }
 
@@ -318,7 +446,7 @@ export const useAuthStore = defineStore('auth', () => {
         method: 'POST',
         body: JSON.stringify({ action: 'dispatch-coupons', couponCode, targetGroup, sourceName })
       })
-      await initSession()
+      await initSession(true)
       return res
     } catch (err) {
       return { success: false, message: err.message }
@@ -381,7 +509,7 @@ export const useAuthStore = defineStore('auth', () => {
         method: 'POST',
         body: JSON.stringify({ action: 'add-address', ...address })
       })
-      if (res.success) await initSession()
+      if (res.success) await initSession(true)
     } catch (err) {
       console.error('新增地址失敗:', err)
     }

@@ -159,7 +159,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, user })
     }
 
-    // POST：登入、註冊、領券、收藏、新增地址、補貨通知、批次派券
+    // POST：登入、註冊、靜默續期、領券、收藏、新增地址、補貨通知、批次派券
     if (req.method === 'POST') {
       if (action === 'login') {
         const { account, email, password } = body
@@ -221,6 +221,20 @@ export default async function handler(req, res) {
 
       if (!authUser) {
         return res.status(401).json({ success: false, message: '請先登入會員' })
+      }
+
+      // 活躍使用中靜默換發新的 15 分鐘 JWT Token
+      if (action === 'refresh') {
+        const { rows } = await query(
+          `SELECT id, name, email, role, risk_status FROM users WHERE id = $1 LIMIT 1`,
+          [authUser.id]
+        )
+        const userRow = rows?.[0]
+        if (!userRow || userRow.risk_status === 'BANNED') {
+          return res.status(401).json({ success: false, message: '帳號狀態異常，請重新登入' })
+        }
+        const token = signToken(userRow)
+        return res.status(200).json({ success: true, token })
       }
 
       if (action === 'claim-coupon') {
