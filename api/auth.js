@@ -34,6 +34,10 @@ function formatDateOnly(val) {
   return String(val).slice(0, 10)
 }
 
+function normalizePhone(val) {
+  return String(val || '').replace(/\D+/g, '').trim()
+}
+
 async function loadFullUserProfile(userId) {
   const [userRes, relatedRes] = await Promise.all([
     query(
@@ -159,7 +163,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, user })
     }
 
-    // POST：登入、註冊、靜默續期、領券、收藏、新增地址、補貨通知、批次派券
+    // POST：登入、註冊、忘記密碼重設、修改密碼、領券、收藏、新增地址、補貨通知、批次派券
     if (req.method === 'POST') {
       if (action === 'login') {
         const { account, email, password } = body
@@ -169,7 +173,7 @@ export default async function handler(req, res) {
         }
 
         const { rows } = await query(
-          `SELECT * FROM users WHERE email = $1 OR phone = $1 LIMIT 1`,
+          `SELECT * FROM users WHERE LOWER(email) = LOWER($1) OR phone = $1 LIMIT 1`,
           [identifier]
         )
         const userRow = rows?.[0]
@@ -195,11 +199,15 @@ export default async function handler(req, res) {
         if (!name || !email || !password) {
           return res.status(400).json({ success: false, message: '請填寫完整註冊資料' })
         }
+        if (String(password).length < 6) {
+          return res.status(400).json({ success: false, message: '密碼長度至少需 6 個字元' })
+        }
 
-        const cleanEmail = String(email).trim()
+        const cleanEmail = String(email).trim().toLowerCase()
         const cleanPhone = phone ? String(phone).trim() : null
+
         const exists = await query(
-          `SELECT id FROM users WHERE email = $1 OR ($2::text IS NOT NULL AND phone = $2)`,
+          `SELECT id FROM users WHERE LOWER(email) = $1 OR ($2::text IS NOT NULL AND phone = $2)`,
           [cleanEmail, cleanPhone]
         )
         if (exists.rows.length > 0) {
@@ -219,11 +227,86 @@ export default async function handler(req, res) {
         return res.status(201).json({ success: true, token, user: profile })
       }
 
+      if (action === 'reset-password') {
+        const { email, phone, newPassword } = body
+        const cleanEmail = String(email || '').trim().toLowerCase()
+        const cleanPhone = normalizePhone(phone)
+        if (!cleanEmail || !cleanPhone || !newPassword) {
+          return res.status(400).json({ success: false, message: '請完整填寫註冊信箱、手機號碼與新密碼' })
+        }
+        if (String(newPassword).length < 6) {
+          return res.status(400).json({ success: false, message: '新密碼長度至少需 6 個字元' })
+        }
+
+        const uRes = await query(
+          `SELECT id, name, email, phone, risk_status FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+          [cleanEmail]
+        )
+        const userRow = uRes.rows?.[0]
+        if (!userRow) {
+          return res.status(404).json({ success: false, message: '查無此電子信箱對應的會員帳號' })
+        }
+        if (userRow.risk_status === 'BANNED') {
+          return res.status(403).json({ success: false, message: '此帳號已被系統封鎖，無法重設密碼' })
+        }
+
+        const dbPhone = normalizePhone(userRow.phone)
+        if (!dbPhone || dbPhone !== cleanPhone) {
+          return res.status(400).json({ success: false, message: '電子信箱與手機號碼不相符，無法重設密碼' })
+        }
+
+        const hash = await bcrypt.hash(String(newPassword), 10)
+        await query(`UPDATE users SET password_hash = $2 WHERE id = $1`, [userRow.id, hash])
+        await writeAuditLog(pool, {
+          operator: userRow.name || userRow.email,
+          ip: getClientIp(req),
+          action: '忘記密碼重設成功',
+          detail: `會員 ${userRow.email}（手機已核對相符）完成密碼重設`
+        })
+
+        return res.status(200).json({ success: true, message: 'Email 與手機號碼核對相符，密碼已重設完成，請使用新密碼登入' })
+      }
+
       if (!authUser) {
         return res.status(401).json({ success: false, message: '請先登入會員' })
       }
 
-      // 活躍使用中靜默換發新的 15 分鐘 JWT Token
+      if (action === 'change-password') {
+        const { email, phone, newPassword } = body
+        const cleanEmail = String(email || '').trim().toLowerCase()
+        const cleanPhone = normalizePhone(phone)
+
+        if (!cleanEmail || !cleanPhone || !newPassword) {
+          return res.status(400).json({ success: false, message: '請完整填寫電子信箱、手機號碼與新密碼' })
+        }
+        if (String(newPassword).length < 6) {
+          return res.status(400).json({ success: false, message: '新密碼長度至少需 6 個字元' })
+        }
+
+        const uRes = await query(`SELECT id, email, phone, name FROM users WHERE id = $1 LIMIT 1`, [authUser.id])
+        const userRow = uRes.rows?.[0]
+        if (!userRow) {
+          return res.status(404).json({ success: false, message: '找不到會員帳號' })
+        }
+
+        const dbEmail = String(userRow.email || '').trim().toLowerCase()
+        const dbPhone = normalizePhone(userRow.phone)
+        if (cleanEmail !== dbEmail || !dbPhone || cleanPhone !== dbPhone) {
+          return res.status(400).json({ success: false, message: '輸入的電子信箱與手機號碼與本帳號資料不相符' })
+        }
+
+        const hash = await bcrypt.hash(String(newPassword), 10)
+        await query(`UPDATE users SET password_hash = $2 WHERE id = $1`, [userRow.id, hash])
+        await writeAuditLog(pool, {
+          operator: userRow.name || userRow.email,
+          ip: getClientIp(req),
+          action: '會員修改密碼成功',
+          detail: `會員 ${userRow.email}（手機已核對相符）完成密碼變更`
+        })
+
+        return res.status(200).json({ success: true, message: 'Email 與手機號碼核對相符，密碼已更新完成！' })
+      }
+
       if (action === 'refresh') {
         const { rows } = await query(
           `SELECT id, name, email, role, risk_status FROM users WHERE id = $1 LIMIT 1`,

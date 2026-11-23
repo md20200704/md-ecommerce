@@ -1,32 +1,33 @@
 <template>
   <Teleport to="body">
-    <div
-      v-if="isOpen"
-      class="modal fade show d-block modal-backdrop-custom"
-      tabindex="-1"
-      style="z-index: 1070;"
-    >
-      <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
-        <div class="modal-content rounded-4 border-0 p-4 shadow-xl bg-white">
-          
+    <Transition name="md-return-fade">
+      <div
+        v-if="isOpen"
+        class="md-return-backdrop"
+        tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        @click.self="closeModal"
+      >
+        <div class="md-return-dialog">
           <!-- 標頭 -->
-          <div class="modal-header border-0 pb-1">
+          <div class="md-return-header">
             <div>
-              <span class="badge bg-secondary-subtle text-secondary font-monospace mb-1" style="font-size: 10px;">
-                AFTER-SALES RETURN REQUEST
-              </span>
-              <h3 class="modal-title fs-6 fw-bold text-dark font-serif">申請商品退貨與售後服務</h3>
+              <span class="md-return-eyebrow font-monospace">AFTER-SALES RETURN REQUEST</span>
+              <h3 class="md-return-title font-serif">申請商品退貨與售後服務</h3>
             </div>
-            <button type="button" class="btn-close" @click="closeModal" aria-label="關閉"></button>
+            <button type="button" class="md-return-close" aria-label="關閉" @click="closeModal">
+              ×
+            </button>
           </div>
 
           <!-- 內容 -->
-          <div class="modal-body small px-1 py-2">
-            <!-- 訂單簡易摘要 -->
-            <div class="bg-light p-3 rounded-3 mb-3 font-monospace">
-              <div class="d-flex justify-content-between text-dark fw-bold mb-1">
-                <span>申請退貨訂單：#{{ order?.orderId || order?.id }}</span>
-                <span class="text-primary">NT$ {{ orderPaidAmount.toLocaleString() }}</span>
+          <div class="md-return-body small">
+            <!-- 訂單摘要卡片 -->
+            <div class="md-return-summary font-monospace">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-dark">申請退貨訂單：#{{ order?.orderId || order?.id }}</span>
+                <span class="md-return-amount">NT$ {{ orderPaidAmount.toLocaleString() }}</span>
               </div>
               <div class="text-muted" style="font-size: 11px;">
                 收件人：{{ order?.recipientName || order?.customerName }} · 共 {{ (order?.items || []).length }} 項商品
@@ -35,11 +36,10 @@
 
             <!-- 退貨表單 -->
             <form @submit.prevent="submitReturn" class="d-flex flex-column gap-3">
-              
               <!-- 退貨原因分類 -->
               <div>
                 <label class="form-label text-dark fw-semibold mb-1">退貨原因分類 *</label>
-                <select v-model="returnReasonType" class="form-select form-select-sm rounded-3" required>
+                <select v-model="returnReasonType" class="form-select form-select-sm md-return-input" required>
                   <option value="尺寸不合 / 版型不符">尺寸不合 / 版型不符</option>
                   <option value="商品與實品有落差 / 色差">商品與實品有落差 / 色差</option>
                   <option value="收到商品有瑕疵 / 破損">收到商品有瑕疵 / 破損 (需拍照上傳)</option>
@@ -59,8 +59,8 @@
                   required
                   rows="3"
                   maxlength="300"
-                  class="form-control form-control-sm rounded-3"
-                  placeholder="請簡述需要退貨的原因（例如：平常穿M號這件偏緊，想申請退貨...）"
+                  class="form-control form-control-sm md-return-input"
+                  placeholder="請簡述需要退貨的原因（例如：平常穿 M 號這件偏緊，想申請退貨...）"
                 ></textarea>
               </div>
 
@@ -75,14 +75,14 @@
                   <div
                     v-for="(img, idx) in uploadedImages"
                     :key="idx"
-                    class="position-relative rounded-3 overflow-hidden border"
-                    style="width: 72px; height: 72px;"
+                    class="position-relative rounded-3 overflow-hidden border bg-white"
+                    style="width: 72px; height: 72px; border-color: #e3dbd0 !important;"
                   >
                     <img :src="img" class="w-100 h-100 object-fit-cover" />
                     <button
                       type="button"
                       class="position-absolute top-0 end-0 btn btn-dark p-0 rounded-circle d-flex align-items-center justify-content-center m-1"
-                      style="width: 18px; height: 18px; opacity: 0.8; font-size: 10px;"
+                      style="width: 18px; height: 18px; opacity: 0.85; font-size: 10px;"
                       @click="removeImage(idx)"
                     >
                       ✕
@@ -91,11 +91,10 @@
 
                   <label
                     v-if="uploadedImages.length < 3"
-                    class="d-flex flex-column align-items-center justify-content-center border border-dashed rounded-3 bg-light text-muted cursor-pointer hover-bg"
-                    style="width: 72px; height: 72px;"
+                    class="md-return-upload-box cursor-pointer"
                   >
                     <span style="font-size: 18px; line-height: 1;">+</span>
-                    <span style="font-size: 10px;" class="mt-1">上傳照片</span>
+                    <span style="font-size: 10px;" class="mt-1 font-monospace">上傳照片</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -108,15 +107,22 @@
               </div>
 
               <!-- 提示文字 -->
-              <div class="p-2.5 rounded-3 bg-warning-subtle text-warning-emphasis small font-monospace" style="font-size: 11px;">
+              <div class="md-return-notice font-monospace">
                 💡 提醒：送出申請後，客服與後台將於 1-2 個工作天內審核，並派發黑貓宅配前往原收件地址取回退貨商品。
               </div>
 
               <!-- 按鈕 -->
-              <div class="pt-1">
+              <div class="d-flex gap-2 pt-1">
+                <button
+                  type="button"
+                  class="btn md-return-btn-cancel rounded-pill py-2.5 px-4 font-monospace fw-semibold"
+                  @click="closeModal"
+                >
+                  取消
+                </button>
                 <button
                   type="submit"
-                  class="btn btn-dark w-100 rounded-pill py-2.5 fw-bold font-monospace shadow-xs"
+                  class="btn btn-dark flex-grow-1 rounded-pill py-2.5 fw-bold font-monospace shadow-xs"
                   :disabled="!detailReason.trim() || isSubmitting"
                 >
                   <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-1"></span>
@@ -125,15 +131,15 @@
               </div>
             </form>
           </div>
-
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import { showToast } from '../../composables/useToast'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -161,7 +167,7 @@ const handleFileUpload = (e) => {
   const remaining = 3 - uploadedImages.value.length
   files.slice(0, remaining).forEach(file => {
     if (file.size > 5 * 1024 * 1024) {
-      alert(`檔案「${file.name}」超過 5MB 上限！`)
+      showToast(`檔案「${file.name}」超過 5MB 上限！`, 'warning', '檔案過大')
       return
     }
     const reader = new FileReader()
@@ -203,10 +209,154 @@ const submitReturn = () => {
 </script>
 
 <style scoped>
-.hover-bg:hover {
-  background-color: #ede8e1 !important;
+.md-return-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1070;
+  background: rgba(34, 29, 25, 0.48);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  overflow-y: auto;
 }
+
+.md-return-dialog {
+  width: 100%;
+  max-width: 500px;
+  background: #faf8f5;
+  border: 1px solid #e3dbd0;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 20px 48px rgba(45, 38, 33, 0.18);
+  color: #2d2621;
+}
+
+.md-return-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ebe4da;
+}
+
+.md-return-eyebrow {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8c735b;
+  background: #f2ece3;
+  border: 1px solid #e3dbd0;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 6px;
+}
+
+.md-return-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d2621;
+  margin: 0;
+}
+
+.md-return-close {
+  border: 0;
+  background: #efeae2;
+  color: #5c5249;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-return-close:hover {
+  background: #e2d9cc;
+  color: #2d2621;
+}
+
+.md-return-summary {
+  background: #ffffff;
+  border: 1px solid #e6dfd5;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+
+.md-return-amount {
+  color: #9b7e68;
+  font-weight: 700;
+}
+
+.md-return-input {
+  background-color: #ffffff !important;
+  border-color: #dfd7cc !important;
+  border-radius: 12px !important;
+}
+
+.md-return-upload-box {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  border: 1.5px dashed #cfc5b8;
+  background: #ffffff;
+  color: #7c7268;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.md-return-upload-box:hover {
+  background: #f3eee7;
+  border-color: #9b7e68;
+  color: #2d2621;
+}
+
+.md-return-notice {
+  background: #f6efe3;
+  border: 1px solid #ead9bc;
+  color: #7a5419;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.md-return-btn-cancel {
+  background: #efeae2;
+  color: #4a4139;
+  border: 0;
+  font-size: 12px;
+}
+
+.md-return-btn-cancel:hover {
+  background: #e3dbd0;
+  color: #2d2621;
+}
+
 .cursor-pointer {
   cursor: pointer;
+}
+
+.md-return-fade-enter-active,
+.md-return-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.md-return-fade-enter-from,
+.md-return-fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -1,36 +1,47 @@
 <template>
   <Teleport to="body">
-    <div
-      v-if="isOpen"
-      class="modal fade show d-block modal-backdrop-custom"
-      tabindex="-1"
-      style="z-index: 1070;"
-    >
-      <div class="modal-dialog modal-dialog-centered" style="max-width: 500px;">
-        <div class="modal-content rounded-4 border-0 p-4 shadow-xl">
-          <div class="modal-header border-0 pb-0">
+    <Transition name="md-review-fade">
+      <div
+        v-if="isOpen"
+        class="md-review-backdrop"
+        tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        @click.self="closeModal"
+      >
+        <div class="md-review-dialog">
+          <!-- 標頭 -->
+          <div class="md-review-header">
             <div>
-              <span class="badge bg-primary-subtle text-primary font-monospace mb-1" style="font-size: 10px;">
-                VERIFIED PURCHASE REVIEW
-              </span>
-              <h3 class="modal-title fs-6 fw-bold text-dark">商品評價與穿搭曬圖</h3>
+              <span class="md-review-eyebrow font-monospace">VERIFIED PURCHASE REVIEW</span>
+              <h3 class="md-review-title font-serif">商品評價與穿搭曬圖</h3>
             </div>
-            <button type="button" class="btn-close" @click="closeModal" aria-label="關閉"></button>
+            <button type="button" class="md-review-close" aria-label="關閉" @click="closeModal">
+              ×
+            </button>
           </div>
 
-          <div class="modal-body small">
-            <div class="d-flex align-items-center gap-3 bg-light p-2.5 rounded-3 mb-3">
-              <img :src="item?.image || product?.image" class="rounded object-fit-cover" style="width: 48px; height: 64px;" />
+          <div class="small">
+            <!-- 商品資訊卡 -->
+            <div class="md-review-product-box d-flex align-items-center gap-3 mb-3">
+              <img
+                :src="item?.image || product?.image"
+                class="rounded-3 object-fit-cover border"
+                style="width: 50px; height: 66px; border-color: #e3dbd0 !important;"
+              />
               <div class="min-w-0">
                 <div class="fw-bold text-dark text-truncate">{{ product?.name || item?.name }}</div>
-                <div class="text-muted font-monospace" style="font-size: 11px;">訂單編號：{{ orderId }}</div>
+                <div class="text-muted font-monospace mt-0.5" style="font-size: 11px;">
+                  訂單編號：#{{ orderId }}
+                </div>
               </div>
             </div>
 
             <form @submit.prevent="submitReview" class="d-flex flex-column gap-3">
+              <!-- 星等評分 -->
               <div>
                 <label class="form-label text-dark fw-semibold mb-1">
-                  總體評分 *：<span class="text-primary fw-bold">{{ ratingTexts[hoverRating || currentRating] }}</span>
+                  總體評分 *：<span style="color: #9b7e68;" class="fw-bold">{{ ratingTexts[hoverRating || currentRating] }}</span>
                 </label>
                 <div class="d-flex align-items-center gap-1.5 py-1">
                   <button
@@ -44,14 +55,15 @@
                   >
                     <Star
                       style="width: 26px; height: 26px; cursor: pointer; transition: transform 0.15s ease;"
-                      :class="(hoverRating || currentRating) >= star ? 'text-warning fill-warning' : 'text-secondary opacity-25'"
-                      :fill="(hoverRating || currentRating) >= star ? '#ffc107' : 'none'"
+                      :class="(hoverRating || currentRating) >= star ? 'text-warning' : 'text-secondary opacity-25'"
+                      :fill="(hoverRating || currentRating) >= star ? '#e0a82e' : 'none'"
                     />
                   </button>
                   <span class="ms-2 font-monospace fw-bold fs-6 text-dark">{{ hoverRating || currentRating }}.0</span>
                 </div>
               </div>
 
+              <!-- 心得描述 -->
               <div>
                 <div class="d-flex justify-content-between align-items-center mb-1">
                   <label class="form-label text-dark fw-semibold mb-0">心得描述 *</label>
@@ -62,11 +74,12 @@
                   required
                   rows="3"
                   maxlength="300"
-                  class="form-control form-control-sm rounded-3"
+                  class="form-control form-control-sm md-review-input"
                   placeholder="穿起來的版型、材質觸感如何？分享給其他喜愛韓系穿搭的朋友吧！"
                 ></textarea>
               </div>
 
+              <!-- 實穿曬圖 -->
               <div>
                 <div class="d-flex justify-content-between align-items-center mb-1.5">
                   <label class="form-label text-dark fw-semibold mb-0">實穿曬圖（最多 5 張）</label>
@@ -77,14 +90,14 @@
                   <div
                     v-for="(img, idx) in uploadedImages"
                     :key="idx"
-                    class="position-relative rounded-3 overflow-hidden border"
-                    style="width: 68px; height: 68px;"
+                    class="position-relative rounded-3 overflow-hidden border bg-white"
+                    style="width: 68px; height: 68px; border-color: #e3dbd0 !important;"
                   >
                     <img :src="img" class="w-100 h-100 object-fit-cover" />
                     <button
                       type="button"
                       class="position-absolute top-0 end-0 btn btn-dark p-0 rounded-circle d-flex align-items-center justify-content-center m-1"
-                      style="width: 18px; height: 18px; opacity: 0.8;"
+                      style="width: 18px; height: 18px; opacity: 0.85;"
                       @click="removeImage(idx)"
                     >
                       <X style="width: 12px; height: 12px;" />
@@ -93,11 +106,10 @@
 
                   <label
                     v-if="uploadedImages.length < 5"
-                    class="d-flex flex-column align-items-center justify-content-center border border-dashed rounded-3 bg-light text-muted cursor-pointer hover-bg"
-                    style="width: 68px; height: 68px;"
+                    class="md-review-upload-box cursor-pointer"
                   >
-                    <Camera style="width: 20px; height: 20px;" class="mb-1 text-secondary" />
-                    <span style="font-size: 9.5px;">+上傳</span>
+                    <Camera style="width: 20px; height: 20px;" class="mb-1" />
+                    <span style="font-size: 9.5px;" class="font-monospace">+上傳</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -109,10 +121,18 @@
                 </div>
               </div>
 
-              <div class="pt-2">
+              <!-- 按鈕 -->
+              <div class="d-flex gap-2 pt-2">
+                <button
+                  type="button"
+                  class="btn md-review-btn-cancel rounded-pill py-2.5 px-4 font-monospace fw-semibold"
+                  @click="closeModal"
+                >
+                  取消
+                </button>
                 <button
                   type="submit"
-                  class="btn btn-primary w-100 rounded-pill py-2.5 fw-bold"
+                  class="btn btn-dark flex-grow-1 rounded-pill py-2.5 fw-bold font-monospace shadow-xs"
                   :disabled="!content.trim() || isSubmitting"
                 >
                   <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-1"></span>
@@ -123,7 +143,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -214,10 +234,137 @@ const submitReview = () => {
 </script>
 
 <style scoped>
-.hover-bg:hover {
-  background-color: #ede8e1 !important;
+.md-review-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1070;
+  background: rgba(34, 29, 25, 0.48);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  overflow-y: auto;
 }
+
+.md-review-dialog {
+  width: 100%;
+  max-width: 500px;
+  background: #faf8f5;
+  border: 1px solid #e3dbd0;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 20px 48px rgba(45, 38, 33, 0.18);
+  color: #2d2621;
+}
+
+.md-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ebe4da;
+}
+
+.md-review-eyebrow {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8c735b;
+  background: #f2ece3;
+  border: 1px solid #e3dbd0;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 6px;
+}
+
+.md-review-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d2621;
+  margin: 0;
+}
+
+.md-review-close {
+  border: 0;
+  background: #efeae2;
+  color: #5c5249;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-review-close:hover {
+  background: #e2d9cc;
+  color: #2d2621;
+}
+
+.md-review-product-box {
+  background: #ffffff;
+  border: 1px solid #e6dfd5;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.md-review-input {
+  background-color: #ffffff !important;
+  border-color: #dfd7cc !important;
+  border-radius: 12px !important;
+}
+
+.md-review-upload-box {
+  width: 68px;
+  height: 68px;
+  border-radius: 12px;
+  border: 1.5px dashed #cfc5b8;
+  background: #ffffff;
+  color: #7c7268;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.md-review-upload-box:hover {
+  background: #f3eee7;
+  border-color: #9b7e68;
+  color: #2d2621;
+}
+
+.md-review-btn-cancel {
+  background: #efeae2;
+  color: #4a4139;
+  border: 0;
+  font-size: 12px;
+}
+
+.md-review-btn-cancel:hover {
+  background: #e3dbd0;
+  color: #2d2621;
+}
+
 .cursor-pointer {
   cursor: pointer;
+}
+
+.md-review-fade-enter-active,
+.md-review-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.md-review-fade-enter-from,
+.md-review-fade-leave-to {
+  opacity: 0;
 }
 </style>

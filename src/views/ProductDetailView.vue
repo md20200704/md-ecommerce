@@ -302,53 +302,92 @@
       @submitted="onReviewSubmitted"
     />
 
+    <!-- 美化版：補貨登記彈窗與燈箱 -->
     <Teleport to="body">
-      <div
-        v-if="showRestockModal"
-        class="modal fade show d-block modal-backdrop-custom"
-        tabindex="-1"
-        style="z-index: 1065;"
-      >
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-          <div class="modal-content rounded-4 border-0 p-4 shadow-xl">
-            <div class="modal-header border-0 pb-0">
-              <h3 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2">
-                <Bell style="width: 18px; height: 18px; color: var(--md-primary);" />
-                <span>登記補貨提醒通知</span>
-              </h3>
-              <button type="button" class="btn-close" @click="showRestockModal = false"></button>
+      <Transition name="md-restock-fade">
+        <div
+          v-if="showRestockModal"
+          class="md-restock-backdrop"
+          tabindex="-1"
+          role="dialog"
+          aria-modal="true"
+          @click.self="showRestockModal = false"
+        >
+          <div class="md-restock-dialog">
+            <div class="md-restock-header">
+              <div>
+                <span class="md-restock-eyebrow font-monospace">RESTOCK ALERT</span>
+                <h3 class="md-restock-title font-serif d-flex align-items-center gap-2">
+                  <Bell style="width: 16px; height: 16px; color: #9b7e68;" />
+                  <span>登記補貨提醒通知</span>
+                </h3>
+              </div>
+              <button type="button" class="md-restock-close" aria-label="關閉" @click="showRestockModal = false">
+                ×
+              </button>
             </div>
-            <div class="modal-body small">
-              <div class="bg-light p-3 rounded-3 mb-3 font-monospace">
+
+            <div class="small">
+              <div class="md-restock-summary font-monospace mb-3">
                 <div class="fw-bold text-dark mb-1">{{ product.name }}</div>
-                <div class="text-muted" style="font-size: 11px;">預約規格：<span class="text-primary fw-bold">{{ currentSku?.color }} / {{ currentSku?.size }}</span></div>
+                <div class="text-muted" style="font-size: 11px;">
+                  預約規格：<span style="color: #9b7e68;" class="fw-bold">{{ currentSku?.color }} / {{ currentSku?.size }}</span>
+                </div>
               </div>
 
               <form @submit.prevent="submitRestockAlert" class="d-flex flex-column gap-3">
                 <div>
-                  <label class="form-label mb-1">通知信箱 Email *</label>
-                  <input v-model="restockForm.email" required type="email" class="form-control form-control-sm font-monospace" placeholder="your@email.com" />
+                  <label class="form-label text-dark fw-semibold mb-1">通知信箱 Email *</label>
+                  <input
+                    v-model="restockForm.email"
+                    required
+                    type="email"
+                    class="form-control form-control-sm font-monospace md-restock-input"
+                    placeholder="your@email.com"
+                  />
                 </div>
                 <div>
-                  <label class="form-label mb-1">通知手機 SMS (選填)</label>
-                  <input v-model="restockForm.phone" type="tel" pattern="^09\d{8}$" class="form-control form-control-sm font-monospace" placeholder="0912345678" />
+                  <label class="form-label text-dark fw-semibold mb-1">通知手機 SMS (選填)</label>
+                  <input
+                    v-model="restockForm.phone"
+                    type="tel"
+                    pattern="^09\d{8}$"
+                    class="form-control form-control-sm font-monospace md-restock-input"
+                    placeholder="0912345678"
+                  />
                 </div>
-                <button type="submit" class="btn btn-dark w-100 rounded-pill py-2.5 fw-bold mt-2">
-                  確認登記補貨提醒
-                </button>
+                <div class="d-flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    class="btn md-restock-btn-cancel rounded-pill py-2.5 px-4 font-monospace fw-semibold"
+                    @click="showRestockModal = false"
+                  >
+                    取消
+                  </button>
+                  <button type="submit" class="btn btn-dark flex-grow-1 rounded-pill py-2.5 fw-bold font-monospace shadow-xs">
+                    確認登記補貨提醒
+                  </button>
+                </div>
               </form>
             </div>
           </div>
         </div>
-      </div>
+      </Transition>
 
       <div
         v-if="lightboxImg || showLightbox"
-        class="position-fixed top-0 start-0 w-100 h-100 bg-black bg-opacity-90 d-flex align-items-center justify-content-center p-3"
-        style="z-index: 1080;"
+        class="md-lightbox-backdrop"
         @click="lightboxImg = null; showLightbox = false;"
       >
-        <img :src="lightboxImg || currentImage" class="rounded-3 shadow-lg object-fit-contain" style="max-width: 90vw; max-height: 85vh;" />
+        <img :src="lightboxImg || currentImage" class="rounded-4 shadow-lg object-fit-contain" style="max-width: 90vw; max-height: 85vh;" @click.stop />
+        <button
+          type="button"
+          class="btn btn-light rounded-pill px-3.5 py-1.5 font-monospace fw-bold position-fixed top-0 end-0 m-4 shadow-sm"
+          style="font-size: 12px;"
+          @click="lightboxImg = null; showLightbox = false;"
+        >
+          ✕ 關閉預覽
+        </button>
       </div>
     </Teleport>
   </div>
@@ -490,4 +529,125 @@ const handleAddToCart = () => {
 .hover-zoom:hover { transform: scale(1.05); }
 .cursor-pointer { cursor: pointer; }
 .select-none { user-select: none; }
+
+.md-restock-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1065;
+  background: rgba(34, 29, 25, 0.48);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.md-restock-dialog {
+  width: 100%;
+  max-width: 440px;
+  background: #faf8f5;
+  border: 1px solid #e3dbd0;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 20px 48px rgba(45, 38, 33, 0.18);
+  color: #2d2621;
+}
+
+.md-restock-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ebe4da;
+}
+
+.md-restock-eyebrow {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8c735b;
+  background: #f2ece3;
+  border: 1px solid #e3dbd0;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 6px;
+}
+
+.md-restock-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d2621;
+  margin: 0;
+}
+
+.md-restock-close {
+  border: 0;
+  background: #efeae2;
+  color: #5c5249;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-restock-close:hover {
+  background: #e2d9cc;
+  color: #2d2621;
+}
+
+.md-restock-summary {
+  background: #ffffff;
+  border: 1px solid #e6dfd5;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.md-restock-input {
+  background-color: #ffffff !important;
+  border-color: #dfd7cc !important;
+  border-radius: 12px !important;
+}
+
+.md-restock-btn-cancel {
+  background: #efeae2;
+  color: #4a4139;
+  border: 0;
+  font-size: 12px;
+}
+
+.md-restock-btn-cancel:hover {
+  background: #e3dbd0;
+  color: #2d2621;
+}
+
+.md-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 17, 15, 0.84);
+  backdrop-filter: blur(4px);
+  z-index: 1080;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.md-restock-fade-enter-active,
+.md-restock-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.md-restock-fade-enter-from,
+.md-restock-fade-leave-to {
+  opacity: 0;
+}
 </style>

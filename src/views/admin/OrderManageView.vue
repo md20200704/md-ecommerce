@@ -490,40 +490,66 @@
       </div>
     </div>
 
-    <div v-if="shipModalState.isOpen" class="position-fixed top-0 start-0 w-100 h-100 modal-backdrop-custom d-flex align-items-center justify-content-center p-3" style="z-index: 1060;">
-      <div class="bg-white rounded-4 p-4 shadow-lg w-100" style="max-width: 440px;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h3 class="fs-6 fw-bold text-dark mb-0 font-serif">📦 填寫寄件編號並寄出</h3>
-          <button type="button" class="btn-close shadow-none" @click="shipModalState.isOpen = false"></button>
-        </div>
+    <!-- 美化版：填寫寄件編號與出貨 Modal -->
+    <Teleport to="body">
+      <Transition name="md-ship-fade">
+        <div
+          v-if="shipModalState.isOpen"
+          class="md-ship-backdrop"
+          role="dialog"
+          aria-modal="true"
+          @click.self="shipModalState.isOpen = false"
+        >
+          <div class="md-ship-dialog">
+            <div class="md-ship-header">
+              <div>
+                <span class="md-ship-eyebrow font-monospace">SHIPMENT DISPATCH</span>
+                <h3 class="md-ship-title font-serif">📦 填寫寄件編號並寄出</h3>
+              </div>
+              <button type="button" class="md-ship-close" aria-label="關閉" @click="shipModalState.isOpen = false">
+                ×
+              </button>
+            </div>
 
-        <div class="small text-muted mb-2 font-monospace">
-          訂單編號：#{{ shipModalState.order?.orderId || shipModalState.order?.id }}
-        </div>
-        <div v-if="shipModalState.order?.storeName" class="small text-dark mb-3 font-monospace bg-light p-2 rounded-3 border">
-          取貨門市：7-11 {{ shipModalState.order.storeName }}（{{ shipModalState.order.storeId }}）
-        </div>
+            <div class="md-ship-summary font-monospace small mb-3">
+              <div class="fw-bold text-dark mb-1">
+                訂單編號：#{{ shipModalState.order?.orderId || shipModalState.order?.id }}
+              </div>
+              <div v-if="shipModalState.order?.storeName" class="text-secondary" style="font-size: 11.5px;">
+                取貨門市：7-11 {{ shipModalState.order.storeName }}（{{ shipModalState.order.storeId }}）
+              </div>
+            </div>
 
-        <div class="mb-3">
-          <label class="form-label text-secondary small mb-1">7-11 寄件編號 / 物流單號 *</label>
-          <input
-            v-model="shipModalState.trackingNumber"
-            type="text"
-            class="form-control form-control-sm font-monospace py-2"
-            placeholder="請貼上 ibon / 交貨便產生的寄件編號"
-          />
-        </div>
+            <div class="mb-3">
+              <label class="form-label text-dark fw-semibold small mb-1">7-11 寄件編號 / 物流單號 *</label>
+              <input
+                v-model="shipModalState.trackingNumber"
+                type="text"
+                class="form-control form-control-sm font-monospace py-2 md-ship-input"
+                placeholder="請貼上 ibon / 交貨便產生的寄件編號"
+              />
+            </div>
 
-        <div class="d-flex justify-content-end gap-2 pt-2">
-          <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4 font-monospace" @click="shipModalState.isOpen = false">
-            取消
-          </button>
-          <button type="button" class="btn btn-dark btn-sm rounded-pill px-4 font-monospace fw-bold" @click="submitShipOrder">
-            儲存單號並標記已寄出
-          </button>
+            <div class="d-flex justify-content-end gap-2 pt-2">
+              <button
+                type="button"
+                class="btn md-ship-btn-cancel rounded-pill px-4 py-2 font-monospace fw-semibold"
+                @click="shipModalState.isOpen = false"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                class="btn btn-dark rounded-pill px-4 py-2 font-monospace fw-bold shadow-xs"
+                @click="submitShipOrder"
+              >
+                儲存單號並標記已寄出
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </Transition>
+    </Teleport>
 
   </div>
 </template>
@@ -1172,5 +1198,115 @@ const markAsCompleted = async (ord) => {
 
 .rotate-180 {
   transform: rotate(180deg);
+}
+
+/* 美化版：填寫寄件編號與出貨 Modal */
+.md-ship-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  background: rgba(34, 29, 25, 0.48);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.md-ship-dialog {
+  width: 100%;
+  max-width: 440px;
+  background: #faf8f5;
+  border: 1px solid #e3dbd0;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 20px 48px rgba(45, 38, 33, 0.18);
+  color: #2d2621;
+}
+
+.md-ship-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ebe4da;
+}
+
+.md-ship-eyebrow {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8c735b;
+  background: #f2ece3;
+  border: 1px solid #e3dbd0;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 6px;
+}
+
+.md-ship-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d2621;
+  margin: 0;
+}
+
+.md-ship-close {
+  border: 0;
+  background: #efeae2;
+  color: #5c5249;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-ship-close:hover {
+  background: #e2d9cc;
+  color: #2d2621;
+}
+
+.md-ship-summary {
+  background: #ffffff;
+  border: 1px solid #e6dfd5;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.md-ship-input {
+  background-color: #ffffff !important;
+  border-color: #dfd7cc !important;
+  border-radius: 12px !important;
+}
+
+.md-ship-btn-cancel {
+  background: #efeae2;
+  color: #4a4139;
+  border: 0;
+  font-size: 12px;
+}
+
+.md-ship-btn-cancel:hover {
+  background: #e3dbd0;
+  color: #2d2621;
+}
+
+.md-ship-fade-enter-active,
+.md-ship-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.md-ship-fade-enter-from,
+.md-ship-fade-leave-to {
+  opacity: 0;
 }
 </style>

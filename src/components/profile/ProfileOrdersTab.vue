@@ -97,7 +97,7 @@
             class="minimal-order-header"
             @click="toggleOrderExpand(ord.orderId || ord.id)"
           >
-            <!-- 左區：訂單編號與下單日期 -->
+            <!-- 左區：訂單編號與付款成立日期 -->
             <div class="order-head-main">
               <span class="font-monospace fw-bold text-dark" style="font-size: 15.5px; letter-spacing: 0.02em;">
                 #{{ ord.orderId || ord.id }}
@@ -438,6 +438,93 @@
       </div>
     </div>
 
+    <!-- 美化版：消費者申請取消訂單 Modal -->
+    <Teleport to="body">
+      <Transition name="md-cancel-fade">
+        <div
+          v-if="cancelModalState.isOpen"
+          class="md-cancel-backdrop"
+          role="dialog"
+          aria-modal="true"
+          @click.self="closeCancelModal"
+        >
+          <div class="md-cancel-dialog">
+            <div class="md-cancel-header">
+              <div>
+                <span class="md-cancel-eyebrow font-monospace">ORDER CANCELLATION</span>
+                <h3 class="md-cancel-title font-serif">申請取消未出貨訂單</h3>
+              </div>
+              <button type="button" class="md-cancel-close" aria-label="關閉" @click="closeCancelModal">
+                ×
+              </button>
+            </div>
+
+            <div class="small">
+              <div class="md-cancel-summary font-monospace mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="fw-bold text-dark">訂單編號：#{{ cancelModalState.order?.orderId || cancelModalState.order?.id }}</span>
+                  <span class="md-cancel-amount">NT$ {{ getOrderPaidAmount(cancelModalState.order || {}).toLocaleString() }}</span>
+                </div>
+                <div class="text-muted" style="font-size: 11px;">
+                  送出後將立即通知商家於後台確認，核准後庫存與折抵點數將自動回補。
+                </div>
+              </div>
+
+              <div class="mb-2.5">
+                <label class="form-label text-dark fw-semibold mb-1.5">快速選擇取消原因</label>
+                <div class="d-flex flex-wrap gap-1.5">
+                  <button
+                    v-for="preset in presetCancelReasons"
+                    :key="preset"
+                    type="button"
+                    class="md-cancel-preset-btn font-monospace"
+                    :class="{ 'is-selected': cancelModalState.reason === preset }"
+                    @click="cancelModalState.reason = preset"
+                  >
+                    {{ preset }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label text-dark fw-semibold mb-0">取消原因說明 *</label>
+                  <span class="text-muted font-monospace" style="font-size: 11px;">{{ cancelModalState.reason.length }}/200 字</span>
+                </div>
+                <textarea
+                  v-model="cancelModalState.reason"
+                  rows="3"
+                  maxlength="200"
+                  class="form-control form-control-sm md-cancel-input"
+                  placeholder="請輸入取消原因（例如：想修改商品規格或重新下單）"
+                ></textarea>
+              </div>
+
+              <div class="d-flex gap-2 pt-1">
+                <button
+                  type="button"
+                  class="btn md-cancel-btn-secondary rounded-pill py-2.5 px-4 font-monospace fw-semibold"
+                  :disabled="cancelModalState.isSubmitting"
+                  @click="closeCancelModal"
+                >
+                  保留訂單
+                </button>
+                <button
+                  type="button"
+                  class="btn md-cancel-btn-danger flex-grow-1 rounded-pill py-2.5 fw-bold font-monospace shadow-xs"
+                  :disabled="!cancelModalState.reason.trim() || cancelModalState.isSubmitting"
+                  @click="submitCancelOrderRequest"
+                >
+                  <span v-if="cancelModalState.isSubmitting" class="spinner-border spinner-border-sm me-1"></span>
+                  確認送出取消申請
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- 商品評價 Modal -->
     <ReviewModal
       :is-open="reviewModalState.isOpen"
@@ -628,15 +715,42 @@ const getCleanStatusClass = (status) => {
   return 'pill-return'
 }
 
-const handleCancelOrderRequest = async (ord) => {
-  const orderId = ord.orderId || ord.id
-  const reason = prompt(
-    `您正在申請取消尚未出貨的訂單 #${orderId}\n請輸入取消原因（送出後將立即通知商家於後台確認）：`,
-    '想修改商品規格或重新下單'
-  )
-  if (reason === null) return
+const presetCancelReasons = [
+  '想修改商品規格或重新下單',
+  '忘記使用優惠券或紅利點數',
+  '收件門市或地址需要變更',
+  '暫時不需要此商品'
+]
 
-  const cleanReason = reason.trim() || '顧客主動申請取消未出貨訂單'
+const cancelModalState = reactive({
+  isOpen: false,
+  order: null,
+  reason: '',
+  isSubmitting: false
+})
+
+const handleCancelOrderRequest = (ord) => {
+  cancelModalState.order = ord
+  cancelModalState.reason = '想修改商品規格或重新下單'
+  cancelModalState.isSubmitting = false
+  cancelModalState.isOpen = true
+}
+
+const closeCancelModal = () => {
+  cancelModalState.isOpen = false
+  cancelModalState.order = null
+  cancelModalState.reason = ''
+  cancelModalState.isSubmitting = false
+}
+
+const submitCancelOrderRequest = async () => {
+  const ord = cancelModalState.order
+  if (!ord || !cancelModalState.reason.trim()) return
+
+  const orderId = ord.orderId || ord.id
+  const cleanReason = cancelModalState.reason.trim()
+  cancelModalState.isSubmitting = true
+
   if (typeof adminStore.requestCancelOrder === 'function') {
     const res = await adminStore.requestCancelOrder(orderId, cleanReason)
     showToast(
@@ -656,6 +770,8 @@ const handleCancelOrderRequest = async (ord) => {
       '已送出取消申請'
     )
   }
+
+  closeCancelModal()
 }
 
 const confirmOrderCompleted = async (ord) => {
@@ -695,23 +811,6 @@ const confirmOrderCompleted = async (ord) => {
     adminStore.addAuditLog('會員完成訂單', `訂單 #${orderId} 已完成簽收，計入實付消費 NT$ ${paidAmt.toLocaleString()}`)
   }
   showToast(notifyMsg, 'success', '訂單已完成')
-}
-
-const requestOrderReturn = (ord) => {
-  const orderId = ord.orderId || ord.id
-  const reason = prompt(`申請訂單 #${orderId} 退貨/售後服務，請填寫原因：`, '尺寸不合需申請退貨')
-  if (reason && reason.trim()) {
-    ord.status = '退貨審核中'
-    if (adminStore.addAuditLog) {
-      adminStore.addAuditLog('會員申請售後退貨', `訂單 #${orderId} 提出售後申請，原因：${reason}`)
-    }
-    selectedOrderStatusFilter.value = 'RETURN'
-    showToast(
-      '已送出售後退貨申請，已為您切換至「取消/退貨」分類檢視！',
-      'success',
-      '退貨申請已送出'
-    )
-  }
 }
 
 const returnModalState = reactive({
@@ -863,36 +962,6 @@ const onReviewSubmitted = () => {
   transform: scale(1.08);
 }
 
-.flow-node-count {
-  position: absolute;
-  top: -4px;
-  right: -8px;
-  background-color: #9b7e68;
-  color: #ffffff;
-  font-size: 9.5px;
-  padding: 1px 6px;
-  border-radius: 999px;
-}
-
-.flow-node-label {
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #787167;
-  white-space: nowrap;
-}
-
-.flow-node-btn.is-selected .flow-node-label {
-  color: #2d2621;
-}
-
-.flow-node-sub {
-  font-size: 10px;
-  color: #9c9289;
-  margin-top: 2px;
-}
-
-/* ==================== 1. 訂單卡片標頭排版 ==================== */
 .minimal-order-card {
   border-color: #e8e2da !important;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -930,7 +999,6 @@ const onReviewSubmitted = () => {
   min-width: 170px;
 }
 
-/* 手機版維持原本靠右對齊 */
 .order-head-status {
   display: flex;
   align-items: center;
@@ -998,7 +1066,6 @@ const onReviewSubmitted = () => {
   }
 }
 
-/* 網頁版金額與按鈕並排在同一行（金額靠左、按鈕靠右） */
 .desktop-price-row {
   display: flex;
   align-items: center;
@@ -1022,23 +1089,6 @@ const onReviewSubmitted = () => {
   justify-content: flex-end;
 }
 
-.toggle-detail-btn-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background-color: #f6f3ee;
-  border: 1px solid #e8e1d7;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.toggle-detail-btn-group:hover {
-  background-color: #ebe5dd;
-}
-
-/* ==================== 2. 展開後的商品明細列 ==================== */
 .minimal-order-body {
   padding: 22px 18px !important;
   background-color: #faf8f5;
@@ -1150,7 +1200,6 @@ const onReviewSubmitted = () => {
   }
 }
 
-/* ==================== 3. 整筆訂單金額計算明細盒 ==================== */
 .order-calc-box {
   background-color: #ffffff;
   border: 1px solid #e2dbd0;
@@ -1191,11 +1240,6 @@ const onReviewSubmitted = () => {
   padding: 6px 12px;
   margin: 0 -8px;
   border-radius: 8px;
-}
-
-.calc-line.is-discount .calc-step-tag {
-  background-color: #d9f7be;
-  color: #135200;
 }
 
 .calc-formula-bar {
@@ -1303,5 +1347,156 @@ const onReviewSubmitted = () => {
 
 .rotate-180 {
   transform: rotate(180deg);
+}
+
+/* 美化版：消費者取消訂單 Modal */
+.md-cancel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1070;
+  background: rgba(34, 29, 25, 0.48);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.md-cancel-dialog {
+  width: 100%;
+  max-width: 460px;
+  background: #faf8f5;
+  border: 1px solid #e3dbd0;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 20px 48px rgba(45, 38, 33, 0.18);
+  color: #2d2621;
+}
+
+.md-cancel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ebe4da;
+}
+
+.md-cancel-eyebrow {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #8c735b;
+  background: #f2ece3;
+  border: 1px solid #e3dbd0;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-bottom: 6px;
+}
+
+.md-cancel-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d2621;
+  margin: 0;
+}
+
+.md-cancel-close {
+  border: 0;
+  background: #efeae2;
+  color: #5c5249;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.md-cancel-close:hover {
+  background: #e2d9cc;
+  color: #2d2621;
+}
+
+.md-cancel-summary {
+  background: #ffffff;
+  border: 1px solid #e6dfd5;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.md-cancel-amount {
+  color: #9b7e68;
+  font-weight: 700;
+}
+
+.md-cancel-preset-btn {
+  border: 1px solid #dfd7cc;
+  background: #ffffff;
+  color: #5c5249;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.md-cancel-preset-btn:hover {
+  border-color: #2d2621;
+  color: #2d2621;
+}
+
+.md-cancel-preset-btn.is-selected {
+  background: #2d2621;
+  border-color: #2d2621;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.md-cancel-input {
+  background-color: #ffffff !important;
+  border-color: #dfd7cc !important;
+  border-radius: 12px !important;
+}
+
+.md-cancel-btn-secondary {
+  background: #efeae2;
+  color: #4a4139;
+  border: 0;
+  font-size: 12px;
+}
+
+.md-cancel-btn-secondary:hover {
+  background: #e3dbd0;
+  color: #2d2621;
+}
+
+.md-cancel-btn-danger {
+  background: #a8383b;
+  border-color: #a8383b;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.md-cancel-btn-danger:hover:not(:disabled) {
+  background: #8b2b2e;
+  border-color: #8b2b2e;
+  color: #ffffff;
+}
+
+.md-cancel-fade-enter-active,
+.md-cancel-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.md-cancel-fade-enter-from,
+.md-cancel-fade-leave-to {
+  opacity: 0;
 }
 </style>
