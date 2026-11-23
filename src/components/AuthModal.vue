@@ -43,7 +43,7 @@
                 required
                 type="text"
                 class="form-control form-control-sm font-monospace"
-                placeholder="user@md-korea.com 或 0912345678"
+                placeholder="請輸入電子信箱或手機號碼"
               />
             </div>
             <div>
@@ -105,6 +105,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useAuthStore } from '../stores/authStore'
+import { showToast } from '../composables/useToast'
 
 defineProps({
   isOpen: Boolean
@@ -117,8 +118,8 @@ const mode = ref('login')
 const isSubmitting = ref(false)
 
 const loginForm = reactive({
-  account: 'user@md-korea.com',
-  password: 'password123'
+  account: '',
+  password: ''
 })
 
 const registerForm = reactive({
@@ -142,7 +143,7 @@ const handleLogin = async () => {
 
 const handleRegister = async () => {
   if (!registerForm.birthday) {
-    alert('請選擇您的生日日期以享有生日禮遇！')
+    showToast('請選擇您的生日日期以享有生日禮遇！', 'warning', '資料未完整')
     return
   }
 
@@ -158,7 +159,11 @@ const handleRegister = async () => {
   isSubmitting.value = false
 
   if (success) {
-    alert(`歡迎加入 MD.SELECT，${registerForm.name}！\n已記錄您的生日（${registerForm.birthday}），祝您購物愉快！`)
+    showToast(
+    `歡迎加入 MD.SELECT，${registerForm.name}！已記錄您的生日（${registerForm.birthday}），祝您購物愉快！`,
+    'success',
+    '註冊成功'
+  )
     emit('close')
   }
 }

@@ -132,6 +132,7 @@ import { ref } from 'vue'
 import { Star, Camera, X } from 'lucide-vue-next'
 import { useProductStore } from '../stores/productStore'
 import { useAuthStore } from '../stores/authStore'
+import { showToast } from '../composables/useToast'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -168,7 +169,7 @@ const handleFileUpload = (e) => {
 
   selectedFiles.forEach((file) => {
     if (file.size > 5 * 1024 * 1024) {
-      alert(`檔案「${file.name}」超過 5MB 上限！`)
+      showToast(`檔案「${file.name}」超過 5MB 上限！`, 'warning', '檔案過大')
       return
     }
     const reader = new FileReader()
@@ -206,7 +207,7 @@ const submitReview = () => {
     images: uploadedImages.value
   })
   isSubmitting.value = false
-  alert(res.message)
+  showToast(res.message, res.success !== false ? 'success' : 'error', '評價通知')
   emit('submitted')
   closeModal()
 }

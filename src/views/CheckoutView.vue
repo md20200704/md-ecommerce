@@ -229,6 +229,7 @@ import { useRoute } from 'vue-router'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { getAuthToken } from '../services/apiClient'
+import { showToast } from '../composables/useToast'
 
 const route = useRoute()
 const cartStore = useCartStore()
@@ -280,23 +281,30 @@ const inputCouponCode = ref('')
 const handleClaimAndApplyCode = async () => {
   const code = inputCouponCode.value.trim().toUpperCase()
   if (!code) {
-    alert('請輸入優惠碼！')
+    showToast('請先輸入優惠碼再進行領取！', 'warning', '提示')
+    return
+  }
+
+  if (!authStore.isLoggedIn) {
+    showToast('請先登入會員帳號再領取優惠券！', 'error', '領取失敗')
     return
   }
 
   if (authStore.claimCouponByCode) {
     const res = await authStore.claimCouponByCode(code, '結帳頁面手動輸入領取')
-    alert(res.message)
-    if (res.success) {
+    if (res?.success) {
+      showToast(res.message || `已領取並套用優惠碼 ${code}！`, 'success', '領取成功')
       inputCouponCode.value = ''
       const newlyAdded = availableCoupons.value.find(c => c.code === code) || availableCoupons.value[0]
       if (newlyAdded) {
         selectedCouponId.value = newlyAdded.instanceId
         applyCoupon()
       }
+    } else {
+      showToast(res?.message || `${code} 優惠碼無效、已過期或不符合領取條件。`, 'error', '領取失敗')
     }
   } else {
-    alert('請先登入會員以使用優惠碼功能！')
+    showToast('請先登入會員以使用優惠碼功能！', 'error', '領取失敗')
   }
 }
 
@@ -309,7 +317,7 @@ const applyCoupon = () => {
   if (found && cartStore.totalPrice >= found.minSpend) {
     appliedCoupon.value = found
   } else {
-    alert('未達此優惠券之低消門檻！')
+    showToast('未達此優惠券之低消門檻！', 'warning', '無法套用優惠券')
     selectedCouponId.value = ''
     appliedCoupon.value = null
   }
@@ -354,15 +362,15 @@ const finalTotalAmount = computed(() => {
 
 const submitOrder = async () => {
   if (currentUser.value?.riskStatus === 'BLOCK_ORDER') {
-    alert('您的帳號目前受風控管制，無法建立新訂單。')
+    showToast('您的帳號目前受風控管制，無法建立新訂單。', 'error', '下單權限受限')
     return
   }
   if (checkoutItems.value.length === 0) {
-    alert('購物車中沒有勾選任何結帳商品！')
+    showToast('購物車中沒有勾選任何結帳商品！', 'warning', '尚未勾選商品')
     return
   }
   if (!form.recipientName || !form.phone || !form.shippingAddress) {
-    alert('請完整填寫收件人姓名、手機與配送地址！')
+    showToast('請完整填寫收件人姓名、手機與配送地址！', 'warning', '資料未完整')
     return
   }
 
@@ -450,11 +458,11 @@ const submitOrder = async () => {
       window.location.href = data.paymentUrl
     } else {
       isSubmitting.value = false
-      alert(`LINE Pay 請求失敗 (${data.returnCode || 'ERROR'})：${data.message || '請檢查環境變數或庫存狀態'}`)
+      showToast(`LINE Pay 請求失敗 (${data.returnCode || 'ERROR'})：${data.message || '請檢查環境變數或庫存狀態'}`, 'error', '金流請求失敗')
     }
   } catch (err) {
     isSubmitting.value = false
-    alert('連線至後端 API 失敗：' + err.message + '\n（請確認已部署至 Vercel 並設定環境變數）')
+    showToast('連線至後端 API 失敗：' + err.message, 'error', '連線異常')
   }
 }
 </script>

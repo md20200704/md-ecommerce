@@ -100,6 +100,9 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/authStore'
+import { showConfirm } from '../../composables/useConfirm'
+
+
 
 const route = useRoute()
 const router = useRouter()
@@ -123,8 +126,14 @@ const isActiveRoute = (path) => {
   return route.path.startsWith(path)
 }
 
-const handleAdminLogout = () => {
-  if (confirm('確定要登出後台管理員帳號並返回首頁嗎？')) {
+const handleAdminLogout = async () => {
+  const ok = await showConfirm('確定要登出後台管理員帳號並返回首頁嗎？', {
+    title: '登出管理後台',
+    confirmText: '確定登出',
+    cancelText: '取消',
+    danger: true
+  })
+  if (ok) {
     authStore.logout()
     mobileMenuOpen.value = false
     router.push('/')

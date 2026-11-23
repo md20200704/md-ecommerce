@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useMarketingStore } from './marketingStore'
+import { useCartStore } from './cartStore'
+import { useChatStore } from './chatStore'
+import { useAdminStore } from './adminStore'
 import { apiRequest, getAuthToken, setAuthToken } from '../services/apiClient'
+import { showToast } from '../composables/useToast'
 
 export const useAuthStore = defineStore('auth', () => {
   const marketingStore = useMarketingStore()
@@ -62,7 +66,6 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin.value = Boolean(profile.isAdmin || profile.role === 'ADMIN')
   }
 
-  // 啟動 App 時還原 JWT 登入狀態
   const initSession = async () => {
     if (!getAuthToken()) return false
     try {
@@ -105,7 +108,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
       return false
     } catch (err) {
-      alert(err.message || '登入失敗，請確認帳號與密碼')
+      showToast(err.message || '登入失敗，請確認帳號與密碼', 'error', '登入失敗')
       return false
     }
   }
@@ -113,6 +116,7 @@ export const useAuthStore = defineStore('auth', () => {
   const logout = () => {
     setAuthToken('')
     isAdmin.value = false
+    memberList.value = []
     user.value = {
       id: '',
       isLoggedIn: false,
@@ -130,6 +134,20 @@ export const useAuthStore = defineStore('auth', () => {
       myCoupons: [],
       savedAddresses: []
     }
+
+    const cartStore = useCartStore()
+    const chatStore = useChatStore()
+    const adminStore = useAdminStore()
+
+    cartStore.items = []
+    cartStore.closeDrawer()
+
+    chatStore.threads = []
+    chatStore.activeUserId = ''
+
+    adminStore.orders = []
+    adminStore.stockLogs = []
+    adminStore.auditLogs = []
   }
 
   const updateProfile = async (profileData = {}) => {
@@ -154,7 +172,7 @@ export const useAuthStore = defineStore('auth', () => {
         body: JSON.stringify({ action: 'admin-update-member', memberId, ...payload })
       })
       await fetchMemberList()
-      return { success: true, message: `已更新會員資料並寫入資料庫` }
+      return { success: true, message: '已更新會員資料並寫入資料庫' }
     } catch (err) {
       return { success: false, message: err.message }
     }
@@ -205,9 +223,15 @@ export const useAuthStore = defineStore('auth', () => {
   const isInWishlist = (productId) => Boolean(user.value?.wishlist?.includes(Number(productId)))
 
   const toggleWishlist = (productId) => {
-    if (!user.value.isLoggedIn) {
-      return { added: false, message: '請先登入會員以使用收藏功能' }
+    if (!user.value?.isLoggedIn) {
+      return {
+        success: false,
+        requiresLogin: true,
+        added: false,
+        message: '請先登入會員以使用收藏功能'
+      }
     }
+
     const id = Number(productId)
     const index = user.value.wishlist.indexOf(id)
     const added = index === -1
@@ -219,7 +243,12 @@ export const useAuthStore = defineStore('auth', () => {
       body: JSON.stringify({ action: 'toggle-wishlist', productId: id })
     }).catch(err => console.error('同步收藏清單失敗:', err))
 
-    return { added, message: added ? '已加入愛心收藏清單！' : '已從收藏清單移除' }
+    return {
+      success: true,
+      requiresLogin: false,
+      added,
+      message: added ? '已加入愛心收藏清單！' : '已從收藏清單移除'
+    }
   }
 
   const registerRestockAlert = async (product, sku, form) => {

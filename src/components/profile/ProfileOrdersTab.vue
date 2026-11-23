@@ -467,6 +467,8 @@ import ReturnModal from './ReturnModal.vue'
 import { useAuthStore } from '../../stores/authStore'
 import { useAdminStore } from '../../stores/adminStore'
 import { useProductStore } from '../../stores/productStore'
+import { showToast } from '../../composables/useToast'
+import { showConfirm } from '../../composables/useConfirm'
 
 const authStore = useAuthStore()
 const adminStore = useAdminStore()
@@ -626,31 +628,48 @@ const getCleanStatusClass = (status) => {
   return 'pill-return'
 }
 
-const handleCancelOrderRequest = (ord) => {
+const handleCancelOrderRequest = async (ord) => {
   const orderId = ord.orderId || ord.id
-  const reason = prompt(`您正在申請取消尚未出貨的訂單 #${orderId}\n請輸入取消原因（送出後將立即通知商家於後台確認）：`, '想修改商品規格或重新下單')
+  const reason = prompt(
+    `您正在申請取消尚未出貨的訂單 #${orderId}\n請輸入取消原因（送出後將立即通知商家於後台確認）：`,
+    '想修改商品規格或重新下單'
+  )
   if (reason === null) return
 
   const cleanReason = reason.trim() || '顧客主動申請取消未出貨訂單'
   if (typeof adminStore.requestCancelOrder === 'function') {
-    const res = adminStore.requestCancelOrder(orderId, cleanReason)
-    alert(res.message)
+    const res = await adminStore.requestCancelOrder(orderId, cleanReason)
+    showToast(
+      res?.message || `已送出訂單 #${orderId} 的取消申請！`,
+      res?.success !== false ? 'success' : 'error',
+      res?.success !== false ? '已送出取消申請' : '申請失敗'
+    )
   } else {
     ord.status = '申請取消中'
     ord.cancelReason = cleanReason
     if (adminStore.addAuditLog) {
       adminStore.addAuditLog('顧客申請取消訂單', `訂單 #${orderId} 申請取消，原因：${cleanReason}`)
     }
-    alert(`已送出訂單 #${orderId} 的取消申請！商家將於後台系統確認取消。`)
+    showToast(
+      `已送出訂單 #${orderId} 的取消申請！商家將於後台系統確認取消。`,
+      'success',
+      '已送出取消申請'
+    )
   }
 }
 
-const confirmOrderCompleted = (ord) => {
+const confirmOrderCompleted = async (ord) => {
   const orderId = ord.orderId || ord.id
   const paidAmt = getOrderPaidAmount(ord)
-  if (!confirm(`確認已收到訂單 #${orderId} 的商品並完成訂單嗎？\n\n確認後系統將：\n1. 計入折抵後實際支付金額 NT$ ${paidAmt.toLocaleString()} 至累積消費\n2. 依您的 VIP 等級派發紅利點數\n3. 立即開放本筆訂單商品填寫評價`)) {
-    return
-  }
+  const confirmed = await showConfirm(
+    `確認已收到訂單 #${orderId} 的商品並完成訂單嗎？\n\n確認後系統將：\n1. 計入折抵後實際支付金額 NT$ ${paidAmt.toLocaleString()} 至累積消費\n2. 依您的 VIP 等級派發紅利點數\n3. 立即開放本筆訂單商品填寫評價`,
+    {
+      title: '確認收貨並完成訂單',
+      confirmText: '確認完成',
+      cancelText: '再確認'
+    }
+  )
+  if (!confirmed) return
 
   ord.status = '已完成'
   ord.totalAmount = paidAmt
@@ -663,27 +682,19 @@ const confirmOrderCompleted = (ord) => {
   let notifyMsg = `🎉 訂單 #${orderId} 已完成！`
   if (authStore.settleCompletedOrderRewards) {
     const res = authStore.settleCompletedOrderRewards(ord)
-    if (res.settled) {
-      notifyMsg += `\n✓ 已計入折抵後實付消費金額：NT$ ${paidAmt.toLocaleString()}`
-      notifyMsg += `\n✓ 已入帳紅利點數：+${res.earnedPoints || calculatedPts} 點`
-      if (res.upgraded) {
-        const giftNames = (res.issuedCoupons || []).map(c => `【${c.title}】`).join('、')
-        notifyMsg += `\n👑 恭喜晉升為「${res.newTier.name}」！${giftNames ? `已自動派發升級禮券 ${giftNames} 至您的錢包！` : ''}`
-      }
+    if (res?.earnedPoints) {
+      notifyMsg += `\n本次入帳紅利點數：+${res.earnedPoints} 點`
     }
-  } else {
-    currentUser.value.totalSpent = (Number(currentUser.value.totalSpent) || 0) + paidAmt
-    currentUser.value.points = (Number(currentUser.value.points) || 0) + calculatedPts
-    ord.rewardsSettled = true
-    notifyMsg += `\n✓ 已計入折抵後實付消費金額：NT$ ${paidAmt.toLocaleString()}\n✓ 已入帳紅利點數：+${calculatedPts} 點`
+    if (res?.upgradedTier) {
+      notifyMsg += `\n✨ 恭喜晉升至【${res.upgradedTier.name}】！`
+    }
   }
-
   notifyMsg += `\n\n已為您展開此筆訂單，現在可直接點擊商品右側的「★ 填寫評價」按鈕分享穿搭心得！`
 
   if (adminStore.addAuditLog) {
     adminStore.addAuditLog('會員完成訂單', `訂單 #${orderId} 已完成簽收，計入實付消費 NT$ ${paidAmt.toLocaleString()}`)
   }
-  alert(notifyMsg)
+  showToast(notifyMsg, 'success', '訂單已完成')
 }
 
 const requestOrderReturn = (ord) => {
@@ -695,7 +706,11 @@ const requestOrderReturn = (ord) => {
       adminStore.addAuditLog('會員申請售後退貨', `訂單 #${orderId} 提出售後申請，原因：${reason}`)
     }
     selectedOrderStatusFilter.value = 'RETURN'
-    alert('已送出售後退貨申請，已為您切換至「取消/退貨」分類檢視！')
+    showToast(
+      '已送出售後退貨申請，已為您切換至「取消/退貨」分類檢視！',
+      'success',
+      '退貨申請已送出'
+    )
   }
 }
 
@@ -713,21 +728,29 @@ const onReturnSubmitted = (payload) => {
   const ord = returnModalState.order
   if (!ord) return
   const orderId = ord.orderId || ord.id
-  
+
   ord.status = '退貨審核中'
   ord.returnRequest = {
-    status: '審核中',
+    id: 'RET-' + Date.now().toString().slice(-6),
+    status: 'PENDING',
     reason: payload.reason,
-    images: payload.images,
+    images: payload.images || [],
     createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
   }
 
   if (adminStore.addAuditLog) {
-    adminStore.addAuditLog('會員申請售後退貨', `訂單 #${orderId} 提出退貨申請（原因：${payload.reason}，上傳圖片數：${payload.images.length} 張）`)
+    adminStore.addAuditLog(
+      '會員申請售後退貨',
+      `訂單 #${orderId} 提出退貨申請（原因：${payload.reason}，上傳圖片數：${payload.images.length} 張）`
+    )
   }
 
   selectedOrderStatusFilter.value = 'RETURN'
-  alert(`訂單 #${orderId} 的退貨申請已送出！客服將盡速為您審核並聯繫黑貓宅配取件。`)
+  showToast(
+    `訂單 #${orderId} 的退貨申請已送出！客服將盡速為您審核並聯繫黑貓宅配取件。`,
+    'success',
+    '退貨申請已送出'
+  )
   returnModalState.isOpen = false
 }
 

@@ -90,6 +90,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Heart } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/authStore'
+import { showToast } from '../composables/useToast'
 
 const props = defineProps({
   product: {
@@ -128,7 +129,18 @@ const goToDetail = () => {
 const handleWishlistToggle = () => {
   if (typeof authStore.toggleWishlist === 'function') {
     const res = authStore.toggleWishlist(props.product.id)
-    if (res?.message) alert(res.message)
+    if (!res?.message) return
+
+    if (res.requiresLogin || res.success === false) {
+      showToast(res.message, 'warning', '請先登入')
+      return
+    }
+
+    showToast(
+      res.message,
+      res.added ? 'success' : 'info',
+      res.added ? '已加入收藏' : '已移除收藏'
+    )
   }
 }
 </script>

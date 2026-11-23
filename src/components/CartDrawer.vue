@@ -118,6 +118,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cartStore'
+import { showToast } from '../composables/useToast'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -139,7 +140,7 @@ const increaseQty = (item) => {
 
 const goToCheckout = () => {
   if (cartStore.selectedItems.length === 0) {
-    alert('請勾選要結帳的商品！')
+    showToast('請先勾選要結帳的商品！', 'warning', '尚未勾選商品')
     return
   }
   cartStore.closeDrawer()

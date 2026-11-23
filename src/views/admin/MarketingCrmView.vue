@@ -842,6 +842,8 @@ import { Users, Ticket, Crown, ChevronDown } from 'lucide-vue-next'
 import { useAuthStore } from '../../stores/authStore'
 import { useMarketingStore } from '../../stores/marketingStore'
 import { useAdminStore } from '../../stores/adminStore'
+import { showToast } from '../../composables/useToast'
+import { showConfirm } from '../../composables/useConfirm'
 
 const authStore = useAuthStore()
 const marketingStore = useMarketingStore()
@@ -872,26 +874,32 @@ const openNewTierModal = () => {
 
 const submitNewTier = () => {
   const res = marketingStore.addVipTier(newTierForm)
-  alert(res.message)
+  showToast(res.message, res.success ? 'success' : 'error', res.success ? '新增 VIP 階級成功' : '新增失敗')
   if (res.success) {
     if (adminStore.addAuditLog) adminStore.addAuditLog('新增 VIP 階級', res.message)
     showNewTierModal.value = false
   }
 }
 
-const handleDeleteTier = (tier) => {
-  if (confirm(`確定要刪除 VIP 階級【${tier.name}】嗎？`)) {
-    const res = marketingStore.removeVipTier(tier.id)
-    alert(res.message)
-    if (res.success && adminStore.addAuditLog) {
-      adminStore.addAuditLog('刪除 VIP 階級', res.message)
-    }
+const handleDeleteTier = async (tier) => {
+  const confirmed = await showConfirm(`確定要刪除 VIP 階級【${tier.name}】嗎？`, {
+    title: '刪除 VIP 階級',
+    confirmText: '確認刪除',
+    cancelText: '取消',
+    danger: true
+  })
+  if (!confirmed) return
+
+  const res = marketingStore.removeVipTier(tier.id)
+  showToast(res.message, res.success ? 'success' : 'error', res.success ? '已刪除階級' : '刪除失敗')
+  if (res.success && adminStore.addAuditLog) {
+    adminStore.addAuditLog('刪除 VIP 階級', res.message)
   }
 }
 
 const saveTierSetting = (tier) => {
   if (adminStore.addAuditLog) adminStore.addAuditLog('調整 VIP 階級設定', `更新【${tier.name}】設定`)
-  alert(`已儲存【${tier.name}】設定！`)
+  showToast(`已儲存【${tier.name}】設定！`, 'success', '階級設定已儲存')
 }
 
 // ==================== 2. 自動派發規則新增與執行 ====================
@@ -930,7 +938,7 @@ const submitNewRule = () => {
   if (adminStore.addAuditLog) {
     adminStore.addAuditLog('新增自動發券規則', `建立規則【${newRuleForm.name}】`)
   }
-  alert('已成功新增自動化派發規則！')
+  showToast('已成功新增自動化派發規則！', 'success', '規則已建立')
   showNewRuleModal.value = false
 }
 
@@ -962,7 +970,11 @@ const executeRuleNow = (rule) => {
   if (res.success && adminStore.addAuditLog) {
     adminStore.addAuditLog('執行派發優惠券', res.message)
   }
-  alert(res.message)
+  showToast(
+    res.message,
+    res.success ? 'success' : 'error',
+    res.success ? '優惠券派發完成' : '派發失敗'
+  )
 }
 
 // ==================== 3. 建立新優惠券 ====================
@@ -999,7 +1011,7 @@ const createNewCoupon = () => {
     isActive: true,
     description: `${newCouponForm.title} 專屬優惠`
   })
-  alert('新優惠券已建立！')
+  showToast('新優惠券已建立！', 'success', '優惠券建立成功')
   showCouponModal.value = false
 }
 
@@ -1131,7 +1143,11 @@ const changeMemberVipTier = (member, newTierId) => {
     if (adminStore.addAuditLog) {
       adminStore.addAuditLog('VIP 升級自動發券', `會員【${member.name}】晉升至【${newTierId}】，自動發送升級禮券：${couponNames}`)
     }
-    alert(`已將【${member.name}】調升為【${newTierId}】，並觸發自動發券規則發送【${couponNames}】！`)
+    showToast(
+      `已將【${member.name}】調升為【${newTierId}】，並觸發自動發券規則發送【${couponNames}】！`,
+      'success',
+      'VIP 調整與發券完成'
+    )
   }
 }
 
@@ -1179,7 +1195,11 @@ const submitMemberAllUpdate = () => {
     )
   }
 
-  alert(`${infoRes.message}\n風控狀態已同步更新為【${getRiskStatusLabel(memberEditForm.riskStatus)}】！`)
+  showToast(
+  `${infoRes.message}\n風控狀態已同步更新為【${getRiskStatusLabel(memberEditForm.riskStatus)}】！`,
+  infoRes.success !== false ? 'success' : 'error',
+  '會員資料已更新'
+)
   showEditMemberModal.value = false
 }
 </script>

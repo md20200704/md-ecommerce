@@ -800,6 +800,8 @@ import { ref, reactive, computed, watchEffect } from 'vue'
 import { useProductStore } from '../../stores/productStore'
 import { useAdminStore } from '../../stores/adminStore'
 import { useMarketingStore } from '../../stores/marketingStore'
+import { showToast } from '../../composables/useToast'
+import { showConfirm } from '../../composables/useConfirm'
 
 const productStore = useProductStore()
 const adminStore = useAdminStore()
@@ -832,27 +834,42 @@ const toggleProductPublishStatus = (prod) => {
     if (adminStore.addAuditLog) {
       adminStore.addAuditLog('手動下架商品', `商品【${prod.name}】已下架隱藏（保留資料與庫存）`)
     }
+    showToast(`已將【${prod.name}】下架隱藏。`, 'info', '商品已下架')
   } else {
     if (getTotalStock(prod) === 0) {
-      alert(`商品【${prod.name}】目前總庫存為 0，請點擊「編輯」按鈕進入彈窗補貨後即可上架！`)
+      showToast(
+        `商品【${prod.name}】目前總庫存為 0，請點擊「編輯」按鈕進入彈窗補貨後即可上架！`,
+        'warning',
+        '庫存為零無法上架'
+      )
       return
     }
     prod.isPublished = true
     if (adminStore.addAuditLog) {
       adminStore.addAuditLog('重新上架商品', `商品【${prod.name}】已重新恢復上架販售`)
     }
-    alert(`已將【${prod.name}】重新上架！`)
+    showToast(`已將【${prod.name}】重新上架！`, 'success', '上架成功')
   }
 }
 
-const deleteProductPermanently = (prod) => {
-  if (confirm(`確定要「永久刪除」商品【${prod.name}】嗎？\n（若僅需暫時停售，建議點選「下架」即可保留商品資料）`)) {
-    const idx = productStore.products.findIndex(p => p.id === prod.id)
-    if (idx > -1) productStore.products.splice(idx, 1)
-    if (adminStore.addAuditLog) {
-      adminStore.addAuditLog('永久刪除商品', `刪除商品【${prod.name}】`)
+const deleteProductPermanently = async (prod) => {
+  const confirmed = await showConfirm(
+    `確定要「永久刪除」商品【${prod.name}】嗎？\n（若僅需暫時停售，建議點選「下架」即可保留商品資料）`,
+    {
+      title: '永久刪除商品',
+      confirmText: '確認永久刪除',
+      cancelText: '取消',
+      danger: true
     }
+  )
+  if (!confirmed) return
+
+  const idx = productStore.products.findIndex(p => p.id === prod.id)
+  if (idx > -1) productStore.products.splice(idx, 1)
+  if (adminStore.addAuditLog) {
+    adminStore.addAuditLog('永久刪除商品', `刪除商品【${prod.name}】`)
   }
+  showToast(`已永久刪除商品【${prod.name}】。`, 'success', '已刪除商品')
 }
 
 const safeGetSubItems = (categoryName) => {
@@ -1116,7 +1133,11 @@ const saveEditedProduct = () => {
     )
   }
 
-  alert(`已成功儲存【${target.name}】的所有修改！${newTotal === 0 ? '\n（因總庫存為 0，系統已自動設為已下架狀態）' : ''}`)
+  showToast(
+  `已成功儲存【${target.name}】的所有修改！${newTotal === 0 ? '\n（因總庫存為 0，系統已自動設為已下架狀態）' : ''}`,
+  'success',
+  '商品修改已儲存'
+)
   showEditModal.value = false
 }
 
@@ -1223,7 +1244,11 @@ const createNewProduct = () => {
       `建立商品【${newForm.name}】（狀態：${totalStock > 0 ? '上架中' : '已下架'}，總庫存：${totalStock} 件）`
     )
   }
-  alert(totalStock > 0 ? '新商品已成功上架！' : '新商品已建立（因總庫存為 0，目前為已下架狀態）！')
+  showToast(
+  totalStock > 0 ? '新商品已成功上架！' : '新商品已建立（因總庫存為 0，目前為已下架狀態）！',
+  'success',
+  totalStock > 0 ? '新商品已上架' : '新商品已建立'
+)
   showNewModal.value = false
 }
 </script>

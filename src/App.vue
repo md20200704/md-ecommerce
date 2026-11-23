@@ -1,12 +1,19 @@
 <template>
   <div class="app-root d-flex flex-column min-vh-100 bg-cream">
+    <AppToast />
+    <AppConfirmModal />
+
     <Navbar v-if="!isAdminRoute" @open-auth="showAuthModal = true" />
 
     <div class="flex-grow-1" :class="{ 'pb-mobile-nav': !isAdminRoute }">
       <router-view @open-auth="showAuthModal = true" />
     </div>
 
-    <footer v-if="!isAdminRoute" class="bg-white border-top py-4 px-3 text-center text-muted small font-monospace" :class="{ 'mb-5 pb-4 d-lg-block': !isAdminRoute }">
+    <footer
+      v-if="!isAdminRoute"
+      class="bg-white border-top py-4 px-3 text-center text-muted small font-monospace"
+      :class="{ 'mb-5 pb-4 d-lg-block': !isAdminRoute }"
+    >
       <div class="container">
         <div class="fw-bold text-dark font-serif mb-1" style="letter-spacing: 0.08em;">MD.SELECT</div>
         <div style="font-size: 11px;">KOREAN MINIMALIST ARCHIVE · ALL RIGHTS RESERVED.</div>
@@ -30,6 +37,9 @@ import CartDrawer from './components/CartDrawer.vue'
 import AuthModal from './components/AuthModal.vue'
 import BottomNav from './components/BottomNav.vue'
 import CustomerServiceWidget from './components/CustomerServiceWidget.vue'
+import AppToast from './components/AppToast.vue'
+import AppConfirmModal from './components/AppConfirmModal.vue'
+import { showToast } from './composables/useToast'
 import { useMarketingStore } from './stores/marketingStore'
 import { useProductStore } from './stores/productStore'
 import { useAuthStore } from './stores/authStore'
@@ -49,17 +59,28 @@ const adminStore = useAdminStore()
 const chatStore = useChatStore()
 
 const syncAuthenticatedData = async () => {
-  await Promise.all([
-    cartStore.fetchCart(),
+  await cartStore.fetchCart()
+
+  const backgroundTasks = [
     adminStore.fetchOrders(),
     chatStore.fetchThreads()
-  ])
+  ]
+
   if (authStore.isAdmin) {
-    await Promise.all([authStore.fetchMemberList(), adminStore.fetchLogs()])
+    backgroundTasks.push(authStore.fetchMemberList(), adminStore.fetchLogs())
   }
+
+  Promise.allSettled(backgroundTasks)
 }
 
 onMounted(async () => {
+  window.alert = (msg) => {
+    const text = String(msg ?? '')
+    const isError = /失敗|錯誤|不足|封鎖|受限|權限不足|請先|請輸入|請選擇|請填寫|請勾選|請上傳|超過|未達|無效|已過期/.test(text)
+    const isSuccess = /成功|歡迎|已儲存|已建立|已更新|已上架|已發送|已送出|已完成|已加入|已核准|已標記/.test(text)
+    showToast(text, isError ? 'error' : isSuccess ? 'success' : 'info')
+  }
+
   await Promise.all([
     marketingStore.fetchMarketingConfig(),
     productStore.fetchProducts()
@@ -71,7 +92,14 @@ onMounted(async () => {
 })
 
 watch(() => authStore.isLoggedIn, async (loggedIn) => {
-  if (loggedIn) await syncAuthenticatedData()
+  if (loggedIn) {
+    await syncAuthenticatedData()
+  } else {
+    cartStore.items = []
+    chatStore.threads = []
+    chatStore.activeUserId = ''
+    adminStore.orders = []
+  }
 })
 </script>
 

@@ -119,6 +119,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
+import { showToast } from '../../composables/useToast'
 
 const authStore = useAuthStore()
 const currentUser = computed(() => authStore.user || {})
@@ -133,10 +134,10 @@ const newAddressForm = reactive({
 })
 
 const handleAddAddress = () => {
-  if (!newAddressForm.recipientName || !newAddressForm.phone || !newAddressForm.city || !newAddressForm.district || !newAddressForm.detail) {
-    alert('請完整填寫所有必填欄位！')
-    return
-  }
+ if (!newAddressForm.recipientName || !newAddressForm.phone || !newAddressForm.city || !newAddressForm.district || !newAddressForm.detail) {
+  showToast('請完整填寫所有必填欄位！', 'warning', '資料未完整')
+  return
+}
 
   const isFirst = (currentUser.value.savedAddresses || []).length === 0
 
@@ -156,7 +157,7 @@ const handleAddAddress = () => {
   newAddressForm.district = ''
   newAddressForm.detail = ''
   showAddressForm.value = false
-  alert('新收件地址已成功儲存！')
+  showToast('新收件地址已成功儲存！', 'success', '儲存成功')
 }
 
 // 設為預設地址
@@ -165,7 +166,7 @@ const setDefaultAddress = (addressId) => {
     currentUser.value.savedAddresses.forEach(a => {
       a.isDefault = (a.id === addressId)
     })
-    alert('已成功切換預設收件地址！')
+    showToast('已成功切換預設收件地址！', 'success', '已更新預設地址')
   }
 }
 </script>

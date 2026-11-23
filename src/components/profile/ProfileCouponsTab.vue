@@ -84,20 +84,30 @@
 import { ref, computed } from 'vue'
 import { Ticket } from 'lucide-vue-next'
 import { useAuthStore } from '../../stores/authStore'
+import { showToast } from '../../composables/useToast'
 
 const authStore = useAuthStore()
 const currentUser = computed(() => authStore.user || {})
 const claimCodeInput = ref('')
 
-const handleClaimCoupon = () => {
+const handleClaimCoupon = async () => {
   if (!claimCodeInput.value.trim()) {
-    alert('請輸入優惠碼！')
+    showToast('請先輸入優惠碼再進行領取！', 'warning', '提示')
     return
   }
   if (authStore.claimCouponByCode) {
-    const res = authStore.claimCouponByCode(claimCodeInput.value, '會員中心輸入優惠碼領取')
-    alert(res.message)
-    if (res.success) claimCodeInput.value = ''
+    const res = await authStore.claimCouponByCode(
+      claimCodeInput.value.trim().toUpperCase(),
+      '會員中心輸入優惠碼領取'
+    )
+    if (res?.success) {
+      showToast(res.message || '優惠券已存入您的錢包！', 'success', '領取成功')
+      claimCodeInput.value = ''
+    } else {
+      showToast(res?.message || '優惠碼無效、已過期或已領取。', 'error', '領取失敗')
+    }
+  } else {
+    showToast('目前無法使用優惠碼功能，請稍後再試。', 'error', '領取失敗')
   }
 }
 </script>

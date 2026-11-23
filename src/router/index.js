@@ -14,6 +14,7 @@ import OrderSuccessView from '../views/OrderSuccessView.vue'
 import CategoryView from '../views/CategoryView.vue'
 import { useAuthStore } from '../stores/authStore'
 import CustomerServiceView from '../views/admin/CustomerServiceView.vue'
+import { showToast } from '../composables/useToast'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -77,7 +78,7 @@ router.beforeEach((to, from, next) => {
   if (to.meta && to.meta.requiresAdmin) {
     const authStore = useAuthStore()
     if (!authStore.isAdmin) {
-      alert('【權限不足】您目前的帳號身分非管理員，無法造訪後台系統！')
+      showToast('您目前的帳號身分非管理員，無法造訪後台系統！', 'error', '權限不足')
       return next({ path: '/' })
     }
   }

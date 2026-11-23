@@ -512,6 +512,8 @@ import { ref, reactive, computed } from 'vue'
 import { useMarketingStore } from '../../stores/marketingStore'
 import { useProductStore } from '../../stores/productStore'
 import { useAdminStore } from '../../stores/adminStore'
+import { showToast } from '../../composables/useToast'
+import { showConfirm } from '../../composables/useConfirm'
 
 const marketingStore = useMarketingStore()
 const productStore = useProductStore()
@@ -569,20 +571,27 @@ const saveCategory = () => {
   if (isEditingCat.value && currentEditCatIndex.value !== null) {
     marketingStore.updatePrimaryCategory(currentEditCatIndex.value, payload)
     adminStore.addAuditLog('修改導覽主分類', `更新分類【${payload.name}】及其下拉子品類`)
-    alert(`分類【${payload.name}】已成功更新並同步前台！`)
+    showToast(`分類【${payload.name}】已成功更新並同步前台！`, 'success', '分類更新成功')
   } else {
     marketingStore.addPrimaryCategory(payload)
     adminStore.addAuditLog('新增導覽主分類', `建立新導覽分類【${payload.name}】`)
-    alert(`分類【${payload.name}】已建立！`)
+    showToast(`分類【${payload.name}】已建立！`, 'success', '分類建立成功')
   }
   showCatModal.value = false
 }
 
-const handleDeleteCat = (idx, cat) => {
-  if (confirm(`確定要刪除導覽主分類【${cat.name}】嗎？`)) {
-    marketingStore.deletePrimaryCategory(idx)
-    adminStore.addAuditLog('刪除導覽主分類', `刪除分類【${cat.name}】`)
-  }
+const handleDeleteCat = async (idx, cat) => {
+  const confirmed = await showConfirm(`確定要刪除導覽主分類【${cat.name}】嗎？`, {
+    title: '刪除導覽主分類',
+    confirmText: '確認刪除',
+    cancelText: '取消',
+    danger: true
+  })
+  if (!confirmed) return
+
+  marketingStore.deletePrimaryCategory(idx)
+  adminStore.addAuditLog('刪除導覽主分類', `刪除分類【${cat.name}】`)
+  showToast(`已刪除導覽主分類【${cat.name}】。`, 'success', '已刪除分類')
 }
 
 // ==================== 2. Banner CMS 狀態 ====================
@@ -614,7 +623,7 @@ const handleImageFileUpload = (e) => {
   if (!file) return
 
   if (!file.type.startsWith('image/')) {
-    alert('請上傳有效的圖片格式檔案（JPG、PNG、WebP）！')
+    showToast('請上傳有效的圖片格式檔案（JPG、PNG、WebP）！', 'warning', '圖片格式不符')
     return
   }
 
@@ -656,7 +665,6 @@ const openCreateBannerModal = () => {
 const openEditBannerModal = (banner) => {
   isEditing.value = true
   currentEditId.value = banner.id
-  // 若原本是 Base64 則預設為上傳模式，否則為網址模式
   imageSourceMode.value = banner.image?.startsWith('data:image') ? 'upload' : 'url'
   bannerForm.tag = banner.tag
   bannerForm.title = banner.title
@@ -673,7 +681,7 @@ const openEditBannerModal = (banner) => {
 
 const saveBanner = () => {
   if (!bannerForm.image) {
-    alert('請上傳圖片或輸入圖片網址！')
+    showToast('請上傳圖片或輸入圖片網址！', 'warning', '缺少輪播圖片')
     return
   }
 
@@ -682,19 +690,26 @@ const saveBanner = () => {
   if (isEditing.value && currentEditId.value) {
     marketingStore.updateBanner(currentEditId.value, bannerForm)
     adminStore.addAuditLog('更新首頁輪播', `修改輪播 ID #${currentEditId.value}【${bannerForm.title.slice(0, 15)}...】`)
-    alert('輪播資料已儲存並同步至前台！')
+    showToast('輪播資料已儲存並同步至前台！', 'success', '輪播已更新')
   } else {
     marketingStore.addBanner(bannerForm)
     adminStore.addAuditLog('新增首頁輪播', `上線新輪播【${bannerForm.title.slice(0, 15)}...】`)
-    alert('已成功建立新輪播圖！')
+    showToast('已成功建立新輪播圖！', 'success', '輪播建立成功')
   }
   showModal.value = false
 }
 
-const handleDeleteBanner = (banner) => {
-  if (confirm(`確定要刪除輪播【${banner.title.slice(0, 15)}...】嗎？`)) {
-    marketingStore.deleteBanner(banner.id)
-    adminStore.addAuditLog('刪除首頁輪播', `刪除輪播 ID #${banner.id}`)
-  }
+const handleDeleteBanner = async (banner) => {
+  const confirmed = await showConfirm(`確定要刪除輪播【${banner.title.slice(0, 15)}...】嗎？`, {
+    title: '刪除首頁輪播',
+    confirmText: '確認刪除',
+    cancelText: '取消',
+    danger: true
+  })
+  if (!confirmed) return
+
+  marketingStore.deleteBanner(banner.id)
+  adminStore.addAuditLog('刪除首頁輪播', `刪除輪播 ID #${banner.id}`)
+  showToast('已刪除該首頁輪播圖。', 'success', '已刪除輪播')
 }
 </script>

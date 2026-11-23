@@ -359,6 +359,7 @@ import { useProductStore } from '../stores/productStore'
 import { useCartStore } from '../stores/cartStore'
 import { useAuthStore } from '../stores/authStore'
 import { useAdminStore } from '../stores/adminStore'
+import { showToast } from '../composables/useToast'
 
 const route = useRoute()
 const productStore = useProductStore()
@@ -434,13 +435,24 @@ onMounted(() => initDefaults())
 const handleWishlistToggle = () => {
   if (product.value && typeof authStore.toggleWishlist === 'function') {
     const res = authStore.toggleWishlist(product.value.id)
-    if (res?.message) alert(res.message)
+    if (!res?.message) return
+
+    if (res.requiresLogin || res.success === false) {
+      showToast(res.message, 'warning', '請先登入')
+      return
+    }
+
+    showToast(
+      res.message,
+      res.added ? 'success' : 'info',
+      res.added ? '已加入收藏' : '已移除收藏'
+    )
   }
 }
 
 const openRestockModal = () => {
   if (!authStore.user?.isLoggedIn) {
-    alert('請先登入會員以登記補貨提醒！')
+    showToast('請先登入會員以登記補貨提醒！', 'warning', '請先登入')
     return
   }
   restockForm.email = authStore.user.email || ''
@@ -448,9 +460,9 @@ const openRestockModal = () => {
   showRestockModal.value = true
 }
 
-const submitRestockAlert = () => {
-  const res = authStore.registerRestockAlert(product.value, currentSku.value, restockForm)
-  alert(res.message)
+const submitRestockAlert = async () => {
+  const res = await authStore.registerRestockAlert(product.value, currentSku.value, restockForm)
+  showToast(res.message, res.success ? 'success' : 'error', res.success ? '登記成功' : '登記失敗')
   if (res.success) showRestockModal.value = false
 }
 

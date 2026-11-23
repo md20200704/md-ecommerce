@@ -34,6 +34,7 @@
 <script setup>
 import { reactive, computed } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
+import { showToast } from '../../composables/useToast'
 
 const authStore = useAuthStore()
 const currentUser = computed(() => authStore.user || {})
@@ -53,7 +54,7 @@ const saveUserProfile = () => {
       birthday: profileForm.birthday
     })
   }
-  alert('會員資料與生日已儲存！')
+  showToast('會員資料與生日已儲存！', 'success', '儲存成功')
 }
 </script>
 

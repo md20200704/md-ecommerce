@@ -510,6 +510,7 @@ import { ref, reactive, computed } from 'vue'
 import { Layers, Package, Truck, CheckCircle2, RotateCcw, ChevronDown } from 'lucide-vue-next'
 import { useAdminStore } from '../../stores/adminStore'
 import { useProductStore } from '../../stores/productStore'
+import { showToast } from '../../composables/useToast'
 
 const adminStore = useAdminStore()
 const productStore = useProductStore()
@@ -674,14 +675,18 @@ const getItemImage = (item) => {
   return 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80'
 }
 
-const handleApproveCancel = (ord) => {
+const handleApproveCancel = async (ord) => {
   const orderId = ord.orderId || ord.id
   if (adminStore.approveCancelOrder) {
-    const res = adminStore.approveCancelOrder(orderId)
-    alert(res.message)
+    const res = await adminStore.approveCancelOrder(orderId)
+    showToast(
+      res?.message || `訂單 #${orderId} 已確認取消，庫存已回補！`,
+      res?.success !== false ? 'success' : 'error',
+      res?.success !== false ? '已核准取消訂單' : '操作失敗'
+    )
   } else {
     ord.status = '已取消'
-    alert(`訂單 #${orderId} 已確認取消，庫存已回補！`)
+    showToast(`訂單 #${orderId} 已確認取消，庫存已回補！`, 'success', '已核准取消訂單')
   }
 }
 
@@ -689,7 +694,11 @@ const handleRejectCancel = (ord) => {
   const orderId = ord.orderId || ord.id
   ord.status = '待出貨'
   delete ord.cancelReason
-  alert(`已駁回訂單 #${orderId} 的取消申請，訂單恢復為待出貨狀態。`)
+  showToast(
+    `已駁回訂單 #${orderId} 的取消申請，訂單恢復為待出貨狀態。`,
+    'info',
+    '已駁回取消申請'
+  )
 }
 
 const shipModalState = reactive({
@@ -721,14 +730,18 @@ const submitShipOrder = () => {
     adminStore.addAuditLog('商家更新訂單出貨', `訂單 #${orderId} 已出貨，物流單號：${tracking}`)
   }
 
-  alert(`訂單 #${orderId} 已成功標記為「配送中」！物流單號：${tracking}`)
+  showToast(
+  `訂單 #${orderId} 已成功標記為「配送中」！物流單號：${tracking}`,
+  'success',
+  '已更新出貨狀態'
+)
   shipModalState.isOpen = false
 }
 
 const markAsCompleted = (ord) => {
   const orderId = ord.orderId || ord.id
   ord.status = '已完成'
-  alert(`訂單 #${orderId} 已手動標記為已完成！`)
+  showToast(`訂單 #${orderId} 已手動標記為已完成！`, 'success', '訂單已完成')
 }
 </script>
 

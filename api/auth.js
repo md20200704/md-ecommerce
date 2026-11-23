@@ -1,21 +1,36 @@
 import bcrypt from 'bcryptjs'
-import { query, withTransaction, signToken, verifyAuth, getClientIp, writeAuditLog } from './_lib/db.js'
+import { pool, query, withTransaction, signToken, verifyAuth, getClientIp, writeAuditLog } from './_lib/db.js'
 
 async function loadFullUserProfile(userId) {
-  const { rows } = await query(
-    `SELECT id, name, email, phone, birthday, avatar, role, vip_tier_id,
-            total_spent, points, order_count, abandon_count, risk_status, notes
-     FROM users WHERE id = $1`,
-    [userId]
-  )
-  const u = rows[0]
+  const [userRes, relatedRes] = await Promise.all([
+    query(
+      `SELECT id, name, email, phone, birthday, avatar, role, vip_tier_id,
+              total_spent, points, order_count, abandon_count, risk_status, notes
+       FROM users WHERE id = $1 LIMIT 1`,
+      [userId]
+    ),
+    query(
+      `SELECT
+         COALESCE((
+           SELECT json_agg(a ORDER BY a.is_default DESC, a.id ASC)
+           FROM user_addresses a WHERE a.user_id = $1
+         ), '[]'::json) AS addresses,
+         COALESCE((
+           SELECT json_agg(c ORDER BY c.claimed_at DESC)
+           FROM user_coupons c WHERE c.user_id = $1
+         ), '[]'::json) AS coupons,
+         COALESCE((
+           SELECT json_agg(w.product_id)
+           FROM user_wishlists w WHERE w.user_id = $1
+         ), '[]'::json) AS wishlist`,
+      [userId]
+    )
+  ])
+
+  const u = userRes.rows[0]
   if (!u) return null
 
-  const [addrRes, cpnRes, wishRes] = await Promise.all([
-    query(`SELECT * FROM user_addresses WHERE user_id = $1 ORDER BY is_default DESC, id ASC`, [userId]),
-    query(`SELECT * FROM user_coupons WHERE user_id = $1 ORDER BY claimed_at DESC`, [userId]),
-    query(`SELECT product_id FROM user_wishlists WHERE user_id = $1`, [userId])
-  ])
+  const rel = relatedRes.rows[0] || { addresses: [], coupons: [], wishlist: [] }
 
   return {
     id: u.id,
@@ -23,7 +38,7 @@ async function loadFullUserProfile(userId) {
     name: u.name,
     email: u.email,
     phone: u.phone || '',
-    birthday: u.birthday ? u.birthday.toISOString().slice(0, 10) : '',
+    birthday: u.birthday ? String(u.birthday).slice(0, 10) : '',
     avatar: u.avatar,
     role: u.role,
     isAdmin: u.role === 'ADMIN',
@@ -34,8 +49,8 @@ async function loadFullUserProfile(userId) {
     abandonCount: Number(u.abandon_count || 0),
     riskStatus: u.risk_status,
     blockReason: u.notes || '',
-    wishlist: wishRes.rows.map(r => Number(r.product_id)),
-    savedAddresses: addrRes.rows.map(a => ({
+    wishlist: (rel.wishlist || []).map(id => Number(id)),
+    savedAddresses: (rel.addresses || []).map(a => ({
       id: Number(a.id),
       type: a.type,
       recipientName: a.recipient_name,
@@ -43,9 +58,9 @@ async function loadFullUserProfile(userId) {
       city: a.city,
       district: a.district,
       detail: a.detail,
-      isDefault: a.is_default
+      isDefault: Boolean(a.is_default)
     })),
-    myCoupons: cpnRes.rows.map(c => ({
+    myCoupons: (rel.coupons || []).map(c => ({
       instanceId: c.instance_id,
       code: c.code,
       title: c.title,
@@ -53,8 +68,8 @@ async function loadFullUserProfile(userId) {
       value: Number(c.value),
       maxDiscount: Number(c.max_discount || 0),
       minSpend: Number(c.min_spend || 0),
-      expiryDate: c.expiry_date ? c.expiry_date.toISOString().slice(0, 10) : '',
-      isUsed: c.is_used,
+      expiryDate: c.expiry_date ? String(c.expiry_date).slice(0, 10) : '',
+      isUsed: Boolean(c.is_used),
       source: c.source
     }))
   }
@@ -83,14 +98,14 @@ export default async function handler(req, res) {
             name: m.name,
             phone: m.phone || '',
             email: m.email,
-            birthday: m.birthday ? m.birthday.toISOString().slice(0, 10) : '',
+            birthday: m.birthday ? String(m.birthday).slice(0, 10) : '',
             vipTierId: m.vip_tier_id,
             totalSpent: Number(m.total_spent || 0),
             orderCount: Number(m.order_count || 0),
             abandonCount: Number(m.abandon_count || 0),
             riskStatus: m.risk_status,
             notes: m.notes || '',
-            updatedAt: m.updated_at ? m.updated_at.toISOString().slice(0, 10) : ''
+            updatedAt: m.updated_at ? String(m.updated_at).slice(0, 10) : ''
           }))
         })
       }
@@ -119,9 +134,7 @@ export default async function handler(req, res) {
           return res.status(403).json({ success: false, message: '此帳號已被系統封鎖，請聯繫客服' })
         }
 
-        // 相容種子示範帳號與正式 bcrypt 雜湊密碼
-        const isDemoSeed = userRow.password_hash.startsWith('$2b$10$demo_hash_')
-        const passwordOk = isDemoSeed ? Boolean(password) : await bcrypt.compare(password || '', userRow.password_hash)
+        const passwordOk = await bcrypt.compare(password || '', userRow.password_hash)
         if (!passwordOk) {
           return res.status(401).json({ success: false, message: '帳號或密碼錯誤' })
         }
@@ -136,7 +149,10 @@ export default async function handler(req, res) {
         if (!name || !email || !password) {
           return res.status(400).json({ success: false, message: '請填寫完整註冊資料' })
         }
-        const exists = await query(`SELECT id FROM users WHERE email = $1 OR phone = $2`, [email.trim(), phone || null])
+        const exists = await query(
+          `SELECT id FROM users WHERE email = $1 OR phone = $2`,
+          [email.trim(), phone || null]
+        )
         if (exists.rows.length > 0) {
           return res.status(409).json({ success: false, message: '此 Email 或手機號碼已被註冊' })
         }
@@ -180,7 +196,10 @@ export default async function handler(req, res) {
           [authUser.id, tpl.code]
         )
         if (dup.rows.length > 0) {
-          return res.status(409).json({ success: false, message: `您的錢包內已有【${tpl.title}】，結帳時可直接選用` })
+          return res.status(409).json({
+            success: false,
+            message: `您的錢包內已有【${tpl.title}】，結帳時可直接選用`
+          })
         }
 
         const instanceId = 'UCPN-' + Date.now() + Math.floor(Math.random() * 100)
@@ -191,7 +210,11 @@ export default async function handler(req, res) {
           [instanceId, authUser.id, tpl.id, tpl.code, tpl.title, tpl.type, tpl.value, tpl.max_discount, tpl.min_spend, tpl.expiry_date, source]
         )
         const user = await loadFullUserProfile(authUser.id)
-        return res.status(200).json({ success: true, message: `領取成功！【${tpl.title}】已存入您的錢包`, user })
+        return res.status(200).json({
+          success: true,
+          message: `領取成功！【${tpl.title}】已存入您的錢包`,
+          user
+        })
       }
 
       if (action === 'toggle-wishlist') {
@@ -201,15 +224,24 @@ export default async function handler(req, res) {
           [authUser.id, productId]
         )
         if (exists.rows.length > 0) {
-          await query(`DELETE FROM user_wishlists WHERE user_id = $1 AND product_id = $2`, [authUser.id, productId])
+          await query(
+            `DELETE FROM user_wishlists WHERE user_id = $1 AND product_id = $2`,
+            [authUser.id, productId]
+          )
           return res.status(200).json({ success: true, added: false, message: '已從收藏清單移除' })
         }
-        await query(`INSERT INTO user_wishlists (user_id, product_id) VALUES ($1, $2)`, [authUser.id, productId])
+        await query(
+          `INSERT INTO user_wishlists (user_id, product_id) VALUES ($1, $2)`,
+          [authUser.id, productId]
+        )
         return res.status(200).json({ success: true, added: true, message: '已加入愛心收藏清單！' })
       }
 
       if (action === 'add-address') {
         const { type = 'HOME', recipientName, phone, city, district, detail, isDefault = false } = req.body
+        if (isDefault) {
+          await query(`UPDATE user_addresses SET is_default = FALSE WHERE user_id = $1`, [authUser.id])
+        }
         const { rows } = await query(
           `INSERT INTO user_addresses (user_id, type, recipient_name, phone, city, district, detail, is_default)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
@@ -229,7 +261,9 @@ export default async function handler(req, res) {
       }
 
       if (action === 'dispatch-coupons') {
-        if (authUser.role !== 'ADMIN') return res.status(403).json({ success: false, message: '無管理員權限' })
+        if (authUser.role !== 'ADMIN') {
+          return res.status(403).json({ success: false, message: '無管理員權限' })
+        }
         const { couponCode, targetGroup, sourceName = '系統活動派發' } = req.body
 
         const result = await withTransaction(async (client) => {
@@ -284,7 +318,9 @@ export default async function handler(req, res) {
       if (!authUser) return res.status(401).json({ success: false, message: '請先登入' })
 
       if (action === 'admin-update-member') {
-        if (authUser.role !== 'ADMIN') return res.status(403).json({ success: false, message: '無管理員權限' })
+        if (authUser.role !== 'ADMIN') {
+          return res.status(403).json({ success: false, message: '無管理員權限' })
+        }
         const { memberId, name, phone, birthday, vipTierId, riskStatus, notes } = req.body
         await query(
           `UPDATE users
@@ -308,7 +344,11 @@ export default async function handler(req, res) {
 
       const { name, phone, birthday } = req.body
       await query(
-        `UPDATE users SET name = COALESCE($2, name), phone = COALESCE($3, phone), birthday = COALESCE($4, birthday) WHERE id = $1`,
+        `UPDATE users
+         SET name = COALESCE($2, name),
+             phone = COALESCE($3, phone),
+             birthday = COALESCE($4, birthday)
+         WHERE id = $1`,
         [authUser.id, name ?? null, phone ?? null, birthday || null]
       )
       const user = await loadFullUserProfile(authUser.id)
@@ -319,7 +359,10 @@ export default async function handler(req, res) {
     if (req.method === 'DELETE' && action === 'remove-address') {
       if (!authUser) return res.status(401).json({ success: false, message: '請先登入' })
       const addressId = Number(req.query.id || req.body?.id)
-      await query(`DELETE FROM user_addresses WHERE id = $1 AND user_id = $2`, [addressId, authUser.id])
+      await query(
+        `DELETE FROM user_addresses WHERE id = $1 AND user_id = $2`,
+        [addressId, authUser.id]
+      )
       return res.status(200).json({ success: true })
     }
 
