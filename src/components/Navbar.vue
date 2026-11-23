@@ -2,16 +2,28 @@
   <div>
     <!-- 固定在最上方的導覽列 -->
     <header class="navbar-fixed-top bg-white border-bottom shadow-2xs">
-      <nav class="navbar-grid-container px-3 px-md-4 px-xl-5 py-2.5 py-lg-3">
-        
-        <!-- 1. 最左側：品牌 Logo -->
+      <nav class="navbar-grid-container px-3 px-md-4 px-xl-5 py-2 py-lg-2.5">
+
+        <!-- 1. 最左側：小鹿品牌 Logo + 空一格 + 手寫花體 M & D -->
         <div class="d-flex align-items-center justify-content-start">
           <router-link
             to="/"
-            class="text-decoration-none text-dark fw-bold fs-4 font-serif tracking-wide flex-shrink-0"
-            style="letter-spacing: 0.08em;"
+            class="brand-logo-link text-decoration-none d-inline-flex align-items-center flex-shrink-0"
+            aria-label="M & D 首頁"
           >
-            M&D SELECT
+            <span class="brand-logo-frame">
+              <img
+                :src="brandLogo"
+                alt="M & D 品牌小鹿 Logo"
+                class="brand-logo-img"
+              />
+            </span>
+
+            <span class="brand-en">
+              <span class="brand-en-letter">M</span>
+              <span class="brand-en-amp">&amp;</span>
+              <span class="brand-en-letter">D</span>
+            </span>
           </router-link>
         </div>
 
@@ -125,6 +137,7 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown } from 'lucide-vue-next'
+import brandLogo from '../assets/logo.jpg'
 import { useMarketingStore } from '../stores/marketingStore'
 import { useAuthStore } from '../stores/authStore'
 import { useCartStore } from '../stores/cartStore'
@@ -183,13 +196,83 @@ const goToCategory = (mainCategory, subCategory) => {
 }
 
 .navbar-spacer {
-  height: 58px;
+  height: 60px;
 }
 
 @media (min-width: 992px) {
   .navbar-spacer {
-    height: 66px;
+    height: 68px;
   }
+}
+
+/* 品牌 Logo 與「M & D」手寫花體字形（圖片與名稱中間空一格） */
+.brand-logo-link {
+  gap: 0.85rem;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+@media (min-width: 992px) {
+  .brand-logo-link {
+    gap: 1rem;
+  }
+}
+
+.brand-logo-link:hover {
+  opacity: 0.92;
+}
+
+.brand-logo-frame {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e8e2da;
+  background-color: #faf8f5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(45, 38, 33, 0.05);
+}
+
+@media (min-width: 992px) {
+  .brand-logo-frame {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.brand-en {
+  font-family: 'Courgette', cursive, serif;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.16em;
+  font-size: 1.55rem;
+  font-weight: 400;
+  color: #2d2621;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+@media (min-width: 992px) {
+  .brand-en {
+    font-size: 1.78rem;
+  }
+}
+
+.brand-en-amp {
+  font-size: 0.95em;
+  color: #705844;
+  margin: 0 0.04em;
 }
 
 .navbar-grid-container {

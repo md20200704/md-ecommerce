@@ -29,7 +29,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Analytics } from '@vercel/analytics/vue'
 import Navbar from './components/Navbar.vue'
@@ -71,6 +71,7 @@ const syncAuthenticatedData = async () => {
   }
 
   Promise.allSettled(backgroundTasks)
+  chatStore.startPolling()
 }
 
 onMounted(async () => {
@@ -96,10 +97,13 @@ watch(() => authStore.isLoggedIn, async (loggedIn) => {
     await syncAuthenticatedData()
   } else {
     cartStore.items = []
-    chatStore.threads = []
-    chatStore.activeUserId = ''
+    chatStore.resetChatState()
     adminStore.orders = []
   }
+})
+
+onUnmounted(() => {
+  chatStore.stopPolling()
 })
 </script>
 

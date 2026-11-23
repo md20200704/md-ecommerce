@@ -5,15 +5,15 @@
       v-if="!isOpen"
       type="button"
       class="cs-fab-btn shadow-lg d-flex align-items-center justify-content-center position-relative"
-      @click="isOpen = true"
+      @click="handleOpenWidget"
       title="聯絡線上客服"
     >
       <span style="font-size: 24px;">💬</span>
       <span
-        v-if="chatStore.totalUnreadCount > 0"
+        v-if="authStore.isLoggedIn && chatStore.customerUnreadCount > 0"
         class="cs-unread-badge font-monospace"
       >
-        {{ chatStore.totalUnreadCount }}
+        {{ chatStore.customerUnreadCount }}
       </span>
     </button>
 
@@ -28,7 +28,7 @@
               M&D 線上風格客服
             </div>
             <div class="text-white-50 font-monospace mt-1" style="font-size: 11px; line-height: 1.2;">
-              支援傳送商品截圖與即時諮詢
+              {{ authStore.isLoggedIn ? `目前帳號：${authStore.user?.name || authStore.user?.id}` : '請先登入會員以開始對話' }}
             </div>
           </div>
         </div>
@@ -44,41 +44,40 @@
       <div ref="chatScrollRef" class="cs-widget-body flex-grow-1 overflow-auto d-flex flex-column">
         <div class="text-center my-2">
           <span class="cs-welcome-pill font-monospace">
-            👋 您好！可輸入問題或點擊左下角 📷 傳送圖片
+            {{ authStore.isLoggedIn ? '👋 您好！可輸入問題或點擊左下角 📷 傳送圖片' : '🔒 登入會員後即可檢視您的專屬客服紀錄' }}
           </span>
         </div>
 
-        <div
-          v-for="msg in chatStore.activeThread.messages"
-          :key="msg.id"
-          class="d-flex flex-column"
-          :class="msg.sender === 'user' ? 'align-items-end' : 'align-items-start'"
-        >
+        <template v-if="authStore.isLoggedIn">
           <div
-            class="cs-chat-bubble font-monospace"
-            :class="msg.sender === 'user' ? 'is-user' : 'is-admin'"
+            v-for="msg in chatStore.activeThread.messages"
+            :key="msg.id"
+            class="d-flex flex-column"
+            :class="msg.sender === 'user' ? 'align-items-end' : 'align-items-start'"
           >
-            <!-- 若訊息包含圖片 -->
-            <div v-if="msg.image" class="cs-msg-image-wrap" :class="{ 'mb-2': msg.text }">
-              <img
-                :src="msg.image"
-                alt="對話圖片"
-                class="cs-msg-image"
-                @click="previewLightboxImage = msg.image"
-              />
+            <div
+              class="cs-chat-bubble font-monospace"
+              :class="msg.sender === 'user' ? 'is-user' : 'is-admin'"
+            >
+              <div v-if="msg.image" class="cs-msg-image-wrap" :class="{ 'mb-2': msg.text }">
+                <img
+                  :src="msg.image"
+                  alt="對話圖片"
+                  class="cs-msg-image"
+                  @click="previewLightboxImage = msg.image"
+                />
+              </div>
+              <div v-if="msg.text">{{ msg.text }}</div>
             </div>
-            <!-- 若訊息包含文字 -->
-            <div v-if="msg.text">{{ msg.text }}</div>
+            <span class="text-muted font-monospace mt-1 px-1" style="font-size: 10px;">
+              {{ msg.time }}
+            </span>
           </div>
-          <span class="text-muted font-monospace mt-1 px-1" style="font-size: 10px;">
-            {{ msg.time }}
-          </span>
-        </div>
+        </template>
       </div>
 
       <!-- 3. 底部輸入框與圖片預覽列 -->
       <div class="cs-widget-footer bg-white flex-shrink-0">
-        <!-- 待發送圖片預覽小卡 -->
         <div v-if="pendingImage" class="cs-pending-preview mb-2 d-flex align-items-center justify-content-between">
           <div class="d-flex align-items-center gap-2">
             <img :src="pendingImage" class="cs-pending-thumb rounded-2 object-fit-cover" />
@@ -95,7 +94,6 @@
         </div>
 
         <form @submit.prevent="handleSend" class="d-flex align-items-center gap-2">
-          <!-- 隱藏的圖片檔案選取器 -->
           <input
             ref="fileInputRef"
             type="file"
@@ -103,7 +101,6 @@
             class="d-none"
             @change="handleImageSelect"
           />
-          <!-- 上傳圖片按鈕 -->
           <button
             type="button"
             class="cs-upload-btn flex-shrink-0"
@@ -117,12 +114,13 @@
             v-model="inputText"
             type="text"
             class="form-control cs-input rounded-pill"
-            placeholder="輸入訊息或傳送圖片..."
+            :placeholder="authStore.isLoggedIn ? '輸入訊息或傳送圖片...' : '請先登入會員後發送訊息...'"
+            :disabled="!authStore.isLoggedIn"
           />
           <button
             type="submit"
             class="btn btn-dark rounded-pill cs-send-btn font-monospace fw-bold flex-shrink-0"
-            :disabled="!inputText.trim() && !pendingImage"
+            :disabled="!authStore.isLoggedIn || (!inputText.trim() && !pendingImage)"
           >
             發送
           </button>
@@ -154,8 +152,11 @@
 <script setup>
 import { ref, nextTick, watch } from 'vue'
 import { useChatStore } from '../stores/chatStore'
+import { useAuthStore } from '../stores/authStore'
+import { showToast } from '../composables/useToast'
 
 const chatStore = useChatStore()
+const authStore = useAuthStore()
 const isOpen = ref(false)
 const inputText = ref('')
 const pendingImage = ref(null)
@@ -171,11 +172,53 @@ const scrollToBottom = () => {
   })
 }
 
+const handleOpenWidget = async () => {
+  if (!authStore.isLoggedIn) {
+    showToast('請先登入會員以使用線上客服功能', 'warning', '請先登入')
+    return
+  }
+  isOpen.value = true
+  await chatStore.fetchThreads()
+  chatStore.markCustomerAsRead(authStore.user?.id)
+  scrollToBottom()
+}
+
 watch(isOpen, (val) => {
-  if (val) scrollToBottom()
+  if (val && authStore.isLoggedIn) {
+    chatStore.markCustomerAsRead(authStore.user?.id)
+    scrollToBottom()
+  }
 })
 
+watch(
+  () => authStore.user?.id,
+  (newId, oldId) => {
+    if (newId !== oldId) {
+      isOpen.value = false
+      inputText.value = ''
+      clearPendingImage()
+      if (!newId) {
+        chatStore.resetChatState()
+      }
+    }
+  }
+)
+
+watch(
+  () => chatStore.activeThread.messages?.length,
+  () => {
+    if (isOpen.value && authStore.isLoggedIn) {
+      chatStore.markCustomerAsRead(authStore.user?.id)
+      scrollToBottom()
+    }
+  }
+)
+
 const triggerFileSelect = () => {
+  if (!authStore.isLoggedIn) {
+    showToast('請先登入會員後再傳送圖片', 'warning', '請先登入')
+    return
+  }
   if (fileInputRef.value) {
     fileInputRef.value.click()
   }
@@ -200,16 +243,37 @@ const clearPendingImage = () => {
   }
 }
 
-const handleSend = () => {
+const handleSend = async () => {
+  if (!authStore.isLoggedIn || !authStore.user?.id) {
+    showToast('請先登入會員後再使用線上客服功能', 'warning', '請先登入')
+    return
+  }
   if (!inputText.value.trim() && !pendingImage.value) return
-  chatStore.sendMessage('USER-001', inputText.value.trim(), 'user', pendingImage.value)
+
+  const uid = authStore.user.id
+  const textToSend = inputText.value.trim()
+  const imgToSend = pendingImage.value
+
+  const created = await chatStore.sendMessage(uid, textToSend, 'user', imgToSend, false)
+  if (!created) return
+
   inputText.value = ''
   clearPendingImage()
   scrollToBottom()
 
-  setTimeout(() => {
-    chatStore.sendMessage('USER-001', '感謝您的留言！客服專員已收到您的訊息與圖片，將立即為您查詢處理。', 'admin')
-    scrollToBottom()
+  setTimeout(async () => {
+    if (!authStore.isLoggedIn || authStore.user?.id !== uid) return
+    await chatStore.sendMessage(
+      uid,
+      '感謝您的留言！客服專員已收到您的訊息與圖片，將立即為您查詢處理。',
+      'admin',
+      null,
+      true
+    )
+    if (isOpen.value) {
+      chatStore.markCustomerAsRead(uid)
+      scrollToBottom()
+    }
   }, 1500)
 }
 </script>
@@ -255,6 +319,7 @@ const handleSend = () => {
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;
+  line-height: 1.1;
 }
 
 .cs-widget-box {

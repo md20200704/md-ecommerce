@@ -1,21 +1,17 @@
 <template>
   <div class="cs-admin-page d-flex flex-column gap-4 w-100 px-3 px-sm-4 px-md-0 pb-4" style="min-width: 0;">
-    
-    <!-- 頂部頁頭 -->
     <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 py-2">
       <div>
         <h1 class="h4 fw-bold text-dark font-serif mb-1">客服訊息與即時對話管理</h1>
         <p class="small text-muted mb-0">即時回覆消費者諮詢、傳送商品實拍圖及檢視客戶歷史訂單資訊</p>
       </div>
       <div class="cs-unread-summary font-monospace">
-        未回覆諮詢：<strong class="text-danger ms-1">{{ chatStore.totalUnreadCount }}</strong> 則
+        未回覆諮詢：<strong class="text-danger ms-1">{{ chatStore.adminUnreadCount }}</strong> 則
       </div>
     </div>
 
-    <!-- 主客服工作台 -->
     <div class="cs-workbench bg-white rounded-4 overflow-hidden">
       <div class="row h-100 g-0">
-        
         <!-- 左側：諮詢對話執行緒列表 -->
         <div class="col-12 col-md-4 col-xl-3 cs-sidebar-col d-flex flex-column h-100">
           <div class="cs-sidebar-search bg-white">
@@ -32,12 +28,12 @@
               v-for="thread in filteredThreads"
               :key="thread.userId"
               class="cs-thread-item"
-              :class="{ 'is-active': chatStore.activeUserId === thread.userId }"
+              :class="{ 'is-active': chatStore.activeThread.userId === thread.userId }"
               @click="selectThread(thread.userId)"
             >
               <div class="cs-thread-inner">
                 <img :src="thread.avatar" class="cs-avatar rounded-circle object-fit-cover" />
-                
+
                 <div class="cs-thread-content">
                   <div class="cs-thread-top-row">
                     <span class="cs-thread-name" :title="thread.userName">
@@ -55,12 +51,12 @@
                   <div class="cs-thread-bottom-row">
                     <span
                       class="cs-status-tag font-monospace"
-                      :class="`status-${thread.status.toLowerCase()}`"
+                      :class="`status-${String(thread.status || 'PENDING').toLowerCase()}`"
                     >
                       {{ statusLabel(thread.status) }}
                     </span>
                     <span
-                      v-if="thread.unreadCount > 0"
+                      v-if="Number(thread.unreadCount || 0) > 0"
                       class="cs-thread-unread font-monospace"
                     >
                       {{ thread.unreadCount }} 則未讀
@@ -74,7 +70,6 @@
 
         <!-- 中間：即時聊天室主視窗 -->
         <div class="col-12 col-md-8 col-xl-6 d-flex flex-column h-100 bg-white" style="min-width: 0;">
-          <!-- 對話頭部資訊 -->
           <div class="cs-main-header d-flex align-items-center justify-content-between bg-white flex-wrap gap-2">
             <div class="d-flex align-items-center gap-3" style="min-width: 0;">
               <img :src="chatStore.activeThread.avatar" class="cs-avatar-sm rounded-circle object-fit-cover flex-shrink-0" />
@@ -91,6 +86,7 @@
               <select
                 :value="chatStore.activeThread.status"
                 class="form-select cs-status-select font-monospace rounded-pill"
+                :disabled="!chatStore.activeThread.userId"
                 @change="(e) => chatStore.updateThreadStatus(chatStore.activeThread.userId, e.target.value)"
               >
                 <option value="PENDING">🔴 待處理</option>
@@ -100,7 +96,6 @@
             </div>
           </div>
 
-          <!-- 訊息歷史區 -->
           <div ref="adminScrollRef" class="cs-main-messages flex-grow-1 overflow-auto d-flex flex-column">
             <div
               v-for="msg in chatStore.activeThread.messages"
@@ -118,7 +113,6 @@
                 class="cs-admin-bubble font-monospace"
                 :class="msg.sender === 'admin' ? 'is-admin' : 'is-customer'"
               >
-                <!-- 圖片訊息渲染（點擊可放大預覽） -->
                 <div v-if="msg.image" class="cs-admin-image-wrap" :class="{ 'mb-2': msg.text }">
                   <img
                     :src="msg.image"
@@ -127,15 +121,12 @@
                     @click="previewLightboxImage = msg.image"
                   />
                 </div>
-                <!-- 文字訊息渲染 -->
                 <div v-if="msg.text">{{ msg.text }}</div>
               </div>
             </div>
           </div>
 
-          <!-- 商家回覆輸入列 -->
           <div class="cs-main-footer bg-white">
-            <!-- 快捷罐頭訊息 -->
             <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
               <span class="text-muted font-monospace me-1" style="font-size: 11px;">快捷回覆：</span>
               <button
@@ -161,7 +152,6 @@
               </button>
             </div>
 
-            <!-- 待發送圖片預覽小卡 -->
             <div v-if="pendingImage" class="cs-pending-preview mb-3 d-flex align-items-center justify-content-between">
               <div class="d-flex align-items-center gap-2">
                 <img :src="pendingImage" class="cs-pending-thumb rounded-2 object-fit-cover" />
@@ -178,7 +168,6 @@
             </div>
 
             <form @submit.prevent="handleAdminSend" class="d-flex align-items-center gap-2">
-              <!-- 隱藏圖片選擇器 -->
               <input
                 ref="adminFileInputRef"
                 type="file"
@@ -186,7 +175,6 @@
                 class="d-none"
                 @change="handleAdminImageSelect"
               />
-              <!-- 上傳圖片按鈕 -->
               <button
                 type="button"
                 class="cs-upload-btn flex-shrink-0"
@@ -205,7 +193,7 @@
               <button
                 type="submit"
                 class="btn btn-dark rounded-pill cs-reply-btn font-monospace fw-bold flex-shrink-0"
-                :disabled="!inputText.trim() && !pendingImage"
+                :disabled="!chatStore.activeThread.userId || (!inputText.trim() && !pendingImage)"
               >
                 發送回覆
               </button>
@@ -218,7 +206,7 @@
           <div class="fw-bold text-dark pb-3 mb-3 border-bottom" style="font-size: 14px; border-color: #ede8e1 !important;">
             客戶檔案與歷史訂單
           </div>
-          
+
           <div class="d-flex flex-column gap-3 font-monospace">
             <div class="cs-info-card">
               <span class="text-muted d-block mb-1" style="font-size: 11px;">會員姓名</span>
@@ -251,11 +239,9 @@
             </div>
           </div>
         </div>
-
       </div>
     </div>
 
-    <!-- 點擊圖片放大檢視燈箱 -->
     <Teleport to="body">
       <div
         v-if="previewLightboxImage"
@@ -292,9 +278,9 @@ const filteredThreads = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return chatStore.threads
   return chatStore.threads.filter(t =>
-    t.userName.toLowerCase().includes(q) ||
-    t.lastMessage.toLowerCase().includes(q) ||
-    t.userEmail.toLowerCase().includes(q)
+    String(t.userName || '').toLowerCase().includes(q) ||
+    String(t.lastMessage || '').toLowerCase().includes(q) ||
+    String(t.userEmail || '').toLowerCase().includes(q)
   )
 })
 
@@ -312,9 +298,9 @@ const scrollToBottom = () => {
   })
 }
 
-const selectThread = (userId) => {
+const selectThread = async (userId) => {
   chatStore.activeUserId = userId
-  chatStore.markAsRead(userId)
+  await chatStore.markAsRead(userId)
   scrollToBottom()
 }
 
@@ -343,10 +329,17 @@ const clearPendingImage = () => {
   }
 }
 
-const handleAdminSend = () => {
-  if (!inputText.value.trim() && !pendingImage.value) return
+const handleAdminSend = async () => {
   const userId = chatStore.activeThread.userId
-  chatStore.sendMessage(userId, inputText.value.trim(), 'admin', pendingImage.value)
+  if (!userId || (!inputText.value.trim() && !pendingImage.value)) return
+
+  const textToSend = inputText.value.trim()
+  const imgToSend = pendingImage.value
+
+  const created = await chatStore.sendMessage(userId, textToSend, 'admin', imgToSend)
+  if (!created) return
+
+  await chatStore.markAsRead(userId)
   inputText.value = ''
   clearPendingImage()
   scrollToBottom()
@@ -376,7 +369,6 @@ const handleAdminSend = () => {
   }
 }
 
-/* 左欄：客戶對話列表 */
 .cs-sidebar-col {
   background-color: #faf8f5;
   border-right: 1px solid #e8e2da;
@@ -541,7 +533,6 @@ const handleAdminSend = () => {
   flex-shrink: 0;
 }
 
-/* 中欄：主對話視窗 */
 .cs-main-header {
   padding: 18px 24px;
   border-bottom: 1px solid #ede8e1;
@@ -673,7 +664,6 @@ const handleAdminSend = () => {
   padding: 11px 24px;
 }
 
-/* 右欄：客戶檔案區 */
 .cs-profile-col {
   padding: 22px 20px;
   border-left: 1px solid #ede8e1;
