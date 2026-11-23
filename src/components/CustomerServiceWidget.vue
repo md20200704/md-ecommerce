@@ -1,14 +1,17 @@
 <template>
   <div class="cs-widget-wrapper">
-    <!-- 懸浮客服圓形按鈕 -->
+    <!-- 懸浮客服圓形按鈕（極簡精品線條圖標） -->
     <button
       v-if="!isOpen"
       type="button"
       class="cs-fab-btn shadow-lg d-flex align-items-center justify-content-center position-relative"
       @click="handleOpenWidget"
-      title="聯絡線上客服"
+      title="聯絡線上風格客服"
+      aria-label="聯絡線上風格客服"
     >
-      <span style="font-size: 24px;">💬</span>
+      <span class="cs-fab-inner-ring d-flex align-items-center justify-content-center">
+        <MessageCircle :stroke-width="1.8" style="width: 23px; height: 23px;" />
+      </span>
       <span
         v-if="authStore.isLoggedIn && chatStore.customerUnreadCount > 0"
         class="cs-unread-badge font-monospace"
@@ -25,7 +28,7 @@
           <span class="cs-online-dot"></span>
           <div class="d-flex flex-column">
             <div class="fw-bold font-serif text-white" style="font-size: 15px; letter-spacing: 0.06em; line-height: 1.35;">
-              M&D 線上風格客服
+              M&amp;D 線上風格客服
             </div>
             <div class="text-white-50 font-monospace mt-1" style="font-size: 11px; line-height: 1.2;">
               {{ authStore.isLoggedIn ? `目前帳號：${authStore.user?.name || authStore.user?.id}` : '請先登入會員以開始對話' }}
@@ -43,8 +46,10 @@
       <!-- 2. 中間訊息捲動區 -->
       <div ref="chatScrollRef" class="cs-widget-body flex-grow-1 overflow-auto d-flex flex-column">
         <div class="text-center my-2">
-          <span class="cs-welcome-pill font-monospace">
-            {{ authStore.isLoggedIn ? '👋 您好！可輸入問題或點擊左下角 📷 傳送圖片' : '🔒 登入會員後即可檢視您的專屬客服紀錄' }}
+          <span class="cs-welcome-pill font-monospace d-inline-flex align-items-center gap-1.5">
+            <Sparkles v-if="authStore.isLoggedIn" style="width: 13px; height: 13px; color: #9b7e68;" />
+            <Lock v-else style="width: 13px; height: 13px; color: #9b7e68;" />
+            <span>{{ authStore.isLoggedIn ? '您好！可輸入問題或點擊左下角傳送圖片' : '登入會員後即可檢視您的專屬客服紀錄' }}</span>
           </span>
         </div>
 
@@ -107,7 +112,7 @@
             title="上傳圖片"
             @click="triggerFileSelect"
           >
-            📷
+            <ImagePlus :stroke-width="1.8" style="width: 17px; height: 17px; color: #5c534c;" />
           </button>
 
           <input
@@ -151,6 +156,7 @@
 
 <script setup>
 import { ref, nextTick, watch } from 'vue'
+import { MessageCircle, ImagePlus, Sparkles, Lock } from 'lucide-vue-next'
 import { useChatStore } from '../stores/chatStore'
 import { useAuthStore } from '../stores/authStore'
 import { showToast } from '../composables/useToast'
@@ -294,25 +300,41 @@ const handleSend = async () => {
 }
 
 .cs-fab-btn {
-  width: 58px;
-  height: 58px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background-color: #2d2621;
-  border: 2px solid #ffffff;
-  color: #ffffff;
+  background: linear-gradient(145deg, #352d27 0%, #231d19 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  color: #f7f3ee;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 0;
+  box-shadow: 0 8px 24px rgba(45, 38, 33, 0.22);
+  transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.22s ease, background 0.22s ease;
+}
+
+.cs-fab-inner-ring {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 163, 115, 0.35);
+  transition: border-color 0.22s ease, transform 0.22s ease;
 }
 
 .cs-fab-btn:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(45, 38, 33, 0.28);
+}
+
+.cs-fab-btn:hover .cs-fab-inner-ring {
+  border-color: rgba(212, 163, 115, 0.75);
+  transform: scale(1.04);
 }
 
 .cs-unread-badge {
   position: absolute;
   top: -2px;
   right: -2px;
-  background-color: #dc3545;
+  background-color: #b85042;
   color: #ffffff;
   border: 2px solid #ffffff;
   border-radius: 999px;
@@ -358,7 +380,6 @@ const handleSend = async () => {
 }
 
 .cs-welcome-pill {
-  display: inline-block;
   background-color: #ffffff;
   color: #70665f;
   border: 1px solid #e8e2da;
@@ -436,8 +457,8 @@ const handleSend = async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
   cursor: pointer;
+  padding: 0;
   transition: all 0.15s ease;
 }
 
