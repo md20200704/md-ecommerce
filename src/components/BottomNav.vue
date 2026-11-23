@@ -1,7 +1,6 @@
 <template>
   <nav class="bottom-nav-fixed d-lg-none bg-white border-top shadow-lg">
     <div class="d-flex align-items-center justify-content-around py-2 px-1">
-      <!-- 1. 首頁 -->
       <router-link
         to="/"
         class="bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1"
@@ -11,7 +10,6 @@
         <span style="font-size: 10.5px;">首頁</span>
       </router-link>
 
-      <!-- 2. 分類選購（點擊直接觸發開啟大分類 → 小分類選單） -->
       <button
         type="button"
         class="btn btn-link bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1 p-0"
@@ -22,7 +20,6 @@
         <span style="font-size: 10.5px;">分類選購</span>
       </button>
 
-      <!-- 3. 購物袋 -->
       <button
         type="button"
         class="btn btn-link bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1 p-0 position-relative text-muted"
@@ -31,15 +28,14 @@
         <ShoppingBag style="width: 19px; height: 19px;" class="text-dark" />
         <span class="text-dark" style="font-size: 10.5px;">購物袋</span>
         <span
-          v-if="cartStore.totalCount > 0"
+          v-if="cartStore.totalBagCount > 0"
           class="position-absolute top-0 start-50 translate-middle-y badge rounded-pill bg-dark text-white font-monospace"
           style="font-size: 9.5px; padding: 2px 5px; margin-left: 6px; margin-top: -2px;"
         >
-          {{ cartStore.totalCount }}
+          {{ cartStore.totalBagCount }}
         </span>
       </button>
 
-      <!-- 4. 會員中心 -->
       <router-link
         to="/profile"
         class="bottom-nav-item text-decoration-none d-flex flex-column align-items-center gap-1"
@@ -49,7 +45,6 @@
         <span style="font-size: 10.5px;">會員中心</span>
       </router-link>
 
-      <!-- 5. 後台管理 -->
       <router-link
         v-if="authStore.isAdmin"
         to="/admin"

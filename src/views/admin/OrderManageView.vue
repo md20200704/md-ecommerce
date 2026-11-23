@@ -1,17 +1,15 @@
 <template>
   <div class="d-flex flex-column gap-4 w-100" style="min-width: 0; overflow-x: hidden;">
-    <!-- 頂部頁頭 -->
     <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 px-1">
       <div>
         <h1 class="h4 fw-bold text-dark font-serif mb-1">訂單與超商物流管理</h1>
-        <p class="small text-muted mb-0">管理 LINE Pay 付款訂單、填入超商寄件編號，並更新「已到店／已取件／已退回」物流狀態</p>
+        <p class="small text-muted mb-0">管理 LINE Pay 付款訂單、填入 7-11 寄件編號，並更新「已到店／已取件／已退回」物流狀態</p>
       </div>
       <span class="badge bg-white text-dark border px-3.5 py-2 rounded-pill font-monospace small shadow-2xs">
         全站總訂單：{{ allOrders.length }} 筆
       </span>
     </div>
 
-    <!-- 顧客申請取消訂單即時通知橫幅 -->
     <div
       v-if="pendingCancelOrders.length > 0"
       class="alert alert-warning rounded-4 border-warning p-3.5 mb-0 shadow-2xs d-flex flex-column gap-2"
@@ -63,7 +61,6 @@
       </div>
     </div>
 
-    <!-- 1. 訂單狀態流程篩選條 -->
     <div class="card-korean p-3 p-md-4 bg-white">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 pb-2 border-bottom">
         <div class="d-flex align-items-center gap-2">
@@ -117,7 +114,6 @@
       </div>
     </div>
 
-    <!-- 2. 進階搜尋與篩選工具列 -->
     <div class="card-korean p-3.5 px-4 bg-white rounded-4 border shadow-xs">
       <div class="row g-3 align-items-center">
         <div class="col-12 col-md-5">
@@ -134,7 +130,7 @@
           <label class="form-label text-secondary mb-1" style="font-size: 11px;">配送方式篩選</label>
           <select v-model="tempShippingFilter" class="form-select form-select-sm rounded-pill font-monospace py-2">
             <option value="ALL">全部配送方式</option>
-            <option value="CVS">7-11 / 全家超取</option>
+            <option value="CVS">7-11 超商純取貨</option>
             <option value="HOME">黑貓宅配到府</option>
           </select>
         </div>
@@ -160,7 +156,6 @@
       </div>
     </div>
 
-    <!-- 3. 訂單列表區 -->
     <div class="d-flex flex-column gap-3">
       <div class="d-flex justify-content-between align-items-center px-1">
         <div class="d-flex align-items-center gap-2">
@@ -190,7 +185,6 @@
         </div>
       </div>
 
-      <!-- 單筆訂單卡片 -->
       <div v-if="filteredOrders.length > 0" class="d-flex flex-column gap-3.5">
         <div
           v-for="ord in filteredOrders"
@@ -198,7 +192,6 @@
           class="minimal-order-card bg-white rounded-4 border overflow-hidden"
           :class="{ 'is-open': isOrderExpanded(ord.orderId || ord.id) }"
         >
-          <!-- 收合標頭列 -->
           <div
             class="minimal-order-header"
             @click="toggleOrderExpand(ord.orderId || ord.id)"
@@ -279,10 +272,7 @@
             </div>
           </div>
 
-          <!-- ==================== 展開後的整筆訂單完整明細區 ==================== -->
           <div v-show="isOrderExpanded(ord.orderId || ord.id)" class="minimal-order-body border-top">
-            
-            <!-- 區塊 A：金流與物流狀態列 -->
             <div class="order-meta-bar">
               <div class="d-flex flex-wrap align-items-center" style="gap: 12px 20px; font-size: 12.5px;">
                 <span class="font-monospace text-secondary">
@@ -292,7 +282,7 @@
                   </span>
                 </span>
                 <span class="font-monospace text-secondary">
-                  配送：<strong class="text-dark">{{ (ord.shippingMethod || ord.shippingType) === 'CVS' ? `超商純取貨 (${ord.logisticsSubType || '超商'})` : '黑貓宅配' }}</strong>
+                  配送：<strong class="text-dark">{{ (ord.shippingMethod || ord.shippingType) === 'CVS' ? '7-11 超商純取貨' : '黑貓宅配' }}</strong>
                 </span>
                 <span class="font-monospace text-secondary">
                   寄件編號：<strong class="text-dark">{{ ord.trackingNumber || ord.trackingCode || '尚未填寫' }}</strong>
@@ -312,7 +302,6 @@
               </div>
             </div>
 
-            <!-- 區塊 B：購買商品清單 -->
             <div class="mb-4">
               <div class="section-sub-label font-monospace mb-2.5">
                 1. 購買商品項目明細 (ITEMS)
@@ -360,7 +349,6 @@
               </div>
             </div>
 
-            <!-- 區塊 C：整筆訂單金額計算明細表 -->
             <div class="mb-4">
               <div class="section-sub-label font-monospace mb-2.5">
                 2. 整筆訂單金額計算明細 (PRICE CALCULATION)
@@ -422,12 +410,11 @@
               </div>
             </div>
 
-            <!-- 區塊 D：收件門市資訊與路線 B 超商物流狀態操作區 -->
             <div class="order-foot-bar">
               <div class="text-muted font-monospace" style="font-size: 12px;">
-                <div>收件資訊：{{ ord.recipientName }} · {{ ord.shippingAddress || '超商門市取貨' }}</div>
+                <div>收件資訊：{{ ord.recipientName }} · {{ ord.shippingAddress || '7-11 門市取貨' }}</div>
                 <div v-if="ord.storeId || ord.storeName" class="text-dark mt-1">
-                  指定門市：{{ ord.logisticsSubType || '超商' }} {{ ord.storeName }}（店號：{{ ord.storeId }}）
+                  指定門市：7-11 {{ ord.storeName }}（店號：{{ ord.storeId }}）
                 </div>
                 <div v-if="ord.cancelReason" class="text-danger mt-1">
                   取消原因：{{ ord.cancelReason }}
@@ -435,7 +422,6 @@
               </div>
 
               <div class="order-foot-actions">
-                <!-- 步驟 2 & 3：回填寄件編號並標記寄出 -->
                 <button
                   v-if="['待出貨', '處理中', '已付款', '配送中'].includes(ord.status)"
                   type="button"
@@ -446,7 +432,6 @@
                   📦 {{ ord.trackingNumber ? '修改寄件編號' : '填寫寄件編號並寄出' }}
                 </button>
 
-                <!-- 步驟 4：超商貨態人工／半自動推進（已到店 / 已取件 / 已退回） -->
                 <template v-if="(ord.shippingMethod || ord.shippingType) === 'CVS' && ['配送中', '待出貨', '已付款'].includes(ord.status)">
                   <button
                     type="button"
@@ -505,7 +490,6 @@
       </div>
     </div>
 
-    <!-- 填寫寄件編號與出貨 Modal -->
     <div v-if="shipModalState.isOpen" class="position-fixed top-0 start-0 w-100 h-100 modal-backdrop-custom d-flex align-items-center justify-content-center p-3" style="z-index: 1060;">
       <div class="bg-white rounded-4 p-4 shadow-lg w-100" style="max-width: 440px;">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -517,16 +501,16 @@
           訂單編號：#{{ shipModalState.order?.orderId || shipModalState.order?.id }}
         </div>
         <div v-if="shipModalState.order?.storeName" class="small text-dark mb-3 font-monospace bg-light p-2 rounded-3 border">
-          取貨門市：{{ shipModalState.order.logisticsSubType || '超商' }} {{ shipModalState.order.storeName }}（{{ shipModalState.order.storeId }}）
+          取貨門市：7-11 {{ shipModalState.order.storeName }}（{{ shipModalState.order.storeId }}）
         </div>
 
         <div class="mb-3">
-          <label class="form-label text-secondary small mb-1">超商寄件編號 / 托運單號 *</label>
+          <label class="form-label text-secondary small mb-1">7-11 寄件編號 / 物流單號 *</label>
           <input
             v-model="shipModalState.trackingNumber"
             type="text"
             class="form-control form-control-sm font-monospace py-2"
-            placeholder="請貼上超商機台或寄件系統產生的寄件編號"
+            placeholder="請貼上 ibon / 交貨便產生的寄件編號"
           />
         </div>
 
@@ -761,7 +745,7 @@ const submitShipOrder = async () => {
   const orderId = ord.orderId || ord.id
   const tracking = shipModalState.trackingNumber.trim()
   if (!tracking) {
-    showToast('請輸入超商寄件編號或物流單號！', 'warning', '請填寫單號')
+    showToast('請輸入 7-11 寄件編號或物流單號！', 'warning', '請填寫單號')
     return
   }
 

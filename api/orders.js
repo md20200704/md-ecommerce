@@ -9,7 +9,6 @@ export default async function handler(req, res) {
 
     const action = req.query.action || req.body?.action
 
-    // GET：訂單清單、庫存異動紀錄與稽核日誌
     if (req.method === 'GET') {
       if (action === 'logs') {
         if (authUser.role !== 'ADMIN') return res.status(403).json({ success: false, message: '無權限' })
@@ -115,7 +114,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, orders })
     }
 
-    // POST / PUT：訂單狀態流轉（申請取消、核准/駁回取消、出貨、更新超商物流貨態、完成結算、申請退貨）
     if (req.method === 'POST' || req.method === 'PUT') {
       const { orderId } = req.body
 
@@ -224,7 +222,6 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, message: '已標記為配送中並儲存寄件編號' })
       }
 
-      // 路線 B：人工更新超商貨態（ARRIVED 已到店 / PICKED_UP 已取件 / RETURNED 已退回）
       if (action === 'update-shipping-status') {
         if (authUser.role !== 'ADMIN') return res.status(403).json({ success: false, message: '無權限' })
         const { shippingStatus, trackingNumber } = req.body
@@ -264,7 +261,6 @@ export default async function handler(req, res) {
 
           let earnedPoints = Number(ord.earned_points || 0)
 
-          // 已取件：自動結算 VIP 累積消費與紅利點數
           if (shippingStatus === 'PICKED_UP' && !ord.rewards_settled && ord.user_id) {
             const userRes = await client.query(`SELECT * FROM users WHERE id = $1 FOR UPDATE`, [ord.user_id])
             const u = userRes.rows[0]
@@ -294,7 +290,6 @@ export default async function handler(req, res) {
             }
           }
 
-          // 已退回：累計未取貨次數（達 2 次自動標記風控管制）
           if (shippingStatus === 'RETURNED' && ord.user_id) {
             await client.query(
               `UPDATE users

@@ -9,8 +9,13 @@ export const useCartStore = defineStore('cartStore', () => {
   const items = ref([])
   const isOpen = ref(false)
 
-  const openDrawer = () => { isOpen.value = true }
-  const closeDrawer = () => { isOpen.value = false }
+  const openDrawer = () => {
+    isOpen.value = true
+  }
+
+  const closeDrawer = () => {
+    isOpen.value = false
+  }
 
   const fetchCart = async () => {
     if (!getAuthToken()) return
@@ -111,7 +116,6 @@ export const useCartStore = defineStore('cartStore', () => {
     }
   }
 
-  // 依結帳快照還原各商品的勾選狀態，維持原本選定的結帳商品
   const applySelectedSnapshot = (selectedIds = []) => {
     if (!Array.isArray(selectedIds)) return
     const selectedSet = new Set(selectedIds)
@@ -130,8 +134,19 @@ export const useCartStore = defineStore('cartStore', () => {
   }
 
   const isAllSelected = computed(() => items.value.length > 0 && items.value.every(i => i.selected))
-  const totalCount = computed(() => items.value.filter(i => i.selected).reduce((sum, i) => sum + i.quantity, 0))
-  const totalPrice = computed(() => items.value.filter(i => i.selected).reduce((sum, i) => sum + getLiveUnitPrice(i) * i.quantity, 0))
+
+  const totalBagCount = computed(() =>
+    items.value.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)
+  )
+
+  const totalCount = computed(() =>
+    items.value.filter(i => i.selected).reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)
+  )
+
+  const totalPrice = computed(() =>
+    items.value.filter(i => i.selected).reduce((sum, i) => sum + getLiveUnitPrice(i) * (Number(i.quantity) || 0), 0)
+  )
+
   const selectedItems = computed(() =>
     items.value.filter(i => i.selected).map(i => {
       const liveProd = (productStore.products || []).find(p => Number(p.id) === Number(i.id))
@@ -157,6 +172,7 @@ export const useCartStore = defineStore('cartStore', () => {
     toggleSelectAll,
     applySelectedSnapshot,
     isAllSelected,
+    totalBagCount,
     totalCount,
     totalPrice,
     selectedItems

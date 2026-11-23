@@ -1,6 +1,5 @@
 <template>
   <div v-if="product" class="container py-4 py-md-5" style="max-width: 1140px;">
-    <!-- 麵包屑導航 -->
     <nav class="small text-muted mb-4" aria-label="breadcrumb">
       <ol class="breadcrumb mb-0">
         <li class="breadcrumb-item"><router-link to="/" class="text-decoration-none text-muted">首頁</router-link></li>
@@ -19,7 +18,6 @@
     </nav>
 
     <div class="row g-4 g-lg-5 mb-5">
-      <!-- 左側多圖輪播 -->
       <div class="col-12 col-md-6">
         <div class="d-flex flex-column gap-3">
           <div
@@ -56,7 +54,6 @@
         </div>
       </div>
 
-      <!-- 右側規格選擇與購買操作 -->
       <div class="col-12 col-md-6 d-flex flex-column">
         <div class="d-flex justify-content-between align-items-center mb-1">
           <span class="text-uppercase small fw-bold" style="color: var(--md-primary); font-size: 11px; letter-spacing: 0.1em;">
@@ -69,19 +66,16 @@
           {{ product.name }}
         </h1>
 
-        <!-- 售價：直接對應後台設定的 price -->
         <div class="d-flex align-items-baseline gap-2 mb-4">
           <span class="fs-4 fw-bold font-monospace" style="color: var(--md-primary);">
             NT$ {{ activePrice.toLocaleString() }}
           </span>
         </div>
 
-        <!-- 富文本與簡述 -->
         <div v-if="product.descriptionHtml" class="small text-secondary mb-3" v-html="product.descriptionHtml"></div>
         <p v-else class="text-secondary small leading-relaxed mb-4">{{ product.description }}</p>
         <hr class="border-stone-200 my-2" />
 
-        <!-- 顏色規格 -->
         <div class="mb-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="small fw-semibold text-dark">選擇顏色：<strong class="text-primary">{{ selectedColor }}</strong></span>
@@ -100,7 +94,6 @@
           </div>
         </div>
 
-        <!-- 尺寸規格與庫存連動 -->
         <div class="mb-4">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="small fw-semibold text-dark">選擇尺寸：<strong class="text-primary">{{ selectedSize }}</strong></span>
@@ -122,17 +115,34 @@
           </div>
         </div>
 
-        <!-- 選購數量 -->
         <div class="mb-4" v-if="!isOutOfStock">
           <label class="small fw-semibold text-dark mb-2 d-block">選購數量：</label>
-          <div class="d-flex align-items-center gap-2" style="width: 140px;">
-            <button class="btn btn-light border btn-sm py-1 px-3 rounded-start" :disabled="quantity <= 1" @click="quantity--">-</button>
-            <input v-model.number="quantity" type="number" readonly class="form-control form-control-sm text-center font-monospace rounded-0 bg-white" />
-            <button class="btn btn-light border btn-sm py-1 px-3 rounded-end" :disabled="currentSku && quantity >= currentSku.stock" @click="quantity++">+</button>
+          <div class="d-inline-flex align-items-center border rounded-pill bg-white overflow-hidden shadow-2xs">
+            <button
+              type="button"
+              class="btn btn-light border-0 rounded-0 px-3 py-1.5 fw-bold text-dark"
+              :disabled="quantity <= 1"
+              @click="quantity = Math.max(1, quantity - 1)"
+            >
+              −
+            </button>
+            <span
+              class="font-monospace fw-bold text-dark text-center select-none px-3 py-1.5"
+              style="min-width: 52px; font-size: 14px;"
+            >
+              {{ quantity }}
+            </span>
+            <button
+              type="button"
+              class="btn btn-light border-0 rounded-0 px-3 py-1.5 fw-bold text-dark"
+              :disabled="currentSku && quantity >= currentSku.stock"
+              @click="quantity = currentSku ? Math.min(currentSku.stock, quantity + 1) : quantity + 1"
+            >
+              +
+            </button>
           </div>
         </div>
 
-        <!-- 加入購物車或補貨提醒 -->
         <div class="d-flex gap-3 mb-4">
           <button
             v-if="!isOutOfStock"
@@ -181,7 +191,6 @@
       </div>
     </div>
 
-    <!-- 顧客真實評價專區 (UGC) -->
     <section class="mt-5 pt-4 border-top">
       <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
@@ -204,7 +213,6 @@
         </div>
       </div>
 
-      <!-- 評分總覽 -->
       <div class="card-korean p-4 bg-white shadow-xs mb-4">
         <div class="row g-4 align-items-center">
           <div class="col-12 col-md-4 text-center border-end-md">
@@ -238,7 +246,6 @@
         </div>
       </div>
 
-      <!-- 評價清單 -->
       <div v-if="productReviews.length === 0" class="card-korean text-center py-5 text-muted bg-white">
         <MessageSquare style="width: 38px; height: 38px;" class="mb-2 opacity-30" />
         <div class="small">此商品目前尚無評價，歡迎完成購買之會員留下第一則心得！</div>
@@ -286,7 +293,6 @@
       </div>
     </section>
 
-    <!-- 評價彈窗 -->
     <ReviewModal
       :is-open="showReviewModal"
       :product-id="product.id"
@@ -296,7 +302,6 @@
       @submitted="onReviewSubmitted"
     />
 
-    <!-- 補貨登記彈窗 -->
     <Teleport to="body">
       <div
         v-if="showRestockModal"
@@ -337,7 +342,6 @@
         </div>
       </div>
 
-      <!-- 燈箱預覽 -->
       <div
         v-if="lightboxImg || showLightbox"
         class="position-fixed top-0 start-0 w-100 h-100 bg-black bg-opacity-90 d-flex align-items-center justify-content-center p-3"
@@ -398,7 +402,14 @@ const currentSku = computed(() => {
   return product.value?.skus.find((s) => s.color === selectedColor.value && s.size === selectedSize.value)
 })
 
-// ★ 直接讀取後台設定的 product.price（確保後台改價時詳情頁與加入購物車價格 100% 同步）
+watch(currentSku, (sku) => {
+  if (!sku || sku.stock <= 0) {
+    quantity.value = 1
+  } else if (quantity.value > sku.stock) {
+    quantity.value = sku.stock
+  }
+})
+
 const activePrice = computed(() => Number(product.value?.price ?? product.value?.basePrice ?? 0))
 const isOutOfStock = computed(() => !currentSku.value || currentSku.value.stock <= 0)
 
@@ -420,6 +431,7 @@ const onReviewSubmitted = () => { showReviewModal.value = false }
 
 const initDefaults = () => {
   if (product.value) {
+    quantity.value = 1
     currentImage.value = allImages.value[0] || product.value.image
     const defaultSku = (product.value.skus || []).find((s) => s.stock > 0) || (product.value.skus || [])[0]
     if (defaultSku) {
@@ -477,4 +489,5 @@ const handleAddToCart = () => {
 .ring-2 { outline: 2px solid var(--md-primary); }
 .hover-zoom:hover { transform: scale(1.05); }
 .cursor-pointer { cursor: pointer; }
+.select-none { user-select: none; }
 </style>

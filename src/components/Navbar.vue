@@ -1,10 +1,8 @@
 <template>
   <div>
-    <!-- 固定在最上方的導覽列 -->
     <header class="navbar-fixed-top bg-white border-bottom shadow-2xs">
       <nav class="navbar-grid-container px-3 px-md-4 px-xl-5 py-2 py-lg-2.5">
 
-        <!-- 1. 最左側：小鹿品牌 Logo + 空一格 + 手寫花體 M & D -->
         <div class="d-flex align-items-center justify-content-start">
           <router-link
             to="/"
@@ -27,7 +25,6 @@
           </router-link>
         </div>
 
-        <!-- 2. 正中央：桌機版動態商品分類選單（RWD 手機版隱藏，改由分層選購抽屜負責） -->
         <ul class="nav d-none d-lg-flex align-items-center justify-content-center gap-2 gap-xl-3 mb-0">
           <li
             v-for="cat in marketingStore.categoryTree"
@@ -48,7 +45,6 @@
               />
             </button>
 
-            <!-- 滑鼠懸停展開細項子分類選單 -->
             <div
               v-if="hasSubcategories(cat)"
               class="dropdown-menu rounded-4 border shadow-sm p-4 nav-mega-menu"
@@ -92,7 +88,6 @@
           </li>
         </ul>
 
-        <!-- 3. 最右側：功能按鈕群（僅在桌機版 d-lg-flex 顯示，RWD 時隱藏） -->
         <div class="d-none d-lg-flex align-items-center justify-content-end gap-2 flex-shrink-0">
           <router-link
             v-if="authStore.isAuthenticated"
@@ -123,13 +118,12 @@
             class="btn btn-light border btn-sm rounded-pill px-3.5 py-1.5 font-monospace position-relative text-nowrap"
             @click="openCartDrawer"
           >
-            購物袋 ({{ cartStore.totalCount || 0 }})
+            購物袋 ({{ cartStore.totalBagCount || 0 }})
           </button>
         </div>
       </nav>
     </header>
 
-    <!-- 頂部佔位高度（防止 Fixed Navbar 蓋住頁面內容） -->
     <div class="navbar-spacer"></div>
   </div>
 </template>
@@ -205,7 +199,6 @@ const goToCategory = (mainCategory, subCategory) => {
   }
 }
 
-/* 品牌 Logo 與「M & D」手寫花體字形（圖片與名稱中間空一格） */
 .brand-logo-link {
   gap: 0.85rem;
   user-select: none;

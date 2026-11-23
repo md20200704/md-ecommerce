@@ -30,10 +30,6 @@ function redirectTo(res, location) {
   res.end()
 }
 
-/**
- * 接收 7-11 官方電子地圖 (emap.presco.com.tw) POST 回傳的門市資訊
- * 並導回前端 /checkout 自動帶入門市代號、名稱與地址
- */
 export default async function handler(req, res) {
   const origin = getPublicOrigin(req)
   const data = { ...(req.query || {}), ...parseFormBody(req) }

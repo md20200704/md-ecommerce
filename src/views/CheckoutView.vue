@@ -7,7 +7,6 @@
       </button>
     </div>
 
-    <!-- 若消費者從 LINE Pay 頁面取消付款導回時的提示 -->
     <div
       v-if="route.query.canceled === '1'"
       class="alert alert-warning rounded-4 border-warning-subtle p-3 mb-4 small font-monospace"
@@ -22,7 +21,6 @@
       ⚠️ 尚未取得 7-11 門市資料，請重新開啟電子地圖選擇取貨門市。
     </div>
 
-    <!-- 風控黑名單攔截警示 -->
     <div
       v-if="currentUser?.riskStatus === 'BLOCK_ORDER'"
       class="alert alert-danger rounded-4 border-danger-subtle p-3 mb-4 small"
@@ -31,7 +29,6 @@
     </div>
 
     <div class="row g-4">
-      <!-- 左側：收件人與配送資訊 -->
       <div class="col-12 col-lg-7">
         <div class="card-korean p-3.5 p-md-4 bg-white rounded-4 border shadow-xs">
           <h2 class="fs-6 fw-bold text-dark mb-3 pb-2 border-bottom">收件人與配送資訊</h2>
@@ -60,7 +57,6 @@
               </select>
             </div>
 
-            <!-- 7-ELEVEN 官方電子地圖自動帶入 -->
             <div v-if="form.shippingMethod === 'CVS'" class="col-12">
               <div class="p-3 rounded-4 border bg-light d-flex flex-column gap-3">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
@@ -81,7 +77,6 @@
                   </button>
                 </div>
 
-                <!-- 已帶入的 7-11 門市結果卡片與欄位 -->
                 <div class="p-3 rounded-3 border bg-white d-flex flex-column gap-2">
                   <div class="d-flex align-items-center justify-content-between">
                     <span class="font-monospace fw-bold" :class="form.storeId ? 'text-success' : 'text-secondary'" style="font-size: 11.5px;">
@@ -131,7 +126,6 @@
               </div>
             </div>
 
-            <!-- 宅配到府地址輸入 -->
             <div v-else class="col-12">
               <label class="form-label text-secondary mb-1">宅配收件地址 *</label>
               <input v-model="form.shippingAddress" required type="text" class="form-control form-control-sm" placeholder="請輸入完整縣市、區、街道地址" />
@@ -150,7 +144,6 @@
         </div>
       </div>
 
-      <!-- 右側：已選結帳商品、優惠券與紅利折抵 -->
       <div class="col-12 col-lg-5">
         <div class="card-korean p-3.5 p-md-4 bg-white rounded-4 border shadow-xs sticky-lg-top" style="top: 90px;">
           <h2 class="fs-6 fw-bold text-dark mb-3 pb-2 border-bottom">已選結帳商品 ({{ checkoutItems.length }} 項)</h2>
@@ -195,7 +188,6 @@
             </div>
           </div>
 
-          <!-- 優惠券與紅利點數折抵區塊 -->
           <div v-if="checkoutItems.length > 0" class="p-3 bg-light rounded-3 border mb-4 d-flex flex-column gap-3 small font-monospace">
             <div>
               <label class="form-label text-dark fw-bold mb-1" style="font-size: 11.5px;">選擇或輸入優惠券</label>
@@ -261,7 +253,6 @@
             </div>
           </div>
 
-          <!-- 費用計算明細 -->
           <div class="d-flex flex-column gap-2 small font-monospace pt-2 border-top">
             <div class="d-flex justify-content-between">
               <span class="text-muted">已選商品小計</span>
@@ -321,6 +312,7 @@ const isSubmitting = ref(false)
 const checkoutItems = computed(() => cartStore.selectedItems)
 const pendingSelectedIds = ref(null)
 const hasAppliedSnapshot = ref(false)
+const isReturningFromMap = ref(route.query.cvsSelected === '1')
 
 const removeCheckoutItem = (cartItemId) => {
   cartStore.removeItem(cartItemId)
@@ -389,7 +381,7 @@ const open711OfficialMap = () => {
 }
 
 const tryRestoreSelectedSnapshot = () => {
-  if (hasAppliedSnapshot.value) return
+  if (!isReturningFromMap.value || hasAppliedSnapshot.value) return
   if (!Array.isArray(pendingSelectedIds.value)) return
   if (!Array.isArray(cartStore.items) || cartStore.items.length === 0) return
 
@@ -406,38 +398,46 @@ watch(
 )
 
 onMounted(() => {
-  try {
-    const rawDraft = sessionStorage.getItem(CHECKOUT_DRAFT_KEY)
-    if (rawDraft) {
-      const draft = JSON.parse(rawDraft)
-      if (draft.recipientName) form.recipientName = draft.recipientName
-      if (draft.phone) form.phone = draft.phone
-      if (draft.email) form.email = draft.email
-      if (draft.shippingMethod) form.shippingMethod = draft.shippingMethod
-      if (draft.storeId) form.storeId = draft.storeId
-      if (draft.storeName) form.storeName = draft.storeName
-      if (draft.storeAddress) form.storeAddress = draft.storeAddress
-      if (draft.shippingAddress) form.shippingAddress = draft.shippingAddress
-      if (draft.selectedCouponId) selectedCouponId.value = draft.selectedCouponId
-      if (Number.isFinite(Number(draft.pointsToUse))) pointsToUse.value = Number(draft.pointsToUse)
-      if (Array.isArray(draft.selectedItemIds)) {
-        pendingSelectedIds.value = draft.selectedItemIds
-        tryRestoreSelectedSnapshot()
+  if (isReturningFromMap.value) {
+    try {
+      const rawDraft = sessionStorage.getItem(CHECKOUT_DRAFT_KEY)
+      if (rawDraft) {
+        const draft = JSON.parse(rawDraft)
+        if (draft.recipientName) form.recipientName = draft.recipientName
+        if (draft.phone) form.phone = draft.phone
+        if (draft.email) form.email = draft.email
+        if (draft.shippingMethod) form.shippingMethod = draft.shippingMethod
+        if (draft.storeId) form.storeId = draft.storeId
+        if (draft.storeName) form.storeName = draft.storeName
+        if (draft.storeAddress) form.storeAddress = draft.storeAddress
+        if (draft.shippingAddress) form.shippingAddress = draft.shippingAddress
+        if (draft.selectedCouponId) selectedCouponId.value = draft.selectedCouponId
+        if (Number.isFinite(Number(draft.pointsToUse))) pointsToUse.value = Number(draft.pointsToUse)
+        if (Array.isArray(draft.selectedItemIds)) {
+          pendingSelectedIds.value = draft.selectedItemIds
+          tryRestoreSelectedSnapshot()
+        }
       }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
-  }
 
-  if (route.query.cvsSelected === '1' && route.query.storeId) {
-    form.shippingMethod = 'CVS'
-    form.logisticsSubType = '7-11'
-    form.storeId = String(route.query.storeId || '')
-    form.storeName = String(route.query.storeName || '')
-    form.storeAddress = String(route.query.storeAddress || '')
-    saveCheckoutDraft()
-    showToast(`已自動帶入 7-11 門市：${form.storeName} (${form.storeId})`, 'success', '7-11 門市已選取')
+    if (route.query.storeId) {
+      form.shippingMethod = 'CVS'
+      form.logisticsSubType = '7-11'
+      form.storeId = String(route.query.storeId || '')
+      form.storeName = String(route.query.storeName || '')
+      form.storeAddress = String(route.query.storeAddress || '')
+      saveCheckoutDraft()
+      showToast(`已自動帶入 7-11 門市：${form.storeName} (${form.storeId})`, 'success', '7-11 門市已選取')
+    }
     router.replace({ path: '/checkout' })
+  } else {
+    try {
+      sessionStorage.removeItem(CHECKOUT_DRAFT_KEY)
+    } catch {
+      // ignore
+    }
   }
 })
 

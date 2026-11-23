@@ -31,10 +31,8 @@ export default async function handler(req, res) {
     let finalAmount = Math.round(Number(clientAmount || 0))
     let packages = clientPackages
 
-    // 若前端有傳入 orderDraft，則於 PostgreSQL 建立待付款訂單並核對金額
     if (orderDraft && Array.isArray(orderDraft.items) && orderDraft.items.length > 0) {
       const dbResult = await withTransaction(async (client) => {
-        // 檢查會員風控狀態
         if (authUser?.id) {
           const uRes = await client.query(`SELECT risk_status FROM users WHERE id = $1`, [authUser.id])
           if (['BLOCK_ORDER', 'BANNED'].includes(uRes.rows[0]?.risk_status)) {
@@ -47,7 +45,6 @@ export default async function handler(req, res) {
           throw new Error('選擇超商純取貨時，請完整填寫超商門市代號與門市名稱')
         }
 
-        // 以資料庫最新商品售價與成本為準
         let subtotal = 0
         const verifiedItems = []
         for (const item of orderDraft.items) {
@@ -87,9 +84,8 @@ export default async function handler(req, res) {
         const shippingFee = isCvs ? 60 : 100
         const totalAmount = Math.max(0, subtotal - couponDiscount - pointsUsed) + shippingFee
 
-        const cvsBrandLabel = orderDraft.logisticsSubType === 'FAMILY' ? '全家' : '7-11'
         const formattedAddress = isCvs
-          ? `[${cvsBrandLabel}] ${String(orderDraft.storeName).trim()} (${String(orderDraft.storeId).trim()})${orderDraft.storeAddress ? ` - ${String(orderDraft.storeAddress).trim()}` : ''}`
+          ? `[7-11] ${String(orderDraft.storeName).trim()} (${String(orderDraft.storeId).trim()})${orderDraft.storeAddress ? ` - ${String(orderDraft.storeAddress).trim()}` : ''}`
           : orderDraft.shippingAddress
 
         await client.query(
@@ -115,7 +111,7 @@ export default async function handler(req, res) {
             totalAmount,
             isCvs ? 'CVS' : 'HOME',
             formattedAddress,
-            isCvs ? (orderDraft.logisticsSubType || '7-11') : null,
+            isCvs ? '7-11' : null,
             isCvs ? String(orderDraft.storeId).trim() : null,
             isCvs ? String(orderDraft.storeName).trim() : null,
             isCvs ? String(orderDraft.storeAddress || '').trim() : null
