@@ -12,7 +12,7 @@
         >
           <span>☰ 選單</span>
         </button>
-        <span class="fw-bold font-serif tracking-wide" style="letter-spacing: 0.05em; font-size: 14.5px;">M&D SELECT 後台管理</span>
+        <span class="fw-bold font-serif tracking-wide" style="letter-spacing: 0.05em; font-size: 14.5px;">M&amp;D SELECT 後台管理</span>
       </div>
       <router-link
         to="/"
@@ -33,15 +33,15 @@
 
     <!-- 左側管理導覽列 -->
     <aside
-      class="admin-sidebar bg-white border-end d-flex flex-column justify-content-between p-4 flex-shrink-0"
+      class="admin-sidebar bg-white border-end d-flex flex-column justify-content-between p-3 p-lg-3.5 flex-shrink-0"
       :class="{ 'show-mobile-sidebar': mobileMenuOpen }"
     >
-      <div>
+      <div class="d-flex flex-column flex-grow-1 min-h-0">
         <!-- 品牌標頭 -->
-        <div class="d-flex align-items-center justify-content-between pb-3.5 mb-3.5 border-bottom">
+        <div class="d-flex align-items-center justify-content-between pb-2.5 mb-2.5 border-bottom flex-shrink-0">
           <div>
             <router-link to="/" class="text-decoration-none text-dark fw-bold fs-5 font-serif d-block" style="letter-spacing: 0.08em;">
-              M&D SELECT
+              M&amp;D SELECT
             </router-link>
             <span class="text-muted font-monospace" style="font-size: 10px; letter-spacing: 0.06em;">BACKOFFICE ARCHIVE</span>
           </div>
@@ -52,12 +52,12 @@
           ></button>
         </div>
 
-        <!-- 功能選單列表 -->
-        <ul class="nav nav-pills flex-column gap-2 small font-sans">
+        <!-- 功能選單列表（空間不足時僅在列表內部捲動，不擠壓底部按鈕） -->
+        <ul class="nav nav-pills flex-column gap-1.5 small font-sans overflow-y-auto no-scrollbar pe-0.5 flex-grow-1">
           <li v-for="item in navItems" :key="item.path" class="nav-item">
             <router-link
               :to="item.path"
-              class="admin-sidebar-btn nav-link rounded-pill py-2.5 px-3.5 d-flex align-items-center justify-content-between"
+              class="admin-sidebar-btn nav-link rounded-pill py-2 px-3 d-flex align-items-center justify-content-between"
               :class="{ 'active-menu': isActiveRoute(item.path) }"
               @click="mobileMenuOpen = false"
             >
@@ -68,8 +68,8 @@
         </ul>
       </div>
 
-      <!-- 底部返回前台與登出按鈕 -->
-      <div class="pt-3 border-top mt-4 d-flex flex-column gap-2">
+      <!-- 底部返回前台與登出按鈕（固定於左側面板底部） -->
+      <div class="pt-2.5 border-top mt-2 d-flex flex-column gap-2 flex-shrink-0 bg-white">
         <router-link
           to="/"
           class="btn btn-outline-dark btn-sm w-100 rounded-pill py-2 font-monospace fw-semibold shadow-2xs"
@@ -101,8 +101,6 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/authStore'
 import { showConfirm } from '../../composables/useConfirm'
-
-
 
 const route = useRoute()
 const router = useRouter()
@@ -146,6 +144,16 @@ const handleAdminLogout = async () => {
   width: 260px;
   border-right-color: var(--md-border, #ede8e1) !important;
   background-color: var(--md-surface, #ffffff) !important;
+}
+
+@media (min-width: 992px) {
+  .admin-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
 }
 
 @media (max-width: 991.98px) {

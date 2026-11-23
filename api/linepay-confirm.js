@@ -49,7 +49,7 @@ export default async function handler(req, res) {
       })
     }
 
-    // 付款成功：原子化更新訂單、扣減 SKU 庫存（歸零自動下架）、核銷優惠券與點數、清空已結帳購物車
+    // 付款成功：以付款完成當下作為訂單成立時間 (created_at = NOW())，並原子化扣庫存、核銷優惠券與點數、清空已結帳購物車
     const targetOrderId = orderId || data.info?.orderId
     if (targetOrderId) {
       await withTransaction(async (client) => {
@@ -58,7 +58,11 @@ export default async function handler(req, res) {
         if (!ord || ord.payment_status === 'PAID') return
 
         await client.query(
-          `UPDATE orders SET status = '待出貨', payment_status = 'PAID' WHERE order_id = $1`,
+          `UPDATE orders
+           SET status = '待出貨',
+               payment_status = 'PAID',
+               created_at = NOW()
+           WHERE order_id = $1`,
           [targetOrderId]
         )
 

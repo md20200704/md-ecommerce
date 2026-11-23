@@ -1,5 +1,22 @@
 import { pool, query, withTransaction, verifyAuth, getClientIp, writeAuditLog } from './_lib/db.js'
 
+function formatTaipeiDateTime(val) {
+  if (!val) return ''
+  const date = val instanceof Date ? val : new Date(val)
+  if (Number.isNaN(date.getTime())) return String(val).slice(0, 16).replace('T', ' ')
+  const parts = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(date)
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]))
+  return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}`
+}
+
 export default async function handler(req, res) {
   try {
     const authUser = verifyAuth(req)
@@ -24,7 +41,7 @@ export default async function handler(req, res) {
             ip: a.ip,
             action: a.action,
             detail: a.detail,
-            createdAt: a.created_at.toISOString().slice(0, 16).replace('T', ' ')
+            createdAt: formatTaipeiDateTime(a.created_at)
           })),
           stockLogs: stockRes.rows.map(s => ({
             id: s.id,
@@ -34,7 +51,7 @@ export default async function handler(req, res) {
             afterStock: Number(s.after_stock),
             reason: s.reason,
             operator: s.operator,
-            createdAt: s.created_at.toISOString().slice(0, 16).replace('T', ' ')
+            createdAt: formatTaipeiDateTime(s.created_at)
           }))
         })
       }
@@ -74,7 +91,7 @@ export default async function handler(req, res) {
             status: r.status,
             reason: `[${r.reason_type}] ${r.detail_reason}`,
             images: Array.isArray(r.images_json) ? r.images_json : [],
-            createdAt: r.created_at.toISOString().slice(0, 16).replace('T', ' ')
+            createdAt: formatTaipeiDateTime(r.created_at)
           }
         }
       }
@@ -107,7 +124,7 @@ export default async function handler(req, res) {
         trackingNumber: o.tracking_number || '',
         cancelReason: o.cancel_reason || '',
         returnRequest: returnsMap[o.order_id] || null,
-        createdAt: o.created_at.toISOString().slice(0, 16).replace('T', ' '),
+        createdAt: formatTaipeiDateTime(o.created_at),
         items: itemsMap[o.order_id] || []
       }))
 

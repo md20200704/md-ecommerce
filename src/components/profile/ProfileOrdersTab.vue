@@ -103,7 +103,7 @@
                 #{{ ord.orderId || ord.id }}
               </span>
               <span class="text-muted font-monospace" style="font-size: 12px;">
-                下單時間：{{ ord.createdAt || ord.date }}
+                付款成立時間：{{ ord.createdAt || ord.date }}
               </span>
             </div>
 
