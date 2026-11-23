@@ -319,9 +319,15 @@ const authStore = useAuthStore()
 
 const isSubmitting = ref(false)
 const checkoutItems = computed(() => cartStore.selectedItems)
+const pendingSelectedIds = ref(null)
+const hasAppliedSnapshot = ref(false)
 
 const removeCheckoutItem = (cartItemId) => {
   cartStore.removeItem(cartItemId)
+  if (Array.isArray(pendingSelectedIds.value)) {
+    pendingSelectedIds.value = pendingSelectedIds.value.filter(id => id !== cartItemId)
+    saveCheckoutDraft()
+  }
 }
 
 const form = reactive({
@@ -349,6 +355,10 @@ const pointsToUse = ref(0)
 
 const saveCheckoutDraft = () => {
   try {
+    const idsToSave = Array.isArray(pendingSelectedIds.value)
+      ? pendingSelectedIds.value
+      : checkoutItems.value.map(i => i.cartItemId)
+
     sessionStorage.setItem(
       CHECKOUT_DRAFT_KEY,
       JSON.stringify({
@@ -361,7 +371,8 @@ const saveCheckoutDraft = () => {
         storeAddress: form.storeAddress,
         shippingAddress: form.shippingAddress,
         selectedCouponId: selectedCouponId.value,
-        pointsToUse: pointsToUse.value
+        pointsToUse: pointsToUse.value,
+        selectedItemIds: idsToSave
       })
     )
   } catch {
@@ -370,11 +381,29 @@ const saveCheckoutDraft = () => {
 }
 
 const open711OfficialMap = () => {
+  pendingSelectedIds.value = checkoutItems.value.map(i => i.cartItemId)
   saveCheckoutDraft()
   const callbackUrl = `${window.location.origin}/api/cvs-map-callback`
   const mapUrl = `https://emap.presco.com.tw/c2cemap.ashx?eshopid=870&&servicetype=1&url=${encodeURIComponent(callbackUrl)}`
   window.location.href = mapUrl
 }
+
+const tryRestoreSelectedSnapshot = () => {
+  if (hasAppliedSnapshot.value) return
+  if (!Array.isArray(pendingSelectedIds.value)) return
+  if (!Array.isArray(cartStore.items) || cartStore.items.length === 0) return
+
+  cartStore.applySelectedSnapshot(pendingSelectedIds.value)
+  hasAppliedSnapshot.value = true
+}
+
+watch(
+  () => cartStore.items,
+  () => {
+    tryRestoreSelectedSnapshot()
+  },
+  { deep: true, immediate: true }
+)
 
 onMounted(() => {
   try {
@@ -391,6 +420,10 @@ onMounted(() => {
       if (draft.shippingAddress) form.shippingAddress = draft.shippingAddress
       if (draft.selectedCouponId) selectedCouponId.value = draft.selectedCouponId
       if (Number.isFinite(Number(draft.pointsToUse))) pointsToUse.value = Number(draft.pointsToUse)
+      if (Array.isArray(draft.selectedItemIds)) {
+        pendingSelectedIds.value = draft.selectedItemIds
+        tryRestoreSelectedSnapshot()
+      }
     }
   } catch {
     // ignore

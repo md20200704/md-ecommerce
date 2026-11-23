@@ -111,6 +111,24 @@ export const useCartStore = defineStore('cartStore', () => {
     }
   }
 
+  // 依結帳快照還原各商品的勾選狀態，維持原本選定的結帳商品
+  const applySelectedSnapshot = (selectedIds = []) => {
+    if (!Array.isArray(selectedIds)) return
+    const selectedSet = new Set(selectedIds)
+    items.value.forEach(item => {
+      const nextSelected = selectedSet.has(item.cartItemId)
+      if (item.selected !== nextSelected) {
+        item.selected = nextSelected
+        if (getAuthToken()) {
+          apiRequest('/api/cart', {
+            method: 'PUT',
+            body: JSON.stringify({ cartItemId: item.cartItemId, selected: nextSelected })
+          }).catch(() => {})
+        }
+      }
+    })
+  }
+
   const isAllSelected = computed(() => items.value.length > 0 && items.value.every(i => i.selected))
   const totalCount = computed(() => items.value.filter(i => i.selected).reduce((sum, i) => sum + i.quantity, 0))
   const totalPrice = computed(() => items.value.filter(i => i.selected).reduce((sum, i) => sum + getLiveUnitPrice(i) * i.quantity, 0))
@@ -137,6 +155,7 @@ export const useCartStore = defineStore('cartStore', () => {
     removeItem,
     toggleItemSelect,
     toggleSelectAll,
+    applySelectedSnapshot,
     isAllSelected,
     totalCount,
     totalPrice,
