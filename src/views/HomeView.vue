@@ -119,7 +119,7 @@
           </div>
         </div>
 
-        <!-- 商品陳列 (手機橫向滑軌 / 平板與桌機 4 欄網格) -->
+        <!-- 商品陳列 (手機 2 欄垂直往下排列 / 平板 3 欄 / 桌機 4 欄網格) -->
         <div v-if="currentFeaturedProducts.length > 0" class="featured-products-container">
           <div class="featured-grid-row">
             <div
@@ -532,38 +532,32 @@ const publishedProducts = computed(() => {
 
 .featured-grid-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
 }
 
 @media (max-width: 991.98px) {
   .featured-grid-row {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.75rem;
   }
 }
 
-/* 手機版橫向滑軌 */
+/* 手機版改為由上往下垂直網格排列（2 欄並排往下延伸，免左右滑動） */
 @media (max-width: 767.98px) {
   .featured-products-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 0.5rem;
-    margin: 0 -0.5rem;
-    padding: 0 0.5rem 0.5rem;
-    scroll-snap-type: x mandatory;
+    overflow: visible;
   }
 
   .featured-grid-row {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 0.65rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
   }
 
   .featured-grid-col {
-    flex: 0 0 70vw;
-    max-width: 250px;
-    scroll-snap-align: start;
+    width: 100%;
+    min-width: 0;
   }
 }
 
