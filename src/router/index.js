@@ -15,6 +15,7 @@ import CategoryView from '../views/CategoryView.vue'
 import { useAuthStore } from '../stores/authStore'
 import CustomerServiceView from '../views/admin/CustomerServiceView.vue'
 import { showToast } from '../composables/useToast'
+import PolicyView from '../views/PolicyView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -66,6 +67,11 @@ export const router = createRouter({
     {
       path: '/:pathMatch(.*)*',
       redirect: '/'
+    },
+    {
+      path: '/policy/:tab?',
+      name: 'policy',
+      component: PolicyView
     }
   ],
   scrollBehavior() {

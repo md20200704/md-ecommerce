@@ -15,7 +15,14 @@
       :class="{ 'mb-5 pb-4 d-lg-block': !isAdminRoute }"
     >
       <div class="container">
-        <div class="fw-bold text-dark font-serif mb-1" style="letter-spacing: 0.08em;">MD.SELECT</div>
+        <div class="d-flex justify-content-center flex-wrap gap-3 mb-2">
+          <router-link to="/policy/returns" class="text-decoration-none text-secondary">退換貨說明</router-link>
+          <span class="text-muted">·</span>
+          <router-link to="/policy/privacy" class="text-decoration-none text-secondary">隱私權政策</router-link>
+          <span class="text-muted">·</span>
+          <router-link to="/policy/shopping" class="text-decoration-none text-secondary">購物須知</router-link>
+        </div>
+        <div class="fw-bold text-dark font-serif mb-1" style="letter-spacing: 0.08em;">M & D SELECT</div>
         <div style="font-size: 11px;">KOREAN MINIMALIST ARCHIVE · ALL RIGHTS RESERVED.</div>
       </div>
     </footer>
